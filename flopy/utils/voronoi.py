@@ -3,17 +3,48 @@ import numpy as np
 from .cvfdutil import get_disv_gridprops
 from .geometry import point_in_polygon
 from .utl_import import import_optional_dependency
+from math import sqrt
 
 
 def get_sorted_vertices(icell_vertices, vertices):
-    centroid = vertices[icell_vertices].mean(axis=0)
+    v = vertices[icell_vertices]
+    centroid = v.mean(axis=0)
     tlist = []
     for i, iv in enumerate(icell_vertices):
         x, y = vertices[iv]
         dx = x - centroid[0]
         dy = y - centroid[1]
         tlist.append((np.arctan2(-dy, dx), iv))
+    # AMP -- convert to dictionary and back again to weed out duplicate angles,
+    # which it's assumed indicate vertices with duplicate coordinates
+    tlist = list(dict(tlist).items())
     tlist.sort()
+    # AMP -- weed out (near-)180-degree-angle vertices, which presumably should
+    # occur only along the outer boundary of the domain
+    for i, (angl1, iv1) in enumerate(tlist):
+        (angl0, iv0) = tlist[(i - 1) % len(tlist)]
+        (angl2, iv2) = tlist[(i + 1) % len(tlist)]
+        x0, y0 = vertices[iv0]
+        x1, y1 = vertices[iv1]
+        x2, y2 = vertices[iv2]
+        s0x = x0 - x1
+        s0y = y0 - y1
+        s0mag = sqrt(s0x * s0x + s0y * s0y)
+        s2x = x2 - x1
+        s2y = y2 - y1
+        s2mag = sqrt(s2x * s2x + s2y * s2y)
+        sinang = (s0x * s2y - s0y * s2x) / (s0mag * s2mag)
+        # AMP -- check for near-180 angle by checking for a small magnitude for
+        # sine of the angle and a negative dot product for the two edge vectors
+        # emanating from the vertex (to distinguish from a near-zero angle);
+        # might be a more efficient way; tolerance for |sin(angle)| is
+        # hardwired to arbitrary value of 0.00001
+        if abs(sinang) < 0.00001:
+            dotprod = s0x * s2x + s0y * s2y
+            if dotprod < 0.:
+                # AMP -- temporary print statement to show what's being weeded out
+                print("removing ", x1, y1, sinang)
+                tlist.remove((angl1, iv1))
     return [iv for angl, iv in tlist]
 
 
@@ -166,7 +197,7 @@ def tri2vor(tri, **kwargs):
             polygon = tri._polygons[ihole + 1]
             nexterior_boundary_markers += len(polygon)
         idx = (tri_edge["boundary_marker"] > 0) & (
-            tri_edge["boundary_marker"] <= nexterior_boundary_markers
+                tri_edge["boundary_marker"] <= nexterior_boundary_markers
         )
         inewvert = len(vor_verts)
         for _, ip0, ip1, _ in tri_edge[idx]:

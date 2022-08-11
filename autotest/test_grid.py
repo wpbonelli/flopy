@@ -873,8 +873,8 @@ def voronoi_grid_2():
     return __voronoi_grid_2()
 
 
-@requires_pkg("shapely", "scipy")
 @flaky
+@requires_pkg("shapely", "scipy")
 @pytest.mark.parametrize(
     "grid_info", [__voronoi_grid_0(), __voronoi_grid_1(), __voronoi_grid_2()]
 )
@@ -899,8 +899,8 @@ def test_voronoi_grid(tmpdir, grid_info):
     #  https://github.com/modflowpy/flopy/issues/1492#issuecomment-1210596349
 
     # ensure proper number of cells
-    almost_right = (ncpl == 538 and gridprops["ncpl"] == 535)
-    assert ncpl == gridprops["ncpl"] or almost_right
+    # almost_right = (ncpl == 538 and gridprops["ncpl"] == 535)
+    assert ncpl == gridprops["ncpl"]
 
     # ensure that all cells have 3 or more points
     ninvalid_cells = []
