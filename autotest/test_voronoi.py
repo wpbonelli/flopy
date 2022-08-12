@@ -64,13 +64,17 @@ def test_double_vertices(rectangular_triangle):
     cell_verts = voronoi_grid.verts[cell]
     cell_x, cell_y = zip(*cell_verts)
 
-    pad = 10
-    axins = zoomed_inset_axes(ax, 4, loc=1)
-    axins.set_xlim(min(cell_x) - pad, max(cell_x) + pad)
-    axins.set_ylim(min(cell_y) - pad, max(cell_y) + pad)
-    mark_inset(ax, axins, loc1=2, loc2=4)
+    # pad = 10
+    # ax.set_xlim(min(cell_x) - pad, max(cell_x) + pad)
+    # ax.set_ylim(min(cell_y) - pad, max(cell_y) + pad)
 
-    plt.draw()
+    # ax.set_xlim(460, 540)
+    # ax.set_ylim(680, 820)
+
+    # zoom to see the extremely close vertices
+    ax.set_xlim(489.621, 489.623)
+    ax.set_ylim(747.877, 747.879)
+
     plt.show()
 
 
