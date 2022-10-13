@@ -22,7 +22,6 @@ Additional dependencies to use optional FloPy helper methods are listed below.
 | `.df()` in `flopy.modflow.mfsfr2` `SfrFile` class                                    | **pandas** >= 0.15.0                                               |
 | `.time_coverage()` in `flopy.export.metadata` `acc` class - ***used if available***  | **pandas** >= 0.15.0                                               |
 | `.loadtxt()` in `flopy.utils.flopyio` - ***used if available***                      | **pandas** >= 0.15.0                                               |
-| `.generate_classes()` in `flopy.mf6.utils`                                           | [**pymake**](https://github.com/modflowpy/pymake)                  |
 | `GridIntersect()` in `flopy.utils.gridintersect`                                     | **shapely**                                                        |
 | `GridIntersect().plot_polygon()` in `flopy.utils.gridintersect`                      | **shapely** and **descartes**                                      |
 | `Raster()` in `flopy.utils.Raster`                                                   | **rasterio**, **rasterstats**, **affine**, and **scipy**                            |

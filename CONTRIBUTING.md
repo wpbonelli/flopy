@@ -66,10 +66,8 @@ Before you submit your Pull Request (PR) consider the following guidelines:
 
     ```shell
     cd autotest
-    pytest -v ci_prepare.py
-    pytest -v
+    pytest -v -n auto
     ```
-   Note: the FloPy test suite requires the [pytest](https://pypi.org/project/pytest/) and [pymake](https://github.com/modflowpy/pymake) python packages. All the FloPy dependencies must also be installed for the tests to pass.
 
 7. Commit your changes using a descriptive commit message that follows our
   [commit message conventions](#commit). Adherence to these conventions

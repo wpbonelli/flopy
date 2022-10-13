@@ -2,8 +2,9 @@ import os
 import shutil
 
 import pytest
-from autotest.conftest import requires_exe, requires_pkg
+from flopy.devtools import compare_budget
 
+from autotest.conftest import requires_exe
 from flopy.modflow import Modflow
 
 
@@ -13,15 +14,12 @@ def swi_path(example_data_path):
 
 
 @requires_exe("mf2005")
-@requires_pkg("pymake")
 @pytest.mark.slow
 @pytest.mark.regression
 @pytest.mark.parametrize(
     "namfile", ["swiex1.nam", "swiex2_strat.nam", "swiex3.nam"]
 )
 def test_mf2005swi2(tmpdir, swi_path, namfile):
-    import pymake
-
     name = namfile.replace(".nam", "")
     ws = str(tmpdir / "ws")
     shutil.copytree(swi_path, ws)
@@ -49,7 +47,7 @@ def test_mf2005swi2(tmpdir, swi_path, namfile):
     fn1 = os.path.join(model_ws2, namfile)
 
     fsum = os.path.join(ws, f"{os.path.splitext(namfile)[0]}.budget.out")
-    success = pymake.compare_budget(
+    success = compare_budget(
         fn0, fn1, max_incpd=0.1, max_cumpd=0.1, outfile=fsum
     )
 

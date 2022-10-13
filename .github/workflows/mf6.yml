@@ -1,4 +1,4 @@
-name: FloPy Modflow6 continuous integration
+name: Modflow6 CI
 
 on:
   schedule:

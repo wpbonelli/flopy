@@ -3,6 +3,8 @@ import shutil
 import tempfile
 import time
 
+from flopy.devtools import download_and_unzip
+
 from .createpackages import create_packages
 
 thisfilepath = os.path.dirname(os.path.abspath(__file__))
@@ -49,25 +51,11 @@ def list_files(pth, exts=["py"]):
 
 
 def download_dfn(branch, new_dfn_pth):
-    pymake = None
-    try:
-        import pymake
-    except:
-        pass
-    if pymake is None:
-        msg = (
-            "Error.  The pymake package must be installed in order to "
-            "generate the MODFLOW 6 classes.  pymake can be installed using "
-            "pip install pymake.  Stopping."
-        )
-        print(msg)
-        return
-
     mf6url = "https://github.com/MODFLOW-USGS/modflow6/archive/{}.zip"
     mf6url = mf6url.format(branch)
     print(f"  Downloading MODFLOW 6 repository from {mf6url}")
     with tempfile.TemporaryDirectory() as tmpdirname:
-        pymake.download_and_unzip(mf6url, tmpdirname)
+        download_and_unzip(mf6url, tmpdirname)
         downloaded_dfn_pth = os.path.join(tmpdirname, f"modflow6-{branch}")
         downloaded_dfn_pth = os.path.join(
             downloaded_dfn_pth, "doc", "mf6io", "mf6ivar", "dfn"

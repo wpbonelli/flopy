@@ -1,4 +1,4 @@
-name: FloPy example script & notebook tests
+name: Example script & notebook tests
 
 on:
   schedule:
@@ -116,8 +116,6 @@ jobs:
         run: |
           conda env update --name flopy --file etc/environment.yml
           python -m pip install --upgrade pip
-          pip install https://github.com/modflowpy/pymake/zipball/master
-          pip install xmipy
           pip install .
 
       - name: Install Modflow executables

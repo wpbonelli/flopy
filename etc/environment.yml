@@ -19,11 +19,15 @@ dependencies:
   - filelock
   - jupyter
   - jupytext
+  - pip
+  - pip:
+    - git+https://github.com/Deltares/xmipy.git
   - pytest
+  - pytest-benchmark
   - pytest-cases
   - pytest-cov
+  - pytest-order
   - pytest-xdist
-  - pytest-benchmark
 
   # optional
   - python-dateutil>=2.4.0

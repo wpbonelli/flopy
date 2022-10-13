@@ -1,4 +1,6 @@
 import pytest
+from flopy.devtools import compare_heads
+
 from autotest.conftest import requires_exe, requires_pkg
 
 from flopy.modflow import Modflow, ModflowOc, ModflowStr
@@ -13,11 +15,8 @@ str_items = {
 
 
 @requires_exe("mf2005")
-@requires_pkg("pymake")
 @pytest.mark.regression
 def test_str_fixed_free(tmpdir, example_data_path):
-    import pymake
-
     mf2005_model_path = example_data_path / "mf2005_test"
 
     m = Modflow.load(
@@ -123,6 +122,6 @@ def test_str_fixed_free(tmpdir, example_data_path):
     # compare the fixed and free format head files
     fn1 = str(tmpdir / "str.nam")
     fn2 = str(tmpdir / "str.nam")
-    assert pymake.compare_heads(
+    assert compare_heads(
         fn1, fn2, verbose=True
     ), "fixed and free format input output head files are different"

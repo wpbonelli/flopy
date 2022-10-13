@@ -2,8 +2,9 @@ import os
 
 import numpy as np
 import pytest
-from autotest.conftest import requires_exe, requires_pkg
+from flopy.devtools import compare_heads, compare_budget
 
+from autotest.conftest import requires_exe
 from flopy.modflow import (
     Modflow,
     ModflowBas,
@@ -16,11 +17,8 @@ from flopy.modflow import (
 
 
 @requires_exe("mf2005")
-@requires_pkg("pymake")
 @pytest.mark.regression
 def test_binary_well(tmpdir):
-    import pymake
-
     nlay = 3
     nrow = 3
     ncol = 3
@@ -100,13 +98,13 @@ def test_binary_well(tmpdir):
 
     # compare the files
     fsum = os.path.join(str(tmpdir), f"{os.path.splitext(mfnam)[0]}.head.out")
-    assert pymake.compare_heads(
+    assert compare_heads(
         fn0, fn1, outfile=fsum
     ), "head comparison failure"
 
     fsum = os.path.join(
         str(tmpdir), f"{os.path.splitext(mfnam)[0]}.budget.out"
     )
-    assert pymake.compare_budget(
+    assert compare_budget(
         fn0, fn1, max_incpd=0.1, max_cumpd=0.1, outfile=fsum
     ), "budget comparison failure"
