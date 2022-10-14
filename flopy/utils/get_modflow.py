@@ -13,6 +13,7 @@ import sys
 import tempfile
 import urllib
 import urllib.request
+import warnings
 import zipfile
 from importlib.util import find_spec
 from pathlib import Path
@@ -64,8 +65,9 @@ def get_request(url):
     return urllib.request.Request(url, headers=headers)
 
 
-def get_avail_releases(api_url):
+def get_releases(repo, quiet=False):
     """Get list of available releases."""
+    api_url = f"https://api.github.com/repos/{owner}/{repo}"
     req_url = f"{api_url}/releases"
     request = get_request(req_url)
     num_tries = 0
@@ -89,9 +91,57 @@ def get_avail_releases(api_url):
             raise RuntimeError(f"cannot retrieve data from {req_url}") from err
 
     releases = json.loads(result.decode())
+    if not quiet:
+        print(f"found {len(releases)} releases for {owner}/{repo}")
+
     avail_releases = ["latest"]
     avail_releases.extend(release["tag_name"] for release in releases)
     return avail_releases
+
+
+def get_release(repo, tag, quiet=False):
+    api_url = f"https://api.github.com/repos/{owner}/{repo}"
+    req_url = (
+        f"{api_url}/releases/latest"
+        if tag == "latest"
+        else f"{api_url}/releases/tags/{tag}"
+    )
+    request = get_request(req_url)
+    num_tries = 0
+
+    while True:
+        num_tries += 1
+        try:
+            with urllib.request.urlopen(request, timeout=10) as resp:
+                result = resp.read()
+                remaining = int(resp.headers["x-ratelimit-remaining"])
+                if remaining <= 10:
+                    warnings.warn(
+                        f"Only {remaining} GitHub API requests remaining "
+                        "before rate-limiting"
+                    )
+                break
+        except urllib.error.HTTPError as err:
+            if err.code == 401 and os.environ.get("GITHUB_TOKEN"):
+                raise ValueError("GITHUB_TOKEN env is invalid") from err
+            elif err.code == 403 and "rate limit exceeded" in err.reason:
+                raise ValueError(
+                    f"use GITHUB_TOKEN env to bypass rate limit ({err})"
+                ) from err
+            elif err.code == 404:
+                raise ValueError(f"Release {tag} not found for repo {repo}")
+            elif err.code == 503 and num_tries < max_http_tries:
+                # GitHub sometimes returns this error for valid URLs, so retry
+                warnings.warn(f"URL request {num_tries} did not work ({err})")
+                continue
+            raise RuntimeError(f"cannot retrieve data from {req_url}") from err
+
+    release = json.loads(result.decode())
+    tag_name = release["tag_name"]
+    if not quiet:
+        print(f"fetched release {tag_name!r} from {owner}/{repo}")
+
+    return release
 
 
 def columns_str(items, line_chars=79):
@@ -291,58 +341,13 @@ def run_main(
         raise KeyError(
             f"repo {repo!r} not supported; choose one of {available_repos}"
         )
-    api_url = f"https://api.github.com/repos/{owner}/{repo}"
+    avail_releases = get_releases(repo, quiet)
+    if release_id not in avail_releases:
+        raise ValueError(
+            f"Release {release_id} not found (choose from {', '.join(avail_releases)})"
+        )
 
-    if release_id == "latest":
-        req_url = f"{api_url}/releases/latest"
-    else:
-        req_url = f"{api_url}/releases/tags/{release_id}"
-    request = get_request(req_url)
-    avail_releases = None
-    num_tries = 0
-    while True:
-        num_tries += 1
-        try:
-            with urllib.request.urlopen(request, timeout=10) as resp:
-                result = resp.read()
-                remaining = int(resp.headers["x-ratelimit-remaining"])
-                if remaining <= 10:
-                    print(
-                        f"Only {remaining} GitHub API requests remaining "
-                        "before rate-limiting"
-                    )
-                break
-        except urllib.error.HTTPError as err:
-            if err.code == 401 and os.environ.get("GITHUB_TOKEN"):
-                raise ValueError("GITHUB_TOKEN env is invalid") from err
-            elif err.code == 403 and "rate limit exceeded" in err.reason:
-                raise ValueError(
-                    f"use GITHUB_TOKEN env to bypass rate limit ({err})"
-                ) from err
-            elif err.code == 404:
-                if avail_releases is None:
-                    avail_releases = get_avail_releases(api_url)
-                if release_id in avail_releases:
-                    if num_tries < max_http_tries:
-                        # GitHub sometimes returns 404 for valid URLs, so retry
-                        print(f"URL request {num_tries} did not work ({err})")
-                        continue
-                else:
-                    raise ValueError(
-                        f"Release {release_id!r} not found -- "
-                        f"choose from {avail_releases}"
-                    ) from err
-            elif err.code == 503 and num_tries < max_http_tries:
-                # GitHub sometimes returns this error for valid URLs, so retry
-                print(f"URL request {num_tries} did not work ({err})")
-                continue
-            raise RuntimeError(f"cannot retrieve data from {req_url}") from err
-
-    release = json.loads(result.decode())
-    tag_name = release["tag_name"]
-    if not quiet:
-        print(f"fetched release {tag_name!r} from {owner}/{repo}")
-
+    release = get_release(repo, release_id, quiet)
     assets = release.get("assets", [])
 
     # Windows 64-bit asset in modflow6 repo release has no OS tag
@@ -354,7 +359,7 @@ def run_main(
                 break
         else:
             raise ValueError(
-                f"could not find ostag {ostag!r} from release {tag_name!r}; "
+                f"could not find ostag {ostag!r} from release {release['tag_name']!r}; "
                 f"see available assets here:\n{release['html_url']}"
             )
     asset_name = asset["name"]
@@ -363,10 +368,12 @@ def run_main(
         asset_pth = Path(asset_name)
         asset_stem = asset_pth.stem
         asset_suffix = asset_pth.suffix
-        dst_fname = "-".join([repo, tag_name, ostag]) + asset_suffix
+        dst_fname = "-".join([repo, release["tag_name"], ostag]) + asset_suffix
     else:
         # change local download name so it is more unique
-        dst_fname = "-".join([renamed_prefix[repo], tag_name, asset_name])
+        dst_fname = "-".join(
+            [renamed_prefix[repo], release["tag_name"], asset_name]
+        )
     tmpdir = None
     if downloads_dir is None:
         downloads_dir = Path.home() / "Downloads"
@@ -413,7 +420,7 @@ def run_main(
             "bindir": str(bindir),
             "owner": owner,
             "repo": repo,
-            "release_id": tag_name,
+            "release_id": release["tag_name"],
             "name": asset_name,
             "updated_at": asset["updated_at"],
             "extracted_at": datetime.now().isoformat(),

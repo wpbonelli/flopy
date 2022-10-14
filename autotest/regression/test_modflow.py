@@ -4,10 +4,9 @@ from pathlib import Path
 from shutil import copytree
 
 import pytest
-from flopy.devtools import compare_budget, compare_heads
-
 from autotest.conftest import get_example_data_path, requires_exe, requires_pkg
 
+from flopy.devtools import compare_budget, compare_heads
 from flopy.modflow import Modflow, ModflowOc
 
 
@@ -221,7 +220,6 @@ def test_mf2005pcgn(tmpdir, namfile):
     "namfile", [str(__example_data_path / "secp" / nf) for nf in ["secp.nam"]]
 )
 def test_mf2005gmg(tmpdir, namfile):
-    
 
     ws = tmpdir / "ws"
     copytree(Path(namfile).parent, ws)
@@ -380,7 +378,6 @@ def test_mf2005fhb(tmpdir, namfile):
 @pytest.mark.regression
 @pytest.mark.parametrize("namfile", mf2005_namfiles)
 def test_mf2005_lake(tmpdir, namfile, mf2005_test_path):
-    
 
     ws = str(tmpdir / "ws")
 

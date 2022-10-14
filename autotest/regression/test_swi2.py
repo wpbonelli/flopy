@@ -2,9 +2,9 @@ import os
 import shutil
 
 import pytest
-from flopy.devtools import compare_budget
-
 from autotest.conftest import requires_exe
+
+from flopy.devtools import compare_budget
 from flopy.modflow import Modflow
 
 

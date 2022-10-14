@@ -1,8 +1,7 @@
 import pytest
-from flopy.devtools import compare_heads
-
 from autotest.conftest import requires_exe, requires_pkg
 
+from flopy.devtools import compare_heads
 from flopy.modflow import Modflow, ModflowOc, ModflowStr
 
 str_items = {

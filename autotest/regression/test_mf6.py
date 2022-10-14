@@ -5,11 +5,10 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from flopy.devtools import compare_heads
-
 from autotest.conftest import requires_exe, requires_pkg
 
 import flopy
+from flopy.devtools import compare_heads
 from flopy.mf6 import (
     ExtFileAction,
     MFModel,
@@ -624,7 +623,6 @@ def test_np001(tmpdir, example_data_path):
 @requires_exe("mf6")
 @pytest.mark.regression
 def test_np002(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "np002"
@@ -900,7 +898,6 @@ def test_np002(tmpdir, example_data_path):
 @requires_exe("mf6")
 @pytest.mark.regression
 def test021_twri(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test021_twri"
@@ -1126,7 +1123,6 @@ def test021_twri(tmpdir, example_data_path):
 @pytest.mark.slow
 @pytest.mark.regression
 def test005_create_tests_advgw_tidal(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test005_advgw_tidal"
@@ -1752,7 +1748,6 @@ def test005_create_tests_advgw_tidal(tmpdir, example_data_path):
 @requires_exe("mf6")
 @pytest.mark.regression
 def test004_create_tests_bcfss(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test004_bcfss"
@@ -1949,7 +1944,6 @@ def test004_create_tests_bcfss(tmpdir, example_data_path):
 @requires_exe("mf6")
 @pytest.mark.regression
 def test035_create_tests_fhb(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test035_fhb"
@@ -2091,7 +2085,6 @@ def test035_create_tests_fhb(tmpdir, example_data_path):
 @requires_exe("mf6")
 @pytest.mark.regression
 def test006_create_tests_gwf3_disv(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test006_gwf3_disv"
@@ -2384,7 +2377,6 @@ def test006_create_tests_gwf3_disv(tmpdir, example_data_path):
 @requires_exe("mf6")
 @pytest.mark.regression
 def test006_create_tests_2models_gnc(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test006_2models_gnc"
@@ -2724,7 +2716,6 @@ def test006_create_tests_2models_gnc(tmpdir, example_data_path):
 @pytest.mark.slow
 @pytest.mark.regression
 def test050_create_tests_circle_island(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test050_circle_island"
@@ -2827,7 +2818,6 @@ def test050_create_tests_circle_island(tmpdir, example_data_path):
 )
 @pytest.mark.regression
 def test028_create_tests_sfr(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test028_sfr"
@@ -3097,7 +3087,6 @@ def test028_create_tests_sfr(tmpdir, example_data_path):
 @requires_exe("mf6")
 @pytest.mark.regression
 def test_create_tests_transport(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test_transport"
@@ -3338,7 +3327,6 @@ def test_create_tests_transport(tmpdir, example_data_path):
 @pytest.mark.slow
 @pytest.mark.regression
 def test001a_tharmonic(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test001a_Tharmonic"
@@ -3468,7 +3456,6 @@ def test001a_tharmonic(tmpdir, example_data_path):
 @requires_exe("mf6")
 @pytest.mark.regression
 def test003_gwfs_disv(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test003_gwfs_disv"
@@ -3561,7 +3548,6 @@ def test003_gwfs_disv(tmpdir, example_data_path):
 @pytest.mark.slow
 @pytest.mark.regression
 def test005_advgw_tidal(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test005_advgw_tidal"
@@ -3627,7 +3613,6 @@ def test005_advgw_tidal(tmpdir, example_data_path):
 @requires_exe("mf6")
 @pytest.mark.regression
 def test006_gwf3(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test006_gwf3"
@@ -3811,7 +3796,6 @@ def test006_gwf3(tmpdir, example_data_path):
 @requires_exe("mf6")
 @pytest.mark.regression
 def test045_lake1ss_table(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test045_lake1ss_table"
@@ -3890,7 +3874,6 @@ def test045_lake1ss_table(tmpdir, example_data_path):
 @pytest.mark.slow
 @pytest.mark.regression
 def test006_2models_mvr(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test006_2models_mvr"
@@ -4176,7 +4159,6 @@ def test001e_uzf_3lay(tmpdir, example_data_path):
 @pytest.mark.slow
 @pytest.mark.regression
 def test045_lake2tr(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test045_lake2tr"
@@ -4249,7 +4231,6 @@ def test045_lake2tr(tmpdir, example_data_path):
 @requires_exe("mf6")
 @pytest.mark.regression
 def test036_twrihfb(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test036_twrihfb"
@@ -4333,7 +4314,6 @@ def test036_twrihfb(tmpdir, example_data_path):
 @pytest.mark.slow
 @pytest.mark.regression
 def test027_timeseriestest(tmpdir, example_data_path):
-    
 
     # init paths
     test_ex_name = "test027_TimeseriesTest"

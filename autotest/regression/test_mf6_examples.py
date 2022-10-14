@@ -2,10 +2,10 @@ from pathlib import Path
 from shutil import copytree
 
 import pytest
-from flopy.devtools import compare_heads
-
 from autotest.conftest import requires_exe
 from autotest.regression.conftest import is_nested
+
+from flopy.devtools import compare_heads
 from flopy.mf6 import MFSimulation
 
 pytestmark = pytest.mark.mf6
@@ -21,7 +21,9 @@ def test_mf6_example_simulations(tmpdir, mf6_example_namfiles):
     cmpdir = tmpdir / "compare"
     srcdir = namfile.parent.parent if nested else namfile.parent
 
-    print(f"Running example scenario {srcdir.name} with {len(mf6_example_namfiles)} model(s)")
+    print(
+        f"Running example scenario {srcdir.name} with {len(mf6_example_namfiles)} model(s)"
+    )
 
     # copy model files into working directory
     copytree(src=srcdir, dst=tmpdir)
@@ -37,7 +39,9 @@ def test_mf6_example_simulations(tmpdir, mf6_example_namfiles):
         wrkdir = Path(tmpdir / model_path.name) if nested else tmpdir
 
         # load and run simulation
-        sim = MFSimulation.load(namfile_name, version="mf6", exe_name="mf6", sim_ws=str(wrkdir))
+        sim = MFSimulation.load(
+            namfile_name, version="mf6", exe_name="mf6", sim_ws=str(wrkdir)
+        )
         success, buff = sim.run_simulation(report=True, silent=True)
         assert success
 

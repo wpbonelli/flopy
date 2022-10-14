@@ -15,6 +15,7 @@ from autotest.conftest import (
 from flaky import flaky
 
 from flopy.utils import get_modflow
+from flopy.utils.get_modflow import get_release, get_releases
 
 rate_limit_msg = "rate limit exceeded"
 flopy_dir = get_project_root_path(__file__)
@@ -39,6 +40,34 @@ def assert_exts(paths: List[Path]):
         assert exts == {"", ".dylib"}
     elif system() == "Linux":
         assert exts == {"", ".so"}
+
+
+@pytest.mark.parametrize(
+    "repo", ["executables", "modflow6", "modflow6-nightly-build"]
+)
+def test_get_releases(repo):
+    releases = get_releases(repo)
+    assert "latest" in releases
+
+
+@pytest.mark.parametrize(
+    "repo", ["executables", "modflow6", "modflow6-nightly-build"]
+)
+def test_get_release(repo):
+    tag = "latest"
+    release = get_release(repo, tag)
+    assets = release["assets"]
+
+    expected_assets = ["linux.zip", "mac.zip", "win64.zip"]
+    actual_assets = [asset["name"] for asset in assets]
+
+    if repo == "modflow6":
+        # can remove if modflow6 releases follow asset name conventions followed in executables and nightly build repos
+        assert set([a.rpartition("_")[2] for a in actual_assets]) >= set(
+            [a for a in expected_assets if not a.startswith("win")]
+        )
+    else:
+        assert set(actual_assets) >= set(expected_assets)
 
 
 def test_script_usage():
@@ -71,7 +100,7 @@ def test_script_executables(tmpdir, downloads_dir):
     )
     if rate_limit_msg in stderr:
         pytest.skip(f"GitHub {rate_limit_msg}")
-    assert "Release '1.9' not found" in stderr
+    assert "Release 1.9 not found" in stderr
     assert returncode == 1
 
     # fetch latest

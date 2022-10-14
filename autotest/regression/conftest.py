@@ -5,6 +5,7 @@ from tempfile import gettempdir
 
 import pytest
 from filelock import FileLock
+
 from flopy.devtools import download_and_unzip
 
 __mf6_examples = "mf6_examples"

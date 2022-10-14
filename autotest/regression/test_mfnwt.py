@@ -1,10 +1,9 @@
 import os
 
 import pytest
-from flopy.devtools import compare_heads, compare_budget
-
 from autotest.conftest import get_example_data_path, requires_exe, requires_pkg
 
+from flopy.devtools import compare_budget, compare_heads
 from flopy.modflow import Modflow, ModflowNwt, ModflowUpw
 from flopy.utils import parsenamefile
 
@@ -134,9 +133,7 @@ def test_run_mfnwt_model(tmpdir, namfile):
     fn1 = os.path.join(pthf, namfile)
 
     fsum = str(tmpdir / f"{base_name}.head.out")
-    assert compare_heads(
-        fn0, fn1, outfile=fsum
-    ), "head comparison failure"
+    assert compare_heads(fn0, fn1, outfile=fsum), "head comparison failure"
 
     fsum = str(tmpdir / f"{base_name}.budget.out")
     assert compare_budget(

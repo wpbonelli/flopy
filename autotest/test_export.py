@@ -9,11 +9,12 @@ import numpy as np
 import pytest
 from autotest.conftest import (
     SHAPEFILE_EXTENSIONS,
+    excludes_platform,
     get_example_data_path,
     has_pkg,
     requires_exe,
     requires_pkg,
-    requires_spatial_reference, excludes_platform,
+    requires_spatial_reference,
 )
 from flaky import flaky
 

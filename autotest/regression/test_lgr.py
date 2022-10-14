@@ -3,11 +3,10 @@ from os.path import dirname, join
 from pathlib import Path
 
 import pytest
-from flopy.devtools import compare_heads
-
 from autotest.conftest import requires_exe, requires_pkg
 
 import flopy
+from flopy.devtools import compare_heads
 
 
 @requires_exe("mflgr")

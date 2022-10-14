@@ -3,8 +3,9 @@ import shutil
 import sys
 import time
 
-import flopy
 import numpy as np
+
+import flopy
 
 from .framework import running_on_CI, set_teardown_test
 from .mftest_context import MFTestContext
