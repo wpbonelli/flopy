@@ -181,7 +181,6 @@ def create_md(hash_dict):
     version = get_version()
     tag = "### Version"
     version_text = f"{tag} {version}"
-    #
 
     # read the lines in the existing version_changes.md
     fpth = os.path.join("..", "docs", "version_changes.md")

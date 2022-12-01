@@ -35,8 +35,7 @@ Instructions for making a FloPy release
 
 ## Update the release version number
 
-1.  Increment `major`, `minor`, and/or `micro` numbers in `flopy/version.py`, as appropriate.
-
+1.  Run `python scripts/update_version.py -v <semver number>` to update the version number in `version.txt` and `flopy/version.py`.
 
 ## Update the Software/Code citation for FloPy
 
@@ -60,7 +59,7 @@ Instructions for making a FloPy release
 
 ## Update the example notebooks
 
-Use `run_notebooks.py` in the `release` directory to rerun all of the notebooks in:
+Use `run_notebooks.py` in the `scripts` directory to rerun all of the notebooks in:
 
 1.  `examples\Notebooks` directory.
 2.  `examples\Notebooks\groundwater_paper` directory.
