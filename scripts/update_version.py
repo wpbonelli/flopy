@@ -35,9 +35,7 @@ class Version(NamedTuple):
 
     @classmethod
     def from_file(cls, path: PathLike) -> "Version":
-        path = Path(path).expanduser().absolute()
-        lines = [line.rstrip("\n") for line in open(Path(path), "r")]
-
+        lines = [line.rstrip("\n") for line in open(Path(path).expanduser().absolute(), "r")]
         vmajor = vminor = vpatch = None
         for line in lines:
             line = line.strip()
@@ -49,7 +47,6 @@ class Version(NamedTuple):
             vpatch = int(t[2])
 
         assert vmajor is not None and vminor is not None and vpatch is not None, "version string must follow semantic version format: major.minor.patch"
-
         return cls(major=vmajor, minor=vminor, patch=vpatch)
 
 
@@ -90,7 +87,10 @@ def update_version(version: Version = None):
             update_version_txt(version)
             update_version_py(version)
     finally:
-        lock_path.unlink(missing_ok=True)
+        try:
+            lock_path.unlink()
+        except:
+            pass
 
 
 if __name__ == "__main__":

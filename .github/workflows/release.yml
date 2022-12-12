@@ -3,6 +3,9 @@ on:
     branches:
       - master
       - v*
+  release:
+    types:
+      - published
 jobs:
   build:
     name: Build
@@ -20,68 +23,40 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: 3.7
-
-      - name: Install Python dependencies
-        run: |
-          pip install --upgrade pip
-          pip install build twine
-          pip install .
-          python -c "import flopy; print(f'{flopy.__version__}')"
-
-      - name: Build package
-        run: |
-          python -m build
-
-      - name: Check package
-        run: |
-          twine check --strict dist/*
-
-      - name: Upload package
-        uses: actions/upload-artifact@v3
-        with:
-          name: dist
-          path: dist
-
-  pr:
-    name: Create release PR
-    if: ${{ github.event_name == 'push' && !(contains(github.ref_name, 'rc')) }}
-    needs: dist
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-      pull-requests: write
-    defaults:
-      run:
-        shell: bash -l {0}
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.7
           cache: 'pip'
           cache-dependency-path: setup.cfg
 
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
+          pip install build twine
           pip install .
-          pip install ".[test]"
-          python -c "import flopy; print(f'{flopy.__version__}')"
+          pip install ".[lint, test, optional]"
+
+      - name: Install MODFLOW
+        uses: modflowpy/install-modflow-action@v1
 
       - name: Update version
-        working-directory: scripts
         run: |
-          # update version files
           ref="${{ github.ref_name }}"
-          ver="${ref#"v"}"
-          python update_version.py -v "$ver"
-      
-      - name: Update packages
-        working-directory: distribution
+          ver="${ref%"rc"}"
+          python scripts/update_version.py -v "${ver#"v"}"
+          python -c "import flopy; print(f'FloPy version: {flopy.__version__}')"
+
+      - name: Update plugins
         run: python -c 'import flopy; flopy.mf6.utils.generate_classes(branch="master", backup=False)'
+
+      - name: Build package
+        run: python -m build
+
+      - name: Check package
+        run: twine check --strict dist/*
+
+      - name: Upload package
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: dist
 
       - name: Build release notes
         run: echo "todo"
@@ -97,8 +72,26 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "ci(release): update version to $ver, update packages from DFN files"
+          git commit -m "ci(release): update version to $ver, update plugins from DFN files"
           git push origin "$ref"
+
+  pr:
+    name: Draft release PR
+    needs: build
+    if: ${{ github.event_name == 'push' && !(contains(github.ref_name, 'rc')) }}
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      pull-requests: write
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref_name }}
 
       - name: Draft PR
         env:
@@ -110,7 +103,7 @@ jobs:
           body='
           # FloPy '$ver'
           
-          This release can be approved by merging this pull request into `master`. This will trigger a final job to publish the release to PyPI and open a PR to update the [Conda feedstock](https://github.com/jdhughes-usgs/flopy-feedstock).
+          The release can be approved by merging this pull request into `master`. This will trigger a final job to publish the release to PyPI and open a PR to update the [Conda feedstock](https://github.com/jdhughes-usgs/flopy-feedstock).
           '
           gh pr create -B "master" -H "$ref" --title "$title" --draft --latest --body "$body"
 
