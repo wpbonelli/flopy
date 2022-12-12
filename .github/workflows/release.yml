@@ -10,6 +10,8 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     defaults:
       run:
         shell: bash
@@ -33,14 +35,18 @@ jobs:
           pip install ".[lint, test, optional]"
 
       - name: Install MODFLOW
-        uses: modflowpy/install-modflow-action@v1
+        run: |
+          mkdir -p ~/.local/bin
+          get-modflow ~/.local/bin
 
       - name: Update version
+        id: version
         run: |
           ref="${{ github.ref_name }}"
           ver="${ref%"rc"}"
           python scripts/update_version.py -v "${ver#"v"}"
           python -c "import flopy; print(f'FloPy version: {flopy.__version__}')"
+          echo "version=${ver#"v"}" >> $GITHUB_OUTPUT
 
       - name: Update plugins
         run: python -c 'import flopy; flopy.mf6.utils.generate_classes(branch="master", backup=False)'
@@ -71,7 +77,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "ci(release): update version to $ver, update plugins from DFN files"
+          git commit -m "ci(release): update version to ${{ steps.version.outputs.version }}, update plugins from DFN files"
           git push origin "${{ github.ref_name }}"
 
   pr:
