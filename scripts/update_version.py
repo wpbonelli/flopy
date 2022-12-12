@@ -35,18 +35,23 @@ class Version(NamedTuple):
 
     @classmethod
     def from_file(cls, path: PathLike) -> "Version":
-        lines = [line.rstrip("\n") for line in open(Path(path).expanduser().absolute(), "r")]
+        lines = [
+            line.rstrip("\n")
+            for line in open(Path(path).expanduser().absolute(), "r")
+        ]
         vmajor = vminor = vpatch = None
         for line in lines:
             line = line.strip()
             if not any(line):
                 continue
-            t = line.split('.')
+            t = line.split(".")
             vmajor = int(t[0])
             vminor = int(t[1])
             vpatch = int(t[2])
 
-        assert vmajor is not None and vminor is not None and vpatch is not None, "version string must follow semantic version format: major.minor.patch"
+        assert (
+            vmajor is not None and vminor is not None and vpatch is not None
+        ), "version string must follow semantic version format: major.minor.patch"
         return cls(major=vmajor, minor=vminor, patch=vpatch)
 
 
@@ -63,7 +68,8 @@ def update_version_txt(version: Version):
 def update_version_py(version: Version):
     with open(_version_py_path, "w") as f:
         f.write(
-            f"# {_project_name} version file automatically created using {Path(__file__).name} on {datetime.now().strftime('%B %d, %Y %H:%M:%S')}\n")
+            f"# {_project_name} version file automatically created using {Path(__file__).name} on {datetime.now().strftime('%B %d, %Y %H:%M:%S')}\n"
+        )
         f.write("\n")
         f.write(f"major = {version.major}\n")
         f.write(f"minor = {version.minor}\n")
@@ -105,7 +111,7 @@ if __name__ == "__main__":
             to synchronize file access. The version tag must comply with standard
             '<major>.<minor>.<patch>' format conventions for semantic versioning.
             """
-        )
+        ),
     )
     parser.add_argument(
         "-v",
@@ -125,4 +131,8 @@ if __name__ == "__main__":
     if args.get:
         print(Version.from_file(_project_root_path / "version.txt"))
     else:
-        update_version(version=Version.from_string(args.version) if args.version else _current_version)
+        update_version(
+            version=Version.from_string(args.version)
+            if args.version
+            else _current_version
+        )
