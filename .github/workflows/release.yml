@@ -73,7 +73,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "ci(release): update version to $ver, update plugins from DFN files"
-          git push origin "$ref"
+          git push origin "${{ github.ref_name }}"
 
   pr:
     name: Draft release PR

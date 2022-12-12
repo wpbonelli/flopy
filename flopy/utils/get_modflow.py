@@ -495,7 +495,7 @@ def run_main(
             files = set(zipf.namelist())
 
         code = False
-        if "code.json" in files:
+        if "code.json" in files and repo == "executables":
             # don't extract this file
             files.remove("code.json")
             code_bytes = zipf.read("code.json")
@@ -505,6 +505,7 @@ def run_main(
 
                 code_md5 = hashlib.md5(code_bytes).hexdigest()
                 meta["code_json_md5"] = code_md5
+
         if subset:
             nosub = False
             subset_keys = files
@@ -603,7 +604,8 @@ def run_main(
 
     # Show listing
     if not quiet:
-        print(columns_str(items))
+        if any(items):
+            print(columns_str(items))
 
         if not subset:
             if full_path:

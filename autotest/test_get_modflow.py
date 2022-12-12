@@ -213,7 +213,7 @@ def test_script_options(tmpdir, downloads_dir):
         pytest.skip(f"GitHub {rate_limit_msg}")
     assert len(stderr) == returncode == 0
     files = [item.stem for item in bindir.iterdir() if item.is_file()]
-    assert sorted(files) == ["mfnwt", "mp6"]
+    assert sorted(files) == ["mfnwt", "mfnwtdbl", "mp6"]
 
     # similar as before, but also specify a ostag
     bindir = tmpdir / "bin3"
