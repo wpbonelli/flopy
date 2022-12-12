@@ -6,7 +6,6 @@ on:
       - develop
       - release*
       - ci-diagnose*
-      - v*
   pull_request:
     branches:
       - master
@@ -66,7 +65,6 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install .
-          pip install colorama  # why is this needed? is the isort wheel broken?
           pip install ".[lint]"
 
       - name: Run isort
@@ -126,15 +124,8 @@ jobs:
           pip install .
           pip install ".[test, optional]"
 
-      - name: Install MODFLOW
-        run: |
-          mkdir -p ~/.local/bin
-          get-modflow ~/.local/bin
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update plugins
-        run: python -c 'import flopy; flopy.mf6.utils.generate_classes(branch="master", backup=False)'
+      - name: Install Modflow executables
+        uses: modflowpy/install-modflow-action@v1
 
       - name: Run smoke tests
         working-directory: ./autotest
@@ -208,41 +199,27 @@ jobs:
           pip install xmipy
           pip install .
 
-      - name: Fix Micromamba path (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          # https://github.com/modflowpy/install-intelfortran-action#conda-scripts
-          $mamba_bin = "C:\Users\runneradmin\micromamba-root\envs\modflow6\Scripts"
-          echo $mamba_bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Install MODFLOW
-        run: |
-          mkdir -p ~/.local/bin
-          get-modflow ~/.local/bin
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update plugins
-        run: python -c 'import flopy; flopy.mf6.utils.generate_classes(branch="master", backup=False)'
+      - name: Install Modflow executables
+        uses: modflowpy/install-modflow-action@v1
 
       - name: Run tests
-        working-directory: autotest
+        if: runner.os != 'Windows'
+        working-directory: ./autotest
         run: |
           pytest -v -m="not example and not regression" -n=auto --cov=flopy --cov-report=xml --durations=0 --keep-failed=.failed
           coverage report
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Run tests
-      #   if: runner.os == 'Windows'
-      #   shell: bash -l {0}
-      #   working-directory: ./autotest
-      #   run: |
-      #     pytest -v -m="not example and not regression" -n=auto --cov=flopy --cov-report=xml --durations=0 --keep-failed=.failed
-      #     coverage report
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run tests
+        if: runner.os == 'Windows'
+        shell: bash -l {0}
+        working-directory: ./autotest
+        run: |
+          pytest -v -m="not example and not regression" -n=auto --cov=flopy --cov-report=xml --durations=0 --keep-failed=.failed
+          coverage report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload failed test outputs
         uses: actions/upload-artifact@v2

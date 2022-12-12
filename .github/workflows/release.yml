@@ -2,7 +2,7 @@ on:
   push:
     branches:
       - master
-      # - v*
+      - v*
   release:
     types:
       - published
@@ -40,6 +40,9 @@ jobs:
           get-modflow ~/.local/bin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Modflow executables
+        uses: modflowpy/install-modflow-action@v1
 
       - name: Update version
         id: version
@@ -84,9 +87,6 @@ jobs:
           name: dist
           path: dist
 
-      - name: Build release notes
-        run: echo "todo"
-
       - name: Push release branch
         run: |
           # commit and push
@@ -127,7 +127,7 @@ jobs:
           
           The release can be approved by merging this pull request into `master`. This will trigger a final job to publish the release to PyPI and open a PR to update the [Conda feedstock](https://github.com/jdhughes-usgs/flopy-feedstock).
           '
-          gh pr create -B "master" -H "$ref" --title "$title" --draft --latest --body "$body"
+          gh pr create -B "master" -H "$ref" --title "$title" --draft --body "$body"
 
   release:
     name: Create release
