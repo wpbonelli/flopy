@@ -2,7 +2,7 @@ on:
   push:
     branches:
       - master
-      - v*
+      # - v*
   release:
     types:
       - published
@@ -38,6 +38,8 @@ jobs:
         run: |
           mkdir -p ~/.local/bin
           get-modflow ~/.local/bin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update version
         id: version
@@ -57,6 +59,25 @@ jobs:
       - name: Check package
         run: twine check --strict dist/*
 
+      - name: Run tests
+        working-directory: autotest
+        run: |
+          pytest -v -m="not example and not regression" -n=auto --durations=0 --keep-failed=.failed
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload failed test outputs
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: failed-${{ matrix.os }}-${{ matrix.python-version }}
+          path: |
+            ./autotest/.failed/**
+
+      - name: Run notebooks
+        working-directory: scripts
+        run: python run_notebooks.py
+
       - name: Upload package
         uses: actions/upload-artifact@v3
         with:
@@ -65,10 +86,6 @@ jobs:
 
       - name: Build release notes
         run: echo "todo"
-
-      - name: Run notebooks
-        working-directory: scripts
-        run: python run_notebooks.py
 
       - name: Push release branch
         run: |

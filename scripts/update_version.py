@@ -74,7 +74,7 @@ def update_version_py(version: Version):
         f.write(f"major = {version.major}\n")
         f.write(f"minor = {version.minor}\n")
         f.write(f"micro = {version.patch}\n")
-        f.write("__version__ = '{:d}.{:d}.{:d}'.format(major, minor, micro)\n")
+        f.write("__version__ = '{}.{}.{}'.format(major, minor, micro)\n")
     print(f"Updated {_version_py_path} to version {version}")
 
 
