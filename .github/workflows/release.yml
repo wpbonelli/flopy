@@ -102,11 +102,11 @@ jobs:
       - name: Update changelog
         run: |
           cat CHANGELOG.md
-          sed 's/#### Ci/#### Continuous integration/' CHANGELOG.md
-          sed 's/#### Feat/#### New features/' CHANGELOG.md
-          sed 's/#### Fix/#### Bug fixes/' CHANGELOG.md
-          sed 's/#### Refactor/#### Refactoring/' CHANGELOG.md
-          sed 's/#### Test/#### Testing/' CHANGELOG.md
+          sed -i 's/#### Ci/#### Continuous integration/' CHANGELOG.md
+          sed -i 's/#### Feat/#### New features/' CHANGELOG.md
+          sed -i 's/#### Fix/#### Bug fixes/' CHANGELOG.md
+          sed -i 's/#### Refactor/#### Refactoring/' CHANGELOG.md
+          sed -i 's/#### Test/#### Testing/' CHANGELOG.md
           
           cat CHANGELOG.md | cat - docs/version_changes.md | tee docs/version_changes.md
 
