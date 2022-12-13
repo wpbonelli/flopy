@@ -9,8 +9,9 @@ on:
       - published
 jobs:
   build:
-    name: Build
+    name: Build package
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && github.ref_name != 'master' }}
     permissions:
       contents: write
     defaults:
@@ -42,9 +43,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Modflow executables
-        uses: modflowpy/install-modflow-action@v1
-
       - name: Update version
         id: version
         run: |
@@ -63,12 +61,11 @@ jobs:
       - name: Check package
         run: twine check --strict dist/*
 
-      - name: Run tests
-        working-directory: autotest
-        run: |
-          pytest -v -m="not example and not regression" -n=auto --durations=0 --keep-failed=.failed
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Run tests
+      #   working-directory: autotest
+      #   run: pytest -v -m="not example and not regression" -n=auto --durations=0 --keep-failed=.failed
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload failed test outputs
         uses: actions/upload-artifact@v2
@@ -90,12 +87,11 @@ jobs:
 
       - name: Push release branch
         run: |
-          # commit and push
           git config core.sharedRepository true
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "ci(release): update version to ${{ steps.version.outputs.version }}, update plugins from DFN files"
+          git commit -m "ci(release): set version to ${{ steps.version.outputs.version }}, update plugins from DFN files"
           git push origin "${{ github.ref_name }}"
 
   pr:
@@ -135,18 +131,21 @@ jobs:
     # runs only when changes are merged to master
     if: ${{ github.event_name == 'push' && github.ref_name == 'master' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
 
-      # TODO: auto-generate release notes
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          ref: master
+
       - name: Draft release
-        working-directory: modflow6
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          # detect release version
-          version=$(python scripts/update_version.py --get)
-
-          # create draft release
+          version=$(cat version.txt)
           title="FloPy $version"
           notes='*Insert release notes here*'
           gh release create "$version" --target master --title "$title" --notes "$notes" --draft --latest
@@ -211,7 +210,7 @@ jobs:
       - name: Checkout feedstock
         uses: actions/checkout@v3
         with:
-          repository: jdhughes-usgs/flopy-feedstock
+          repository: w-bonelli/flopy-feedstock
           path: flopy-feedstock
           ref: master
 
