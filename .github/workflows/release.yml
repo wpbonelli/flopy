@@ -97,11 +97,16 @@ jobs:
           OUTPUT: CHANGELOG.md
 
       - name: Move changelog
-        run: mv ${{ steps.cliff.outputs.changelog }} CHANGELOG.md
+        run: sudo cp ${{ steps.cliff.outputs.changelog }} CHANGELOG.md
 
       - name: Update changelog
         run: |
           cat CHANGELOG.md
+          sed 's/#### Ci/#### Continuous integration/' CHANGELOG.md
+          sed 's/#### Feat/#### New features/' CHANGELOG.md
+          sed 's/#### Fix/#### Bug fixes/' CHANGELOG.md
+          sed 's/#### Refactor/#### Refactoring/' CHANGELOG.md
+          sed 's/#### Test/#### Testing/' CHANGELOG.md
           
           cat CHANGELOG.md | cat - docs/version_changes.md | tee docs/version_changes.md
 
