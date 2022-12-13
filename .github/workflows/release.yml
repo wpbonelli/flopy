@@ -254,11 +254,11 @@ jobs:
           echo "version: $version"
           echo "version=$version" >> $GITHUB_OUTPUT
 
-      # - name: Publish to PyPI
-      #   env:
-      #     TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-      #     TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-      #   run: python -m twine upload dist/*
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: python -m twine upload --repository testpypi dist/*
 
       - name: Checkout feedstock
         uses: actions/checkout@v3
