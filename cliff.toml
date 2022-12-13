@@ -35,6 +35,7 @@ commit_parsers = [
     { message = "^[dD]oc.*", group = "Documentation"},
     { message = "^[bB]inder", group = "Documentation"},
     { message = "^[nN]otebook.*", group = "Documentation"},
+    { message = "^[rR][eE][aA][dD].*", group = "Documentation"},
     { message = "^[pP]erf", group = "Performance"},
     { message = "^[rR]efactor", group = "Refactoring"},
     { message = "^[uU]pdate", group = "Refactoring"},
