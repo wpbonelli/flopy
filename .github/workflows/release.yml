@@ -205,16 +205,21 @@ jobs:
           path: flopy
           ref: master
 
-      - name: Setup Micromamba
-        uses: mamba-org/provision-with-micromamba@main
+      # - name: Setup Micromamba
+      #   uses: mamba-org/provision-with-micromamba@main
+      #   with:
+      #     environment-file: flopy/etc/environment.yml
+      #     cache-downloads: true
+      #     cache-env: true
+
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v2
         with:
           environment-file: flopy/etc/environment.yml
-          cache-downloads: true
-          cache-env: true
 
       - name: Install dependencies
         run: |
-          micromamba install -c conda-forga conda-smithy
+          conda install -c conda-forga conda-smithy
           pip install --upgrade pip
           pip install twine
 
