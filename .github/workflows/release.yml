@@ -114,7 +114,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: changelog
-          path: ${{ steps.cliff.outputs.changelog }}
+          path: CHANGELOG.md
 
       - name: Push release branch
         run: |
