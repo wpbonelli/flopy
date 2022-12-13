@@ -1,3 +1,4 @@
+name: FloPy release
 on:
   push:
     branches:
