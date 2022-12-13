@@ -9,8 +9,9 @@ on:
       - published
 jobs:
   build:
-    name: Build
+    name: Build package
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && github.ref_name != 'master' }}
     permissions:
       contents: write
     defaults:
@@ -42,9 +43,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Modflow executables
-        uses: modflowpy/install-modflow-action@v1
-
       - name: Update version
         id: version
         run: |
@@ -63,12 +61,11 @@ jobs:
       - name: Check package
         run: twine check --strict dist/*
 
-      - name: Run tests
-        working-directory: autotest
-        run: |
-          pytest -v -m="not example and not regression" -n=auto --durations=0 --keep-failed=.failed
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Run tests
+      #   working-directory: autotest
+      #   run: pytest -v -m="not example and not regression" -n=auto --durations=0 --keep-failed=.failed
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload failed test outputs
         uses: actions/upload-artifact@v2
@@ -90,12 +87,11 @@ jobs:
 
       - name: Push release branch
         run: |
-          # commit and push
           git config core.sharedRepository true
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "ci(release): update version to ${{ steps.version.outputs.version }}, update plugins from DFN files"
+          git commit -m "ci(release): set version to ${{ steps.version.outputs.version }}, update plugins from DFN files"
           git push origin "${{ github.ref_name }}"
 
   pr:
@@ -131,22 +127,25 @@ jobs:
           gh pr create -B "master" -H "$ref" --title "$title" --draft --body "$body"
 
   release:
-    name: Create release
+    name: Draft release
     # runs only when changes are merged to master
     if: ${{ github.event_name == 'push' && github.ref_name == 'master' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
 
-      # TODO: auto-generate release notes
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          ref: master
+
       - name: Draft release
-        working-directory: modflow6
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          # detect release version
-          version=$(python scripts/update_version.py --get)
-
-          # create draft release
+          version=$(cat version.txt)
           title="FloPy $version"
           notes='*Insert release notes here*'
           gh release create "$version" --target master --title "$title" --notes "$notes" --draft --latest
@@ -156,22 +155,27 @@ jobs:
     # runs only after release is published (manually promoted from draft to public)
     if: ${{ github.event_name == 'release' }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
 
       - name: Checkout FloPy
         uses: actions/checkout@v3
         with:
           path: flopy
+          ref: master
 
       - name: Setup Micromamba
         uses: mamba-org/provision-with-micromamba@main
         with:
+          environment-file: flopy/etc/environment.yml
           cache-downloads: true
           cache-env: true
 
       - name: Install dependencies
         run: |
-          conda install -c conda-forga conda-smithy
+          mamba install -c conda-forga conda-smithy
           pip install --upgrade pip
           pip install twine
 
@@ -196,6 +200,7 @@ jobs:
           echo "sha256=$sha256" >> $GITHUB_OUTPUT
 
       - name: Get version
+        working-directory: flopy
         id: version
         run: |
           version=$(python scripts/update_version.py --get)
@@ -211,7 +216,7 @@ jobs:
       - name: Checkout feedstock
         uses: actions/checkout@v3
         with:
-          repository: jdhughes-usgs/flopy-feedstock
+          repository: w-bonelli/flopy-feedstock
           path: flopy-feedstock
           ref: master
 
@@ -250,3 +255,69 @@ jobs:
       #     This release can be approved by merging this pull request into `master`. This will trigger a final job to publish the release to PyPI and open a PR to update the [Conda feedstock](https://github.com/jdhughes-usgs/flopy-feedstock).
       #     '
       #     gh pr create -B "master" -H "$ref" --title "Release version $ver" --draft --latest --body "$body"
+
+  reset:
+    name: Draft reset PR
+    if: ${{ github.event_name == 'release' }}
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.7
+          cache: 'pip'
+          cache-dependency-path: setup.cfg
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install build twine
+          pip install .
+          pip install ".[lint, test, optional]"
+
+      - name: Get release tag
+        uses: oprypin/find-latest-tag@v1
+        id: latest_tag
+        with:
+          repository: ${{ github.repository }}
+          releases-only: true
+
+      - name: Create pull request
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          # create reset branch from master
+          reset_branch="post-release-${{ steps.latest_tag.outputs.tag }}-reset"
+          git fetch origin
+          git checkout master
+          git switch -c $reset_branch
+          
+          # increment minor version and reset IDEVELOPMODE to 1
+          major_version=$(echo "${{ steps.latest_tag.outputs.tag }}" | cut -d. -f1)
+          minor_version=$(echo "${{ steps.latest_tag.outputs.tag }}" | cut -d. -f2)
+          patch_version=$(echo "${{ steps.latest_tag.outputs.tag }}" | cut -d. -f3)
+          version="$major_version.$minor_version.$((patch_version + 1))"
+          python scripts/update_version.py -v "$version"
+          
+          # commit and push reset branch
+          git config core.sharedRepository true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "ci(release): update to development version $version"
+          git push -u origin $reset_branch
+          
+          # create PR into develop
+          body='
+          # Reinitialize for development
+          
+          Updates the `develop` branch from `master` following a successful release. Increments the patch version number.
+          '
+          gh pr create -B "develop" -H "$reset_branch" --title "Reinitialize develop branch" --draft --body "$body"
