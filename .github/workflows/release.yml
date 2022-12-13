@@ -21,6 +21,8 @@ jobs:
 
       - name: Checkout repo
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -85,6 +87,24 @@ jobs:
           name: dist
           path: dist
 
+      - name: Generate changelog
+        id: git-cliff
+        uses: orhun/git-cliff-action@v1
+        with:
+          config: cliff.toml
+          args: "--verbose --latest --prepend docs/version_changes.md"
+        env:
+          OUTPUT: CHANGELOG.md
+
+      - name: Show changelog
+        run: cat "${{ steps.git-cliff.outputs.changelog }}"
+
+      - name: Upload changelog
+        uses: actions/upload-artifact@v3
+        with:
+          name: changelog
+          path: CHANGELOG.md
+
       - name: Push release branch
         run: |
           git config core.sharedRepository true
@@ -139,19 +159,12 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
           ref: master
 
-      - name: Generate changelog
-        id: git-cliff
-        uses: orhun/git-cliff-action@v1
+      - name: Download changelog
+        uses: actions/download-artifact@v3
         with:
-          args: -vv --latest
-        env:
-          OUTPUT: CHANGELOG.md
-
-      - name: Print the changelog
-        run: cat "${{ steps.git-cliff.outputs.changelog }}"
+          name: changelog
 
       - name: Draft release
         env:
@@ -159,8 +172,13 @@ jobs:
         run: |
           version=$(cat version.txt)
           title="FloPy $version"
-          notes='$(cat "${{ steps.git-cliff.outputs.changelog }}")'
-          gh release create "$version" --target master --title "$title" --notes "$notes" --draft --latest
+          notes=$(cat CHANGELOG.md)
+          gh release create "$version" \
+            --target master \
+            --title "$title" \
+            --notes "$notes" \
+            --draft \
+            --latest
 
   publish:
     name: Publish package
@@ -196,6 +214,9 @@ jobs:
         with:
           name: dist
           path: dist
+
+      - name: Check package
+        run: twine check --strict dist/*
 
       - name: Download release assets
         uses: robinraju/release-downloader@v1.6
