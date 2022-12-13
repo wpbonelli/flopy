@@ -96,10 +96,14 @@ jobs:
         env:
           OUTPUT: CHANGELOG.md
 
+      - name: Move changelog
+        run: mv ${{ steps.cliff.outputs.changelog }} CHANGELOG.md
+
       - name: Update changelog
         run: |
-          cat ${{ steps.cliff.outputs.changelog }}
-          cat ${{ steps.cliff.outputs.changelog }} | cat - docs/version_changes.md | tee docs/version_changes.md
+          cat CHANGELOG.md
+          
+          cat CHANGELOG.md | cat - docs/version_changes.md | tee docs/version_changes.md
 
       - name: Upload changelog
         uses: actions/upload-artifact@v3
@@ -205,7 +209,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          mamba install -c conda-forga conda-smithy
+          micromamba install -c conda-forga conda-smithy
           pip install --upgrade pip
           pip install twine
 
@@ -293,6 +297,9 @@ jobs:
     name: Draft reset PR
     if: ${{ github.event_name == 'release' }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      pull-requests: write
     defaults:
       run:
         shell: bash -l {0}

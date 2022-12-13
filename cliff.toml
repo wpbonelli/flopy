@@ -13,9 +13,9 @@ body = """
     ### [unreleased]
 {% endif %}\
 {% for group, commits in commits | group_by(attribute="group") %}
-    * {{ group | upper_first }}
+    #### {{ group | upper_first }}
     {% for commit in commits %}
-        * {% if commit.breaking %}[**breaking**] {% endif %}{{ commit.message | upper_first }}\
+        * [{{ commit.group }}{% if commit.scope %}({{ commit.scope }}){% endif %}](https://github.com/modflowpy/flopy/commit/{{ commit.id }}): {% if commit.breaking %}[**breaking**] {% endif %}{{ commit.message | upper_first }}. Committed by {{ commit.author.name }} on {{ commit.author.timestamp | date(format="%Y-%m-%d") }}.\
     {% endfor %}
 {% endfor %}\n
 """
@@ -29,22 +29,22 @@ conventional_commits = true
 filter_unconventional = true
 split_commits = false
 commit_parsers = [
-    { message = "^[fF]eat", group = "New features"},
-    { message = "^[fF]ix", group = "Bug fixes"},
-    { message = "^[bB]ug", group = "Bug fixes"},
-    { message = "^[dD]oc.*", group = "Documentation"},
-    { message = "^[bB]inder", group = "Documentation"},
-    { message = "^[nN]otebook.*", group = "Documentation"},
-    { message = "^[rR][eE][aA][dD].*", group = "Documentation"},
-    { message = "^[pP]erf", group = "Performance"},
-    { message = "^[rR]efactor", group = "Refactoring"},
-    { message = "^[uU]pdate", group = "Refactoring"},
-    { message = "^[sS]tyl.*", group = "Styling"},
-    { message = "^[tT]est.*", group = "Testing"},
-    { message = "^[cC][iI]", group = "Continuous integration"},
+    { message = "^[fF]eat", group = "feat"},
+    { message = "^[fF]ix", group = "fix"},
+    { message = "^[bB]ug", group = "fix"},
+    { message = "^[dD]oc.*", group = "docs"},
+    { message = "^[bB]inder", group = "docs"},
+    { message = "^[nN]otebook.*", group = "docs"},
+    { message = "^[rR][eE][aA][dD].*", group = "docs"},
+    { message = "^[pP]erf", group = "perf"},
+    { message = "^[rR]efactor", group = "refactor"},
+    { message = "^[uU]pdate", group = "refactor"},
+    { message = "^[sS]tyl.*", group = "style"},
+    { message = "^[tT]est.*", group = "test"},
+    { message = "^[cC][iI]", group = "ci"},
     { message = "^[cC][iI]\\(release\\):", skip = true},
     { message = "^[rR]elease", skip = true},
-    { message = "^[cC]hore", group = "Miscellaneous tasks"},
+    { message = "^[cC]hore", group = "chore"},
 ]
 protect_breaking_commits = false
 filter_commits = false
