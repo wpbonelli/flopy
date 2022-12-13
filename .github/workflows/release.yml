@@ -163,10 +163,8 @@ jobs:
         with:
           ref: master
 
-      - name: Download changelog
-        uses: actions/download-artifact@v3
-        with:
-          name: changelog
+      - name: Download artifacts
+        uses: dawidd6/action-download-artifact@v2
 
       - name: Draft release
         env:
@@ -174,7 +172,7 @@ jobs:
         run: |
           version=$(cat version.txt)
           title="FloPy $version"
-          notes=$(cat CHANGELOG.md)
+          notes=$(cat changelog/CHANGELOG.md)
           gh release create "$version" \
             --target master \
             --title "$title" \
