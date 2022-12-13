@@ -88,16 +88,18 @@ jobs:
           path: dist
 
       - name: Generate changelog
-        id: git-cliff
+        id: cliff
         uses: orhun/git-cliff-action@v1
         with:
           config: cliff.toml
-          args: "--verbose --latest --prepend docs/version_changes.md"
+          args: --verbose --unreleased --tag ${{ steps.version.outputs.version }}
         env:
           OUTPUT: CHANGELOG.md
 
-      - name: Show changelog
-        run: cat "${{ steps.git-cliff.outputs.changelog }}"
+      - name: Update changelog
+        run: |
+          cat ${{ steps.cliff.outputs.changelog }}
+          cat ${{ steps.cliff.outputs.changelog }} | cat - docs/version_changes.md | tee docs/version_changes.md
 
       - name: Upload changelog
         uses: actions/upload-artifact@v3
@@ -111,7 +113,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "ci(release): set version to ${{ steps.version.outputs.version }}, update plugins from DFN files"
+          git commit -m "ci(release): set version to ${{ steps.version.outputs.version }}, update plugins from DFN files, update changelog"
           git push origin "${{ github.ref_name }}"
 
   pr:
