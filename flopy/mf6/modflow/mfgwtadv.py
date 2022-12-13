@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS FILE DIRECTLY.  THIS FILE MUST BE CREATED BY
 # mf6/utils/createpackages.py
-# FILE created on March 07, 2022 16:59:43 UTC
+# FILE created on December 13, 2022 20:43:09 UTC
 from .. import mfpackage
 
 
@@ -11,7 +11,7 @@ class ModflowGwtadv(mfpackage.MFPackage):
     Parameters
     ----------
     model : MFModel
-        Model that this package is a part of.  Package is automatically
+        Model that this package is a part of. Package is automatically
         added to model when it is initialized.
     loading_package : bool
         Do not set this parameter. It is intended for debugging and internal
@@ -26,7 +26,7 @@ class ModflowGwtadv(mfpackage.MFPackage):
         Package name for this package.
     parent_file : MFPackage
         Parent package file that references this package. Only needed for
-        utility packages (mfutl*). For example, mfutllaktab package must have
+        utility packages (mfutl*). For example, mfutllaktab package must have 
         a mfgwflak package parent_file.
 
     """
@@ -36,31 +36,14 @@ class ModflowGwtadv(mfpackage.MFPackage):
     dfn_file_name = "gwt-adv.dfn"
 
     dfn = [
-        [
-            "header",
-        ],
-        [
-            "block options",
-            "name scheme",
-            "type string",
-            "valid central upstream tvd",
-            "reader urword",
-            "optional true",
-        ],
-    ]
+           ["header", ],
+           ["block options", "name scheme", "type string",
+            "valid central upstream tvd", "reader urword", "optional true"]]
 
-    def __init__(
-        self,
-        model,
-        loading_package=False,
-        scheme=None,
-        filename=None,
-        pname=None,
-        parent_file=None,
-    ):
-        super().__init__(
-            model, "adv", filename, pname, loading_package, parent_file
-        )
+    def __init__(self, model, loading_package=False, scheme=None, filename=None,
+                 pname=None, **kwargs):
+        super().__init__(model, "adv", filename, pname,
+                         loading_package, **kwargs)
 
         # set up variables
         self.scheme = self.build_mfdata("scheme", scheme)

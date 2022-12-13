@@ -35,23 +35,22 @@ Instructions for making a FloPy release
 
 ## Update the release version number
 
-1.  Increment `major`, `minor`, and/or `micro` numbers in `flopy/version.py`, as appropriate.
-
+1.  Run `python scripts/update_version.py -v <semver number>` to update the version number in `version.txt` and `flopy/version.py`.
 
 ## Update the Software/Code citation for FloPy
 
-1. Update the `author_dict` in `flopy/version.py` for the Software/Code citation for FloPy, if required.
+1. Update the authors in `CITATION.cff` for the Software/Code citation for FloPy, if required.
 
 
 ## Build USGS release notes
 
-1.  Manually run `make-release.py` in the `release/` directory to update version information using:
+1.  Manually run `make-release.py` in the `scripts/` directory to update version information using:
 
     ```
     python make-release.py
     ```
 
-2.  Manually run `update-version_changes.py` in the `release/` directory to update version changes information using:
+2.  Manually run `update-version_changes.py` in the `scripts/` directory to update version changes information using:
 
     ```
     python update-version_changes.py
@@ -60,7 +59,7 @@ Instructions for making a FloPy release
 
 ## Update the example notebooks
 
-Use `run_notebooks.py` in the `release` directory to rerun all of the notebooks in:
+Use `run_notebooks.py` in the `scripts` directory to rerun all of the notebooks in:
 
 1.  `examples\Notebooks` directory.
 2.  `examples\Notebooks\groundwater_paper` directory.
@@ -123,32 +122,26 @@ Use `run_notebooks.py` in the `release` directory to rerun all of the notebooks 
 6.  Make pull request to [flopy-feedstock](https://github.com/conda-forge/flopy-feedstock)
 
 
-## Update PyPi
+## Update PyPI
 
-1.  Make sure `twine` is installed using:
-
-    ```
-    conda search twine
-    ```
-
-
-2.  If it is not installed, install using using:
-
+1.  Make sure the latest `build` and `twine` tools are installed using:
 
     ```
-    conda install twine
+    pip install --upgrade build twine
     ```
 
-3.  Create the source zip file in a terminal using:
+2.  Create the source and wheel packages with:
 
     ```
-    python setup.py sdist
+    rm -rf dist
+    python -m build
     ```
 
-4.  Upload the release to PyPi using (*make sure* `twine` *is installed using conda*):
+3.  Check and upload the release to PyPI using:
 
     ```
-    twine upload dist/flopy-version.zip
+    twine check --strict dist/*
+    twine upload dist/*
     ```
 
 ## Sync develop and master branches
@@ -157,7 +150,7 @@ Use `run_notebooks.py` in the `release` directory to rerun all of the notebooks 
 
 2.  Increment `major`, `minor`, and/or `micro` numbers in `flopy/version.py`, as appropriate.
 
-3.  Manually run `make-release.py` in the `release/` directory to update version information using:
+3.  Manually run `make-release.py` in the `scripts/` directory to update version information using:
 
     ```
     python make-release.py

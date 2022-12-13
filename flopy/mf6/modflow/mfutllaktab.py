@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS FILE DIRECTLY.  THIS FILE MUST BE CREATED BY
 # mf6/utils/createpackages.py
-# FILE created on March 07, 2022 16:59:43 UTC
+# FILE created on December 13, 2022 20:43:09 UTC
 from .. import mfpackage
 from ..data.mfdatautil import ListTemplateGenerator
 
@@ -12,7 +12,7 @@ class ModflowUtllaktab(mfpackage.MFPackage):
     Parameters
     ----------
     model : MFModel
-        Model that this package is a part of.  Package is automatically
+        Model that this package is a part of. Package is automatically
         added to model when it is initialized.
     loading_package : bool
         Do not set this parameter. It is intended for debugging and internal
@@ -42,143 +42,42 @@ class ModflowUtllaktab(mfpackage.MFPackage):
         Package name for this package.
     parent_file : MFPackage
         Parent package file that references this package. Only needed for
-        utility packages (mfutl*). For example, mfutllaktab package must have
+        utility packages (mfutl*). For example, mfutllaktab package must have 
         a mfgwflak package parent_file.
 
     """
-
-    table = ListTemplateGenerator(("laktab", "table", "table"))
+    table = ListTemplateGenerator(('laktab', 'table', 'table'))
     package_abbr = "utllaktab"
     _package_type = "laktab"
     dfn_file_name = "utl-laktab.dfn"
 
     dfn = [
-        [
-            "header",
-        ],
-        [
-            "block dimensions",
-            "name nrow",
-            "type integer",
-            "reader urword",
-            "optional false",
-        ],
-        [
-            "block dimensions",
-            "name ncol",
-            "type integer",
-            "reader urword",
-            "optional false",
-        ],
-        [
-            "block table",
-            "name table",
-            "type recarray stage volume sarea barea",
-            "shape (nrow)",
-            "reader urword",
-        ],
-        [
-            "block table",
-            "name stage",
-            "type double precision",
-            "shape",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-        ],
-        [
-            "block table",
-            "name volume",
-            "type double precision",
-            "shape",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-        ],
-        [
-            "block table",
-            "name sarea",
-            "type double precision",
-            "shape",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-        ],
-        [
-            "block table",
-            "name barea",
-            "type double precision",
-            "shape",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-            "optional true",
-        ],
-    ]
+           ["header", 
+            "multi-package", ],
+           ["block dimensions", "name nrow", "type integer",
+            "reader urword", "optional false"],
+           ["block dimensions", "name ncol", "type integer",
+            "reader urword", "optional false"],
+           ["block table", "name table",
+            "type recarray stage volume sarea barea", "shape (nrow)",
+            "reader urword"],
+           ["block table", "name stage", "type double precision", "shape",
+            "tagged false", "in_record true", "reader urword"],
+           ["block table", "name volume", "type double precision", "shape",
+            "tagged false", "in_record true", "reader urword"],
+           ["block table", "name sarea", "type double precision", "shape",
+            "tagged false", "in_record true", "reader urword"],
+           ["block table", "name barea", "type double precision", "shape",
+            "tagged false", "in_record true", "reader urword",
+            "optional true"]]
 
-    def __init__(
-        self,
-        model,
-        loading_package=False,
-        nrow=None,
-        ncol=None,
-        table=None,
-        filename=None,
-        pname=None,
-        parent_file=None,
-    ):
-        super().__init__(
-            model, "laktab", filename, pname, loading_package, parent_file
-        )
+    def __init__(self, model, loading_package=False, nrow=None, ncol=None,
+                 table=None, filename=None, pname=None, **kwargs):
+        super().__init__(model, "laktab", filename, pname,
+                         loading_package, **kwargs)
 
         # set up variables
         self.nrow = self.build_mfdata("nrow", nrow)
         self.ncol = self.build_mfdata("ncol", ncol)
         self.table = self.build_mfdata("table", table)
         self._init_complete = True
-
-
-class UtllaktabPackages(mfpackage.MFChildPackages):
-    """
-    UtllaktabPackages is a container class for the ModflowUtllaktab class.
-
-    Methods
-    ----------
-    initialize
-        Initializes a new ModflowUtllaktab package removing any sibling child
-        packages attached to the same parent package. See ModflowUtllaktab init
-        documentation for definition of parameters.
-    append_package
-        Adds a new ModflowUtllaktab package to the container. See ModflowUtllaktab
-        init documentation for definition of parameters.
-    """
-
-    package_abbr = "utllaktabpackages"
-
-    def initialize(
-        self, nrow=None, ncol=None, table=None, filename=None, pname=None
-    ):
-        new_package = ModflowUtllaktab(
-            self._model,
-            nrow=nrow,
-            ncol=ncol,
-            table=table,
-            filename=filename,
-            pname=pname,
-            parent_file=self._cpparent,
-        )
-        self._init_package(new_package, filename)
-
-    def append_package(
-        self, nrow=None, ncol=None, table=None, filename=None, pname=None
-    ):
-        new_package = ModflowUtllaktab(
-            self._model,
-            nrow=nrow,
-            ncol=ncol,
-            table=table,
-            filename=filename,
-            pname=pname,
-            parent_file=self._cpparent,
-        )
-        self._append_package(new_package, filename)

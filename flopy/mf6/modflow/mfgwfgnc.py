@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS FILE DIRECTLY.  THIS FILE MUST BE CREATED BY
 # mf6/utils/createpackages.py
-# FILE created on March 07, 2022 16:59:43 UTC
+# FILE created on December 13, 2022 20:43:09 UTC
 from .. import mfpackage
 from ..data.mfdatautil import ListTemplateGenerator
 
@@ -12,7 +12,7 @@ class ModflowGwfgnc(mfpackage.MFPackage):
     Parameters
     ----------
     model : MFModel
-        Model that this package is a part of.  Package is automatically
+        Model that this package is a part of. Package is automatically
         added to model when it is initialized.
     loading_package : bool
         Do not set this parameter. It is intended for debugging and internal
@@ -93,121 +93,49 @@ class ModflowGwfgnc(mfpackage.MFPackage):
         Package name for this package.
     parent_file : MFPackage
         Parent package file that references this package. Only needed for
-        utility packages (mfutl*). For example, mfutllaktab package must have
+        utility packages (mfutl*). For example, mfutllaktab package must have 
         a mfgwflak package parent_file.
 
     """
-
-    gncdata = ListTemplateGenerator(("gwf6", "gnc", "gncdata", "gncdata"))
+    gncdata = ListTemplateGenerator(('gwf6', 'gnc', 'gncdata',
+                                     'gncdata'))
     package_abbr = "gwfgnc"
     _package_type = "gnc"
     dfn_file_name = "gwf-gnc.dfn"
 
     dfn = [
-        [
-            "header",
-        ],
-        [
-            "block options",
-            "name print_input",
-            "type keyword",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name print_flows",
-            "type keyword",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name explicit",
-            "type keyword",
-            "tagged true",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block dimensions",
-            "name numgnc",
-            "type integer",
-            "reader urword",
-            "optional false",
-        ],
-        [
-            "block dimensions",
-            "name numalphaj",
-            "type integer",
-            "reader urword",
-            "optional false",
-        ],
-        [
-            "block gncdata",
-            "name gncdata",
+           ["header", ],
+           ["block options", "name print_input", "type keyword",
+            "reader urword", "optional true"],
+           ["block options", "name print_flows", "type keyword",
+            "reader urword", "optional true"],
+           ["block options", "name explicit", "type keyword", "tagged true",
+            "reader urword", "optional true"],
+           ["block dimensions", "name numgnc", "type integer",
+            "reader urword", "optional false"],
+           ["block dimensions", "name numalphaj", "type integer",
+            "reader urword", "optional false"],
+           ["block gncdata", "name gncdata",
             "type recarray cellidn cellidm cellidsj alphasj",
-            "shape (maxbound)",
-            "reader urword",
-        ],
-        [
-            "block gncdata",
-            "name cellidn",
-            "type integer",
-            "shape",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-            "numeric_index true",
-        ],
-        [
-            "block gncdata",
-            "name cellidm",
-            "type integer",
-            "shape",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-            "numeric_index true",
-        ],
-        [
-            "block gncdata",
-            "name cellidsj",
-            "type integer",
-            "shape (numalphaj)",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-            "numeric_index true",
-        ],
-        [
-            "block gncdata",
-            "name alphasj",
-            "type double precision",
-            "shape (numalphaj)",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-        ],
-    ]
+            "shape (maxbound)", "reader urword"],
+           ["block gncdata", "name cellidn", "type integer", "shape",
+            "tagged false", "in_record true", "reader urword",
+            "numeric_index true"],
+           ["block gncdata", "name cellidm", "type integer", "shape",
+            "tagged false", "in_record true", "reader urword",
+            "numeric_index true"],
+           ["block gncdata", "name cellidsj", "type integer",
+            "shape (numalphaj)", "tagged false", "in_record true",
+            "reader urword", "numeric_index true"],
+           ["block gncdata", "name alphasj", "type double precision",
+            "shape (numalphaj)", "tagged false", "in_record true",
+            "reader urword"]]
 
-    def __init__(
-        self,
-        model,
-        loading_package=False,
-        print_input=None,
-        print_flows=None,
-        explicit=None,
-        numgnc=None,
-        numalphaj=None,
-        gncdata=None,
-        filename=None,
-        pname=None,
-        parent_file=None,
-    ):
-        super().__init__(
-            model, "gnc", filename, pname, loading_package, parent_file
-        )
+    def __init__(self, model, loading_package=False, print_input=None,
+                 print_flows=None, explicit=None, numgnc=None, numalphaj=None,
+                 gncdata=None, filename=None, pname=None, **kwargs):
+        super().__init__(model, "gnc", filename, pname,
+                         loading_package, **kwargs)
 
         # set up variables
         self.print_input = self.build_mfdata("print_input", print_input)
@@ -217,3 +145,40 @@ class ModflowGwfgnc(mfpackage.MFPackage):
         self.numalphaj = self.build_mfdata("numalphaj", numalphaj)
         self.gncdata = self.build_mfdata("gncdata", gncdata)
         self._init_complete = True
+
+
+class GwfgncPackages(mfpackage.MFChildPackages):
+    """
+    GwfgncPackages is a container class for the ModflowGwfgnc class.
+
+    Methods
+    ----------
+    initialize
+        Initializes a new ModflowGwfgnc package removing any sibling child
+        packages attached to the same parent package. See ModflowGwfgnc init
+        documentation for definition of parameters.
+    append_package
+        Adds a new ModflowGwfgnc package to the container. See ModflowGwfgnc
+        init documentation for definition of parameters.
+    """
+    package_abbr = "gwfgncpackages"
+
+    def initialize(self, print_input=None, print_flows=None, explicit=None,
+                   numgnc=None, numalphaj=None, gncdata=None, filename=None,
+                   pname=None):
+        new_package = ModflowGwfgnc(self._cpparent, print_input=print_input,
+                                    print_flows=print_flows, explicit=explicit,
+                                    numgnc=numgnc, numalphaj=numalphaj,
+                                    gncdata=gncdata, filename=filename,
+                                    pname=pname, child_builder_call=True)
+        self.init_package(new_package, filename)
+
+    def append_package(self, print_input=None, print_flows=None,
+                   explicit=None, numgnc=None, numalphaj=None, gncdata=None,
+                   filename=None, pname=None):
+        new_package = ModflowGwfgnc(self._cpparent, print_input=print_input,
+                                    print_flows=print_flows, explicit=explicit,
+                                    numgnc=numgnc, numalphaj=numalphaj,
+                                    gncdata=gncdata, filename=filename,
+                                    pname=pname, child_builder_call=True)
+        self._append_package(new_package, filename)
