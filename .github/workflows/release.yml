@@ -252,36 +252,37 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: python -m twine upload --repository testpypi dist/*
 
-      - name: Checkout feedstock
-        uses: actions/checkout@v3
-        with:
-          repository: w-bonelli/flopy-feedstock
-          path: flopy-feedstock
-          ref: master
+      # TODO: only need below if regro-cf-autotick-bot doesn't autodetect the release and create a PR
+      # - name: Checkout feedstock
+      #   uses: actions/checkout@v3
+      #   with:
+      #     repository: w-bonelli/flopy-feedstock
+      #     path: flopy-feedstock
+      #     ref: master
 
-      - name: Update feedstock
-        working-directory: flopy-feedstock
-        run: |
-          git remote add upstream https://github.com/conda-forge/flopy-feedstock.git
-          git fetch upstream
-          git checkout master
-          git reset --hard upstream/master
-          # git push origin master --force
-          git switch -c "v${{ steps.version.outputs.version }}-update-conda"
+      # - name: Update feedstock
+      #   working-directory: flopy-feedstock
+      #   run: |
+      #     git remote add upstream https://github.com/conda-forge/flopy-feedstock.git
+      #     git fetch upstream
+      #     git checkout master
+      #     git reset --hard upstream/master
+      #     # git push origin master --force
+      #     git switch -c "v${{ steps.version.outputs.version }}-update-conda"
 
-      - name: Rerender feedstock
-        working-directory: flopy-feedstock
-        run: |
-          conda smithy rerender
+      # - name: Rerender feedstock
+      #   working-directory: flopy-feedstock
+      #   run: |
+      #     conda smithy rerender
 
-      - name: Update feedstock recipe
-        working-directory: flopy-feedstock
-        run: |
-          sed -i '1s/.*/{% set version = "'${{ steps.version.outputs.version }}'" %}/' recipe/meta.yaml
-          sed -i 's/sha256:.*/sha256: ${{ steps.checksum.outputs.sha256 }}/g' recipe/meta.yaml
-          git add recipe/meta.yaml
-          git commit -m "ci(release): update recipe"
-          # git push -u origin "v${{ steps.version.outputs.version }}-update-conda" 
+      # - name: Update feedstock recipe
+      #   working-directory: flopy-feedstock
+      #   run: |
+      #     sed -i '1s/.*/{% set version = "'${{ steps.version.outputs.version }}'" %}/' recipe/meta.yaml
+      #     sed -i 's/sha256:.*/sha256: ${{ steps.checksum.outputs.sha256 }}/g' recipe/meta.yaml
+      #     git add recipe/meta.yaml
+      #     git commit -m "ci(release): update recipe"
+      #     # git push -u origin "v${{ steps.version.outputs.version }}-update-conda"
 
       # - name: Draft feedstock PR
       #   working-directory: flopy-feedstock
