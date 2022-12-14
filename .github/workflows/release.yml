@@ -8,8 +8,8 @@ on:
     types:
       - published
 jobs:
-  build:
-    name: Build package
+  prep:
+    name: Prepare release
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' && github.ref_name != 'master' }}
     permissions:
@@ -122,7 +122,7 @@ jobs:
 
   pr:
     name: Draft release PR
-    needs: build
+    needs: prep
     if: ${{ github.event_name == 'push' && !(contains(github.ref_name, 'rc')) }}
     runs-on: ubuntu-22.04
     permissions:
@@ -198,7 +198,6 @@ jobs:
       - name: Checkout master branch
         uses: actions/checkout@v3
         with:
-          path: flopy
           ref: master
 
       - name: Setup Python
