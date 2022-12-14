@@ -53,7 +53,7 @@ jobs:
           ver="${ref#"v"}"
           
           # update version files
-          if [[ $ver== *"rc"* ]]; then
+          if [[ "$ver" == *"rc"* ]]; then
             python scripts/update_version.py -v "${ref%"rc"}"
           else
             python scripts/update_version.py -v "$ver" --approve
@@ -69,11 +69,11 @@ jobs:
       - name: Lint Python files
         run: python scripts/pull_request_prepare.py
 
-      - name: Run tests
-        working-directory: autotest
-        run: pytest -v -m="not example and not regression" -n=auto --durations=0 --keep-failed=.failed
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Run tests
+      #   working-directory: autotest
+      #   run: pytest -v -m="not example and not regression" -n=auto --durations=0 --keep-failed=.failed
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload failed test outputs
         uses: actions/upload-artifact@v2
@@ -83,9 +83,9 @@ jobs:
           path: |
             ./autotest/.failed/**
 
-      - name: Run notebooks
-        working-directory: scripts
-        run: python run_notebooks.py
+      # - name: Run notebooks
+      #   working-directory: scripts
+      #   run: python run_notebooks.py
 
       - name: Generate changelog
         id: cliff
@@ -239,7 +239,7 @@ jobs:
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: python -m twine upload dist/*
+        run: python -m twine upload --repository testpypi dist/*
 
       # TODO: only need if regro-cf-autotick-bot doesn't autodetect release and open PR on conda-forge/flopy-feedstock
 
