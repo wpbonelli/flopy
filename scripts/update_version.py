@@ -210,13 +210,15 @@ def update_codejson(release_type: ReleaseType, timestamp: datetime, version: Ver
 
     # modify the json file data
     data[0]["date"]["metadataLastUpdated"] = timestamp.strftime("%Y-%m-%d")
-    data[0]["version"] = version
+    data[0]["version"] = str(version)
     data[0]["status"] = release_type.value
 
     # rewrite the json file
     with open(json_fname, "w") as f:
         json.dump(data, f, indent=4)
         f.write("\n")
+
+    print(f"Updated {json_fname} to version {version}")
 
 
 def update_readme_markdown(release_type: ReleaseType, timestamp: datetime, version: Version):
@@ -260,11 +262,10 @@ def update_readme_markdown(release_type: ReleaseType, timestamp: datetime, versi
             # [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/modflowpy/flopy.git/develop)
             line = (
                 "[![Binder](https://mybinder.org/badge_logo.svg)]"
-                "(https://mybinder.org/v2/gh/modflowpy/flopy.git/"
-                "develop)"
+                "(https://mybinder.org/v2/gh/modflowpy/flopy.git/develop)"
             )
         elif "doi.org/10.5066/F7BK19FH" in line:
-            line = get_software_citation(release_type, version)
+            line = get_software_citation(release_type, timestamp, version)
         elif "Disclaimer" in line:
             line = disclaimer
             terminate = True
@@ -273,9 +274,11 @@ def update_readme_markdown(release_type: ReleaseType, timestamp: datetime, versi
             break
 
     f.close()
+    print(f"Updated {fpth} to version {version}")
 
     # write disclaimer markdown file
     file_paths["DISCLAIMER.md"].write_text(disclaimer)
+    print(f"Updated {file_paths['DISCLAIMER.md']} to version {version}")
 
 
 def update_citation_cff(release_type: ReleaseType, timestamp: datetime, version: Version):
@@ -284,7 +287,7 @@ def update_citation_cff(release_type: ReleaseType, timestamp: datetime, version:
     citation = yaml.safe_load(fpth.read_text())
 
     # update version and date-released
-    citation["version"] = version
+    citation["version"] = str(version)
     citation["date-released"] = timestamp.strftime("%Y-%m-%d")
 
     # write CITATION.cff
@@ -296,6 +299,8 @@ def update_citation_cff(release_type: ReleaseType, timestamp: datetime, version:
             default_flow_style=False,
             sort_keys=False,
         )
+
+    print(f"Updated {fpth} to version {version}")
 
 
 def update_notebook_examples_markdown(release_type: ReleaseType, timestamp: datetime, version: Version):
@@ -313,10 +318,11 @@ def update_notebook_examples_markdown(release_type: ReleaseType, timestamp: date
             # [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/modflowpy/flopy.git/develop)
             line = (
                 "[![Binder](https://mybinder.org/badge_logo.svg)]"
-                "(https://mybinder.org/v2/gh/modflowpy/flopy.git/)"
+                "(https://mybinder.org/v2/gh/modflowpy/flopy.git/develop)"
             )
         f.write(f"{line}\n")
     f.close()
+    print(f"Updated {fpth} to version {version}")
 
 
 def update_PyPI_release(release_type: ReleaseType, timestamp: datetime, version: Version):
@@ -341,6 +347,7 @@ def update_PyPI_release(release_type: ReleaseType, timestamp: datetime, version:
             break
 
     f.close()
+    print(f"Updated {fpth} to version {version}")
 
 
 def update_version(release_type: ReleaseType, timestamp: datetime = datetime.now(), version: Version = None):
