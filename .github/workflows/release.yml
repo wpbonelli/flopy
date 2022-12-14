@@ -48,9 +48,18 @@ jobs:
       - name: Update FloPy version
         id: version
         run: |
+          # extract version from branch name
           ref="${{ github.ref_name }}"
-          ver="${ref%"rc"}"
-          python scripts/update_version.py -v "${ver#"v"}"
+          ver="${ref#"v"}"
+          
+          # update version files
+          if [[ $ver== *"rc"* ]]; then
+            python scripts/update_version.py -v "${ref%"rc"}"
+          else
+            python scripts/update_version.py -v "$ver" --approve
+          fi
+          
+          # show version and set output
           python -c "import flopy; print(f'FloPy version: {flopy.__version__}')"
           echo "version=${ver#"v"}" >> $GITHUB_OUTPUT
 
