@@ -19,7 +19,7 @@ jobs:
         shell: bash
     steps:
 
-      - name: Checkout repo
+      - name: Checkout release branch
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
@@ -45,7 +45,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update version
+      - name: Update FloPy version
         id: version
         run: |
           ref="${{ github.ref_name }}"
@@ -54,14 +54,8 @@ jobs:
           python -c "import flopy; print(f'FloPy version: {flopy.__version__}')"
           echo "version=${ver#"v"}" >> $GITHUB_OUTPUT
 
-      - name: Update plugins
+      - name: Update FloPy plugins
         run: python -c 'import flopy; flopy.mf6.utils.generate_classes(branch="master", backup=False)'
-
-      - name: Build package
-        run: python -m build
-
-      - name: Check package
-        run: twine check --strict dist/*
 
       # - name: Run tests
       #   working-directory: autotest
@@ -81,12 +75,6 @@ jobs:
       #   working-directory: scripts
       #   run: python run_notebooks.py
 
-      - name: Upload package
-        uses: actions/upload-artifact@v3
-        with:
-          name: dist
-          path: dist
-
       - name: Generate changelog
         id: cliff
         uses: orhun/git-cliff-action@v1
@@ -96,18 +84,22 @@ jobs:
         env:
           OUTPUT: CHANGELOG.md
 
-      - name: Move changelog
-        run: sudo cp ${{ steps.cliff.outputs.changelog }} CHANGELOG.md
-
       - name: Update changelog
         run: |
+          # move changelog
+          sudo cp ${{ steps.cliff.outputs.changelog }} CHANGELOG.md
+          
+          # show changelog
           cat CHANGELOG.md
+          
+          # substitute full group names
           sed -i 's/#### Ci/#### Continuous integration/' CHANGELOG.md
           sed -i 's/#### Feat/#### New features/' CHANGELOG.md
           sed -i 's/#### Fix/#### Bug fixes/' CHANGELOG.md
           sed -i 's/#### Refactor/#### Refactoring/' CHANGELOG.md
           sed -i 's/#### Test/#### Testing/' CHANGELOG.md
           
+          # prepend changelog to docs/version_changes.md
           cat CHANGELOG.md | cat - docs/version_changes.md | tee docs/version_changes.md
 
       - name: Upload changelog
@@ -138,12 +130,12 @@ jobs:
         shell: bash -l {0}
     steps:
 
-      - name: Checkout repo
+      - name: Checkout release branch
         uses: actions/checkout@v3
         with:
           ref: ${{ github.ref_name }}
 
-      - name: Draft PR
+      - name: Draft pull request
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -167,11 +159,12 @@ jobs:
       pull-requests: write
     steps:
 
-      - name: Checkout repo
+      - name: Checkout master branch
         uses: actions/checkout@v3
         with:
           ref: master
 
+      # actions/download-artifact won't look at previous workflow runs but we need to in order to get changelog
       - name: Download artifacts
         uses: dawidd6/action-download-artifact@v2
 
@@ -199,52 +192,37 @@ jobs:
       pull-requests: write
     steps:
 
-      - name: Checkout FloPy
+      - name: Checkout master branch
         uses: actions/checkout@v3
         with:
           path: flopy
           ref: master
 
-      - name: Setup Micromamba
-        uses: mamba-org/provision-with-micromamba@main
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          environment-file: flopy/etc/environment.yml
-          cache-downloads: true
-          cache-env: true
+          python-version: 3.7
+          cache: 'pip'
+          cache-dependency-path: setup.cfg
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
-          conda install -c conda-forge conda-smithy
           pip install --upgrade pip
-          pip install twine
+          pip install build twine
+          pip install .
+          pip install ".[lint, test, optional]"     
 
-      - name: Download artifacts
-        uses: dawidd6/action-download-artifact@v2
+      - name: Build package
+        run: python -m build
 
       - name: Check package
         run: twine check --strict dist/*
 
-      - name: Download release assets
-        uses: robinraju/release-downloader@v1.6
+      - name: Upload package
+        uses: actions/upload-artifact@v3
         with:
-          latest: true
-          tarBall: true
-          zipBall: false
-
-      - name: Calculate checksum
-        id: checksum
-        run: |
-          sha256=$(openssl sha256 "Source code (tar.gz).tar.gz")
-          echo "SHA256: $sha256"
-          echo "sha256=$sha256" >> $GITHUB_OUTPUT
-
-      - name: Get version
-        working-directory: flopy
-        id: version
-        run: |
-          version=$(python scripts/update_version.py --get)
-          echo "version: $version"
-          echo "version=$version" >> $GITHUB_OUTPUT
+          name: dist
+          path: dist
 
       - name: Publish to PyPI
         env:
@@ -252,13 +230,49 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: python -m twine upload --repository testpypi dist/*
 
-      # TODO: only need below if regro-cf-autotick-bot doesn't autodetect the release and create a PR
+      # TODO: only need if regro-cf-autotick-bot doesn't autodetect release and open PR on conda-forge/flopy-feedstock
+
+      # - name: Setup Micromamba
+      #   uses: mamba-org/provision-with-micromamba@main
+      #   with:
+      #     environment-file: flopy/etc/environment.yml
+      #     cache-downloads: true
+      #     cache-env: true
+
+      # - name: Install dependencies
+      #   run: |
+      #     conda install -c conda-forge conda-smithy
+      #     pip install --upgrade pip
+      #     pip install build twine
+
+      # - name: Download release assets
+      #   uses: robinraju/release-downloader@v1.6
+      #   with:
+      #     latest: true
+      #     tarBall: true
+      #     zipBall: false
+
+      # - name: Calculate checksum
+      #   id: checksum
+      #   run: |
+      #     sha256=$(openssl sha256 "Source code (tar.gz).tar.gz")
+      #     echo "SHA256: $sha256"
+      #     echo "sha256=$sha256" >> $GITHUB_OUTPUT
+
       # - name: Checkout feedstock
       #   uses: actions/checkout@v3
       #   with:
       #     repository: w-bonelli/flopy-feedstock
       #     path: flopy-feedstock
       #     ref: master
+
+      # - name: Get version
+      #   working-directory: flopy
+      #   id: version
+      #   run: |
+      #     version=$(python scripts/update_version.py --get)
+      #     echo "version: $version"
+      #     echo "version=$version" >> $GITHUB_OUTPUT
 
       # - name: Update feedstock
       #   working-directory: flopy-feedstock
@@ -308,8 +322,10 @@ jobs:
         shell: bash -l {0}
     steps:
 
-      - name: Checkout repo
+      - name: Checkout master branch
         uses: actions/checkout@v3
+        with:
+          ref: master
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -332,14 +348,12 @@ jobs:
           repository: ${{ github.repository }}
           releases-only: true
 
-      - name: Create pull request
+      - name: Draft pull request
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           # create reset branch from master
           reset_branch="post-release-${{ steps.latest_tag.outputs.tag }}-reset"
-          git fetch origin
-          git checkout master
           git switch -c $reset_branch
           
           # increment minor version and reset IDEVELOPMODE to 1
