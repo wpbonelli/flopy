@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS FILE DIRECTLY.  THIS FILE MUST BE CREATED BY
 # mf6/utils/createpackages.py
-# FILE created on April 11, 2022 18:22:41 UTC
+# FILE created on December 14, 2022 02:11:42 UTC
 from .. import mfmodel
 from ..data.mfdatautil import ArrayTemplateGenerator, ListTemplateGenerator
 
@@ -74,35 +74,18 @@ class ModflowGwf(mfmodel.MFModel):
         model_ws : string, strict : boolean) : MFSimulation
         a class method that loads a model from files
     """
+    model_type = 'gwf'
 
-    model_type = "gwf"
-
-    def __init__(
-        self,
-        simulation,
-        modelname="model",
-        model_nam_file=None,
-        version="mf6",
-        exe_name="mf6",
-        model_rel_path=".",
-        list=None,
-        print_input=None,
-        print_flows=None,
-        save_flows=None,
-        newtonoptions=None,
-        packages=None,
-        **kwargs,
-    ):
-        super().__init__(
-            simulation,
-            model_type="gwf6",
-            modelname=modelname,
-            model_nam_file=model_nam_file,
-            version=version,
-            exe_name=exe_name,
-            model_rel_path=model_rel_path,
-            **kwargs,
-        )
+    def __init__(self, simulation, modelname='model', model_nam_file=None,
+                 version='mf6', exe_name='mf6', model_rel_path='.', list=None,
+                 print_input=None, print_flows=None, save_flows=None,
+                 newtonoptions=None, packages=None, **kwargs,):
+        super().__init__(simulation, model_type='gwf6',
+                         modelname=modelname,
+                         model_nam_file=model_nam_file,
+                         version=version, exe_name=exe_name,
+                         model_rel_path=model_rel_path,
+                         **kwargs,)
 
         self.name_file.list.set_data(list)
         self.name_file.print_input.set_data(print_input)
@@ -112,27 +95,11 @@ class ModflowGwf(mfmodel.MFModel):
         self.name_file.packages.set_data(packages)
 
     @classmethod
-    def load(
-        cls,
-        simulation,
-        structure,
-        modelname="NewModel",
-        model_nam_file="modflowtest.nam",
-        version="mf6",
-        exe_name="mf6",
-        strict=True,
-        model_rel_path=".",
-        load_only=None,
-    ):
-        return mfmodel.MFModel.load_base(
-            simulation,
-            structure,
-            modelname,
-            model_nam_file,
-            "gwf",
-            version,
-            exe_name,
-            strict,
-            model_rel_path,
-            load_only,
-        )
+    def load(cls, simulation, structure, modelname='NewModel',
+             model_nam_file='modflowtest.nam', version='mf6',
+             exe_name='mf6', strict=True, model_rel_path='.',
+             load_only=None):
+        return mfmodel.MFModel.load_base(simulation, structure, modelname,
+                                         model_nam_file, 'gwf', version,
+                                         exe_name, strict, model_rel_path,
+                                         load_only)
