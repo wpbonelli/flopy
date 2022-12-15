@@ -37,6 +37,14 @@ After updating version information, regenerating plugin classes, and generating 
 
 This procedure runs automatically in `release.yml` after a release branch is pushed to GitHub, except for the final step (updating the `conda-forge/flopy-feedstock` repository &mdash; there is a bot which will [automatically detect changes and create a PR](https://github.com/conda-forge/flopy-feedstock/pull/47) to do so).
 
+When a release branch is pushed, a PR will automatically be created against the `master` branch from the release branch. This PR will contain all changes to `develop` since the latest update to `master`. It will also have updated version files, regenerated plugin classes from MODFLOW 6 DFN files, and an updated changelog. (If the changelog is detected to already be up-to-date for the to-be-released version, it will not be updated.)
+
+Manual changes should not be necessary to the release branch/PR if the branch is created from `develop`, the release version is selected appropriately (either a major, minor, or patch version increment), and the last release's changeset was merged (not squashed) to `master`. If manual changes are necessary, the administrator will need to cancel the workflow run for `release.yml` re-triggered by pushing to the release branch.
+
+Merging the release PR will trigger a job to create a draft release post. The release will be tagged according to the version number in the release branch name. The release post's contents are the changelog since the last release.
+
+Promoting the draft release (i.e. publishing it) triggers a final job to update the Python Package Index. Lastly there is a Conda bot which [detects new releases and creates a PR against `conda-forge/flopy-feedstock`](https://github.com/conda-forge/flopy-feedstock/pull/47) &mdash; if for some reason this fails to happen automatically, see the Conda update instructions below.
+
 
 ### Release from master branch
 
