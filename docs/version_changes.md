@@ -1,3 +1,15 @@
+### Version 3.3.6
+
+etc
+
+#### New features
+
+etc
+
+#### Bug fixes
+
+etc
+
 ### Version 3.3.5
 
 #### New features

@@ -11,7 +11,7 @@ jobs:
   prep:
     name: Prepare release
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' && github.ref_name != 'master' }}
+    if: ${{ github.event_name == 'push' && github.ref_name != 'master' &&  }}
     permissions:
       contents: write
     defaults:
@@ -111,9 +111,14 @@ jobs:
           sed -i 's/#### Refactor/#### Refactoring/' CHANGELOG.md
           sed -i 's/#### Test/#### Testing/' CHANGELOG.md
           
-          # prepend changelog to docs/version_changes.md
-          cat CHANGELOG.md docs/version_changes.md > version_changes.md
-          sudo mv version_changes.md docs/version_changes.md
+          # prepend changelog to docs/version_changes.md if it hasn't already been updated
+          updated=$(sed -n '/^### Version ${{ steps.version.outputs.version }}/p;q' docs/version_changes.md)
+          if [ "$updated" ]; then
+            echo "Version ${{ steps.version.outputs.version }} has already been updated in docs/version_changes.md"
+          else
+            cat CHANGELOG.md docs/version_changes.md > version_changes.md
+            sudo mv version_changes.md docs/version_changes.md
+          fi
 
       - name: Upload changelog
         uses: actions/upload-artifact@v3
