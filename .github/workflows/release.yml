@@ -69,11 +69,11 @@ jobs:
       - name: Lint Python files
         run: python scripts/pull_request_prepare.py
 
-      - name: Run tests
-        working-directory: autotest
-        run: pytest -v -m="not example and not regression" -n=auto --durations=0 --keep-failed=.failed
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Run tests
+      #   working-directory: autotest
+      #   run: pytest -v -m="not example and not regression" -n=auto --durations=0 --keep-failed=.failed
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload failed test outputs
         uses: actions/upload-artifact@v2
@@ -83,9 +83,9 @@ jobs:
           path: |
             ./autotest/.failed/**
 
-      - name: Run notebooks
-        working-directory: scripts
-        run: python run_notebooks.py
+      # - name: Run notebooks
+      #   working-directory: scripts
+      #   run: python run_notebooks.py
 
       - name: Generate changelog
         id: cliff
