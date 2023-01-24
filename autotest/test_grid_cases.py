@@ -6,8 +6,12 @@ from flopy.utils.voronoi import VoronoiGrid
 
 
 class GridCases:
-    def structured_small(self):
-        nlay, nrow, ncol = 3, 2, 3
+    def structured_small_square_uniform(self):
+        """
+        Small square structured grid with uniform spacing.
+        """
+
+        nlay, nrow, ncol = 3, 3, 3
         delc = 1.0 * np.ones(nrow, dtype=float)
         delr = 1.0 * np.ones(ncol, dtype=float)
         top = 10.0 * np.ones((nrow, ncol), dtype=float)
@@ -25,10 +29,38 @@ class GridCases:
             botm=botm,
         )
 
-    def structured_cbd_small(self):
+    def structured_small_rect_uniform(self):
+        """
+        Small rectangular structured grid with uniform spacing
+        """
+
+        nlay, nrow, ncol = 3, 4, 8
+        delc = 1.0 * np.ones(nrow, dtype=float)
+        delr = 1.0 * np.ones(ncol, dtype=float)
+        top = 10.0 * np.ones((nrow, ncol), dtype=float)
+        botm = np.zeros((nlay, nrow, ncol), dtype=float)
+        botm[0, :, :] = 5.0
+        botm[1, :, :] = 0.0
+        botm[2, :, :] = -5.0
+        return StructuredGrid(
+            nlay=nlay,
+            nrow=nrow,
+            ncol=ncol,
+            delc=delc,
+            delr=delr,
+            top=top,
+            botm=botm,
+        )
+
+    def structured_small_square_cbd(self):
+        """
+        Small square structured grid with uniform row/col spacing
+        and a confining bed beneath the first and second layers.
+        """
+
         nlay = 3
         nrow = ncol = 15
-        laycbd = np.array([1, 2, 0], dtype=int)
+        laycbd = np.array([1, 1, 0], dtype=int)
         ncb = np.count_nonzero(laycbd)
         dx = dy = 150
         delc = np.array(

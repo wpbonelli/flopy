@@ -410,6 +410,10 @@ class Grid:
         raise NotImplementedError("must define grid_lines in child class")
 
     @property
+    def cellcenters(self):
+        return np.array(self.xyzcellcenters).T
+
+    @property
     def xcellcenters(self):
         return self.xyzcellcenters[0]
 
@@ -979,19 +983,18 @@ class Grid:
         self._xoff = d.xul
 
     def _zcoords(self):
-        if self.top is not None and self.botm is not None:
-            zcenters = []
-            top_3d = np.expand_dims(self.top, 0)
-            zbdryelevs = np.concatenate(
-                (top_3d, np.atleast_2d(self.botm)), axis=0
-            )
+        if self.top is None or self.botm is None:
+            return None, None
 
-            for ix in range(1, len(zbdryelevs)):
-                zcenters.append((zbdryelevs[ix - 1] + zbdryelevs[ix]) / 2.0)
-        else:
-            zbdryelevs = None
-            zcenters = None
-        return zbdryelevs, zcenters
+        top_3d = np.expand_dims(self.top, 0)
+        coords = np.concatenate((top_3d, np.atleast_2d(self.botm)), axis=0)
+        centers = np.array(
+            [
+                ((coords[i - 1] + coords[i]) / 2.0)
+                for i in range(1, len(coords))
+            ]
+        )
+        return coords, centers
 
     # Exporting
     def write_shapefile(self, filename="grid.shp", epsg=None, prj=None):

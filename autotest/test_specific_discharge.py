@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from matplotlib.quiver import Quiver
+from modflow_devtools.markers import requires_pkg
 
 import flopy.utils.binaryfile as bf
 from flopy.mf6 import (
@@ -371,17 +372,19 @@ def test_extended_budget_default(mf2005_model):
     assert np.allclose(overall, -1122.4931640625)
 
     # call other evaluations
-    specific_discharge_default(function_tmpdir)
+    specific_discharge_default(function_tmpdir, position="centers")
+    specific_discharge_default(function_tmpdir, position="faces")
+    specific_discharge_default(function_tmpdir, position="vertices")
     specific_discharge_comprehensive(function_tmpdir)
 
 
-def extended_budget_comprehensive(function_tmpdir):
+def extended_budget_comprehensive(workspace):
     # load and postprocess
-    mf = Modflow.load(str(function_tmpdir / "mf2005.nam"), check=False)
+    mf = Modflow.load(str(workspace / "mf2005.nam"), check=False)
     Qx_ext, Qy_ext, Qz_ext = get_extended_budget(
-        str(function_tmpdir / "mf2005.cbc"),
+        str(workspace / "mf2005.cbc"),
         boundary_ifaces=boundary_ifaces,
-        hdsfile=str(function_tmpdir / "mf2005.hds"),
+        hdsfile=str(workspace / "mf2005.hds"),
         model=mf,
     )
 
@@ -390,7 +393,7 @@ def extended_budget_comprehensive(function_tmpdir):
 
     # local balance check
     local_balance_check(
-        Qx_ext, Qy_ext, Qz_ext, str(function_tmpdir / "mf2005.hds"), mf
+        Qx_ext, Qy_ext, Qz_ext, str(workspace / "mf2005.hds"), mf
     )
 
     # overall check
@@ -398,29 +401,43 @@ def extended_budget_comprehensive(function_tmpdir):
     assert np.allclose(overall, -1110.646240234375)
 
 
-def specific_discharge_default(function_tmpdir):
+def specific_discharge_default(workspace, position="centers"):
     # load and postprocess
-    mf = Modflow.load(str(function_tmpdir / "mf2005.nam"), check=False)
-    cbc = bf.CellBudgetFile(str(function_tmpdir / "mf2005.cbc"))
+    mf = Modflow.load(str(workspace / "mf2005.nam"), check=False)
+    cbc = bf.CellBudgetFile(str(workspace / "mf2005.cbc"))
     keys = ["FLOW RIGHT FACE", "FLOW FRONT FACE", "FLOW LOWER FACE"]
     vectors = [cbc.get_data(text=t)[0] for t in keys]
-    qx, qy, qz = get_specific_discharge(vectors, mf)
+    qx, qy, qz = get_specific_discharge(vectors, mf, position=position)
+
+    # shape check
+    if position == "centers":
+        assert qx.shape == qy.shape == qz.shape == (nlay, nrow, ncol)
+    elif position == "faces":
+        assert (
+            qx.shape == (nlay, nrow, ncol + 1)
+            and qy.shape == (nlay, nrow + 1, ncol)
+            and qz.shape == (nlay + 1, nrow, ncol)
+        )
+    elif position == "vertices":
+        assert (
+            qx.shape == qy.shape == qz.shape == (nlay + 1, nrow + 1, ncol + 1)
+        )
 
     # overall check
-    overall = np.sum(qx) + np.sum(qy) + np.sum(qz)
-    assert np.allclose(overall, -1.7959892749786377)
+    if position == "centers":
+        overall = np.sum(qx) + np.sum(qy) + np.sum(qz)
+        assert np.allclose(overall, -1.7959892749786377)
 
 
-def specific_discharge_comprehensive(function_tmpdir):
-
-    hds = bf.HeadFile(str(function_tmpdir / "mf2005.hds"))
+def specific_discharge_comprehensive(workspace):
+    hds = bf.HeadFile(str(workspace / "mf2005.hds"))
     head = hds.get_data()
     # load and postprocess
-    mf = Modflow.load(str(function_tmpdir / "mf2005.nam"), check=False)
+    mf = Modflow.load(str(workspace / "mf2005.nam"), check=False)
     Qx_ext, Qy_ext, Qz_ext = get_extended_budget(
-        str(function_tmpdir / "mf2005.cbc"),
+        str(workspace / "mf2005.cbc"),
         boundary_ifaces=boundary_ifaces,
-        hdsfile=str(function_tmpdir / "mf2005.hds"),
+        hdsfile=str(workspace / "mf2005.hds"),
         model=mf,
     )
 
@@ -457,7 +474,7 @@ def specific_discharge_comprehensive(function_tmpdir):
     plt.close()
 
     # plot discharge in cross-section view
-    hds = bf.HeadFile(str(function_tmpdir / "mf2005.hds"), precision="single")
+    hds = bf.HeadFile(str(workspace / "mf2005.hds"), precision="single")
     head = hds.get_data()
     row = 0
     xsect = PlotCrossSection(model=mf, line={"row": row})

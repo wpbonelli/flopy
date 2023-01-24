@@ -1,6 +1,7 @@
 import copy
 import inspect
 import os.path
+from enum import Enum
 
 import numpy as np
 
@@ -76,6 +77,59 @@ def array_at_faces_1d(a, delta):
     afaces = a_ghost[:-1] * weight1 + a_ghost[1:] * weight2
 
     return afaces
+
+
+class Interp(Enum):
+    """
+    Linear interpolation for quantities living on geometric features of the grid.
+    Supported features include:
+     - cell vertices
+     - cell centers
+     - face centers
+    """
+
+    c2f = "c2f"  # centers to faces
+    c2v = "c2v"  # centers to vertices
+    v2c = "v2c"  # vertices to centers
+    v2f = "v2f"  # vertices to faces
+
+    # todo
+    # f2c = "f2c"  # faces to centers
+    # f2v = "f2v"  # faces to vertices
+    # c2e = 'c2e'  # centers to edge midpoints?
+    # v2e = 'v2e'  # vertices to edge midpoints?
+
+    @staticmethod
+    def from_str(s, default=None):
+        """
+        Convert a string with more lenience than dictionary-style access
+
+        Parameters
+        ----------
+        s: The string
+        default: The default value if no match is found
+
+        Returns
+        -------
+            The enum value for the string if found, otherwise the default
+        """
+
+        s = s.lower()
+        try:
+            return Interp[s]
+        except KeyError:
+            pass
+
+        if s == "centers_to_faces" or s == "centers2faces":
+            return Interp.c2f
+        elif s == "centers_to_vertices" or s == "centers2vertices":
+            return Interp.c2v
+        elif s == "vertices_to_centers" or s == "vertices2centers":
+            return Interp.v2c
+        elif s == "vertices_to_faces" or s == "vertices2faces":
+            return Interp.v2f
+        else:
+            return default
 
 
 class StructuredGrid(Grid):
@@ -293,7 +347,6 @@ class StructuredGrid(Grid):
     def xyzvertices(self):
         """
         Method to get all grid vertices in a layer
-
         Returns:
             []
             2D array
@@ -309,10 +362,7 @@ class StructuredGrid(Grid):
                 ([length_y], length_y - np.add.accumulate(self.delc))
             )
             xgrid, ygrid = np.meshgrid(xedge, yedge)
-            zgrid, zcenter = self._zcoords()
-            if self._has_ref_coordinates:
-                # transform x and y
-                pass
+            zgrid, _ = self._zcoords()
             xgrid, ygrid = self.get_coords(xgrid, ygrid)
             if zgrid is not None:
                 self._cache_dict[cache_index] = CachedData(
@@ -325,6 +375,26 @@ class StructuredGrid(Grid):
             return self._cache_dict[cache_index].data
         else:
             return self._cache_dict[cache_index].data_nocopy
+
+    @property
+    def vertices(self):
+        """
+        Array of vertex coordinates, shaped ((nlay + 1 + nlaycbd) * (nrow + 1) * (ncol + 1), 3)
+
+        Returns
+        -------
+            An array of vertex coordinates
+        """
+
+        nlaycbd = np.count_nonzero(self.laycbd)
+        xs = np.repeat(self.xvertices, self.nlay + 1 + nlaycbd).reshape(
+            (self.nlay + 1 + nlaycbd, self.nrow + 1, self.ncol + 1)
+        )
+        ys = np.repeat(self.yvertices, self.nlay + 1 + nlaycbd).reshape(
+            (self.nlay + 1 + nlaycbd, self.nrow + 1, self.ncol + 1)
+        )
+        zs = np.pad(self.zvertices, ((0, 0), (0, 1), (0, 1)), mode="edge")
+        return np.array((xs, ys, zs)).reshape(3, -1).T
 
     @property
     def xyedges(self):
@@ -418,9 +488,12 @@ class StructuredGrid(Grid):
     @property
     def xyzcellcenters(self):
         """
-        Return a list of three numpy float arrays: two two-dimensional arrays
-        for center x and y coordinates, and one three-dimensional array for
-        center z coordinates. Coordinates are given in real-world coordinates.
+        Return a list of three numpy float arrays: two-dimensional arrays
+        for center x and y coordinates, and a three-dimensional array for
+        center z coordinates. Real-world coordinates are returned, rather
+        than model coordinates. The z coordinate for a cell center is the
+        average of its top and bottom elevation. Quasi-3D layers (laycbd)
+        are ignored.
         """
         cache_index = "cellcenters"
         if (
@@ -437,6 +510,8 @@ class StructuredGrid(Grid):
                 # get z centers
                 z = np.empty((self.__nlay, self.__nrow, self.__ncol))
                 z[0, :, :] = (self._top[:, :] + self._botm[0, :, :]) / 2.0
+
+                # adjust for quasi-3d confining bed layers
                 ibs = np.arange(self.__nlay)
                 quasi3d = [cbd != 0 for cbd in self._laycbd]
                 if np.any(quasi3d):
@@ -456,6 +531,25 @@ class StructuredGrid(Grid):
             return self._cache_dict[cache_index].data
         else:
             return self._cache_dict[cache_index].data_nocopy
+
+    @property
+    def cellcenters(self):
+        """
+        Array of cell center coordinates, shaped (nlay * nrow * ncol, 3)
+
+        Returns
+        -------
+            An array of cell center coordinates
+        """
+
+        xs = np.repeat(self.xcellcenters, self.nlay).reshape(
+            (self.nlay, self.nrow, self.ncol)
+        )
+        ys = np.repeat(self.ycellcenters, self.nlay).reshape(
+            (self.nlay, self.nrow, self.ncol)
+        )
+        zs = self.zcellcenters
+        return np.array((xs, ys, zs)).reshape(3, -1).T
 
     @property
     def grid_lines(self):
@@ -732,7 +826,6 @@ class StructuredGrid(Grid):
             cache_index not in self._cache_dict
             or self._cache_dict[cache_index].out_of_date
         ):
-            self.xyzvertices
             self._polygons = None
 
         if self._polygons is None:
@@ -1026,9 +1119,81 @@ class StructuredGrid(Grid):
         mm = PlotMapView(modelgrid=self)
         return mm.plot_grid(**kwargs)
 
+    def interpolate(self, a, feat="c2v", **kwargs):
+        """
+        Interpolate scalars between grid features (e.g. cell centers to vertices).
+
+        Linear smoothing is applied with scipy.interpolate.RegularGridInterpolator
+        or custom methods where possible, falling back to LinearNDInterpolator for
+        irregular grids. Other interpolation approaches are currently unsupported.
+
+        The 'feat' parameter specifies the mapping between features, defaulting to
+        'c2v', which maps cell centers to vertices. Note that the returned array's
+        dimensions may not be the same as the input array, depending on the output
+        feature selected. For instance, mapping cell centers to vertices will give
+        an array of values extended by 1 in each dimension, while mapping vertices
+        to centers will reduce each dimension by 1. Mapping to faces gives a tuple
+        of arrays, each extended in 1 dimension (unless keyword arg 'direction' is
+        provided, which produces just 1 array extended by 1 along the x/y/z axis).
+
+        Parameters
+        ----------
+        a: ndarray
+            the array (usually the same shape as the grid, +1 for faces/vertices)
+        feat: Union[str, Interpolation]
+            specifies the mapping, options are:
+              - c2v (center_to_vertices, center2faces)
+              - c2f
+              - v2c
+              - v2f
+        kwargs: dict
+            keyword arguments used for specific mappings (e.g. direction for *2f)
+
+        Returns
+        -------
+            Array(s) of values interpolated at the specified grid features
+        """
+
+        if isinstance(feat, str):
+            feat = Interp.from_str(feat.lower(), None)
+        elif not isinstance(feat, Interp):
+            raise ValueError(f"Unrecognized mapping: {feat}")
+
+        a = np.array(a)
+        shp = a.shape
+
+        if feat == Interp.c2v:
+            if shp != self.shape:
+                raise ValueError(
+                    f"Array shape ({shp}) must match grid shape ({self.shape})"
+                )
+            return self.array_at_verts(a)
+        elif feat == Interp.c2f:
+            if shp != self.shape:
+                raise ValueError(
+                    f"Array shape ({shp}) must match grid shape ({self.shape})"
+                )
+
+            direction = kwargs.pop("direction", None)
+            if direction:
+                return self.array_at_faces(a, direction=direction)
+
+            return np.array(
+                [
+                    self.array_at_faces(a, direction="x"),
+                    self.array_at_faces(a, direction="y"),
+                    self.array_at_faces(a, direction="z"),
+                ]
+            )
+        else:
+            # todo other mappings
+            raise NotImplementedError(
+                f"Unsupported interpolation: {feat.value}"
+            )
+
     def array_at_verts_basic(self, a):
         """
-        Computes values at cell vertices using neighbor averaging.
+        Computes values at cell vertices using nearest neighbor averaging.
 
         Parameters
         ----------
@@ -1064,7 +1229,7 @@ class StructuredGrid(Grid):
 
         return averts
 
-    def array_at_verts(self, a):
+    def array_at_verts(self, a, cbd=True):
         """
         Interpolate array values at cell vertices.
 
@@ -1125,6 +1290,9 @@ class StructuredGrid(Grid):
             zedges = np.nanmean(self.top_botm_withnan, axis=(1, 2))
         else:
             zedges = self.top_botm_withnan[:, 0, 0]
+        zedges = np.delete(
+            zedges, np.array(np.nonzero(self.laycbd)) * 2, axis=0
+        )
         zcenters = 0.5 * (zedges[1:] + zedges[:-1])
 
         # test grid regularity in z
@@ -1221,18 +1389,26 @@ class StructuredGrid(Grid):
                 else:
                     # 3d interpolation
                     # flip y and z coordinates because RegularGridInterpolator
-                    # requires increasing input coordinates
-                    xyzinput = (np.flip(zcenters), np.flip(ycenters), xcenters)
+                    # requires increasing input coordinates.
+                    # scipy interpolators also require C-order memory layout.
+                    xyzinput = (
+                        np.flip(zcenters).copy(order="C"),
+                        np.flip(ycenters).copy(order="C"),
+                        xcenters.copy(order="C"),
+                    )
                     a = np.flip(a, axis=[0, 1])
                     # interpolate
                     interp_func = interp.RegularGridInterpolator(
-                        xyzinput, a, bounds_error=False, fill_value=np.nan
+                        xyzinput,
+                        a.copy(order="C"),
+                        bounds_error=False,
+                        fill_value=np.nan,
                     )
                     xyzoutput = np.empty((zoutput.size, 3))
                     xyzoutput[:, 0] = zoutput.ravel()
                     xyzoutput[:, 1] = youtput.ravel()
                     xyzoutput[:, 2] = xoutput.ravel()
-                    averts = interp_func(xyzoutput)
+                    averts = interp_func(xyzoutput.copy(order="C"))
                     averts = averts.reshape(shape_verts)
 
         elif a.shape == shape_ext_x:

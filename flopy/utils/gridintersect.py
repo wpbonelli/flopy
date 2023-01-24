@@ -352,8 +352,7 @@ class GridIntersect:
         ncol = self.mfgrid.ncol
         ncells = nrow * ncol
         cellids = np.arange(ncells)
-        xvertices = self.mfgrid.xvertices
-        yvertices = self.mfgrid.yvertices
+        xvertices, yvertices = self.mfgrid.xvertices, self.mfgrid.yvertices
 
         # arrays of coordinates for rectangle cells
         I, J = np.ogrid[0:nrow, 0:ncol]
