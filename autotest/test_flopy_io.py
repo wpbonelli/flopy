@@ -21,7 +21,7 @@ def test_relpath_safe(function_tmpdir):
     ):
         assert (
             Path(relpath_safe(function_tmpdir))
-            == Path(function_tmpdir).absolute()
+            == Path(getcwd()).absolute()
         )
     else:
         assert Path(

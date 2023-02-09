@@ -5,6 +5,7 @@ on:
       - master
       - develop
       - ci-diagnose*
+      - test_clean_paths
   pull_request:
     branches:
       - master
