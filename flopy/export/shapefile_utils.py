@@ -199,7 +199,7 @@ def write_grid_shapefile(
 
     # close
     w.close()
-    print(f"wrote {flopy_io.relpath_printstr(os.getcwd(), path)}")
+    print(f"wrote {flopy_io.relpath_safe(os.getcwd(), path)}")
     # write the projection file
     write_prj(path, mg, epsg, prj)
     return
@@ -611,7 +611,7 @@ def recarray2shp(
 
     w.close()
     write_prj(shpname, mg, epsg, prj)
-    print(f"wrote {flopy_io.relpath_printstr(os.getcwd(), shpname)}")
+    print(f"wrote {flopy_io.relpath_safe(os.getcwd(), shpname)}")
     return
 
 
@@ -630,7 +630,7 @@ def write_prj(shpname, mg=None, epsg=None, prj=None, wkt_string=None):
     elif prj is not None:
         if prjname.exists():
             print(
-                f".prj file {flopy_io.relpath_printstr(os.getcwd(), prjname)} already exists"
+                f".prj file {flopy_io.relpath_safe(os.getcwd(), prjname)} already exists"
             )
         else:
             shutil.copy(str(prj), str(prjname))
@@ -993,12 +993,12 @@ class EpsgReference:
         if self.location.exists():
             if verbose:
                 print(
-                    f"Resetting {flopy_io.relpath_printstr(os.getcwd(), self.location)}"
+                    f"Resetting {flopy_io.relpath_safe(os.getcwd(), self.location)}"
                 )
             self.location.unlink()
         elif verbose:
             print(
-                f"{flopy_io.relpath_printstr(os.getcwd(), self.location)} does not exist, no reset required"
+                f"{flopy_io.relpath_safe(os.getcwd(), self.location)} does not exist, no reset required"
             )
 
     def add(self, epsg, prj):

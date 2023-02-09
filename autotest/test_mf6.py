@@ -1031,12 +1031,13 @@ def test_output_add_observation(function_tmpdir, example_data_path):
         sfr_obs, Mf6Obs
     ), "remove and add observation test (Mf6Output) failed"
 
+
 def test_sfr_connections(function_tmpdir, example_data_path):
-    '''MODFLOW just warns if any reaches are unconnected
-    flopy fails to load model if reach 1 is unconnected, fine with other unconnected'''
+    """MODFLOW just warns if any reaches are unconnected
+    flopy fails to load model if reach 1 is unconnected, fine with other unconnected"""
     data_path = str(example_data_path / "mf6" / "test666_sfrconnections")
     sim_ws = str(function_tmpdir)
-    for test in ['sfr0', 'sfr1']:
+    for test in ["sfr0", "sfr1"]:
         sim_name = "test_sfr"
         model_name = "test_sfr"
         tdis_name = "{}.tdis".format(sim_name)
@@ -1053,7 +1054,9 @@ def test_sfr_connections(function_tmpdir, example_data_path):
             complexity="SIMPLE",
         )
         model = ModflowGwf(
-            sim, modelname=model_name, model_nam_file="{}.nam".format(model_name)
+            sim,
+            modelname=model_name,
+            model_nam_file="{}.nam".format(model_name),
         )
 
         dis = ModflowGwfdis(
@@ -1077,32 +1080,35 @@ def test_sfr_connections(function_tmpdir, example_data_path):
             icelltype=1,
             k=50.0,
         )
-        
-        cnfile = f'mf6_{test}_connection.txt'
-        pkfile = f'mf6_{test}_package.txt'
 
-        with open(os.path.join(data_path, pkfile), 'r') as f:
+        cnfile = f"mf6_{test}_connection.txt"
+        pkfile = f"mf6_{test}_package.txt"
+
+        with open(os.path.join(data_path, pkfile), "r") as f:
             nreaches = len(f.readlines())
-        sfr = ModflowGwfsfr(model,
-                            packagedata={'filename': os.path.join(data_path, pkfile)},
-                            connectiondata={'filename': os.path.join(data_path, cnfile)},
-                            nreaches=nreaches,
-                            pname='sfr',
-                            unit_conversion=86400
-                            )
+        sfr = ModflowGwfsfr(
+            model,
+            packagedata={"filename": os.path.join(data_path, pkfile)},
+            connectiondata={"filename": os.path.join(data_path, cnfile)},
+            nreaches=nreaches,
+            pname="sfr",
+            unit_conversion=86400,
+        )
         sim.set_all_data_external()
         sim.write_simulation()
         success, buff = sim.run_simulation()
         assert success, f"simulation {sim.name} did not run"
 
-        #reload simulation
+        # reload simulation
         sim2 = MFSimulation.load(sim_ws=sim_ws)
         sim.set_all_data_external()
         sim.write_simulation()
         success, buff = sim.run_simulation()
-        assert success, f"simulation {sim.name} did not run after being reloaded"
-        
-        
+        assert (
+            success
+        ), f"simulation {sim.name} did not run after being reloaded"
+
+
 @requires_exe("mf6")
 def test_array(function_tmpdir):
     # get_data

@@ -543,32 +543,34 @@ def get_ts_sp(line):
     return ts, sp
 
 
-def relpath_printstr(ws_from, ws_to):
+def relpath_safe(path, start=os.curdir):
     """
-    Method to work around Python issue 7195, no relative path exists between
-    drives on Windows
+    Return a relative version of the path starting at the given start path.
+    This is impossible on Windows if the paths are on different drives, in
+    which case the absolute path is returned. (The builtin os.path.relpath
+    raises a ValueError, this method is a workaround to avoid interrupting
+    normal control flow.)
+
+    See https://bugs.python.org/issue7195 for more information.
 
     Parameters
     ----------
-    ws_from : str
-        path from
-    ws_to : str
-        path to
+    path : str
+        the path to truncate relative to the start path
+    start : str
+        the starting path
 
     Returns
     -------
-        str : returns the relative path from ws_from to ws_to, if ws_from is
-        not on the same drive as ws_to the function returns the absolute path
-        of ws_to
+        str : the relative path, unless the platform is Windows and the `path`
+        is not on the same drive as `start`, in which case the absolute path
     """
-    if platform.system().lower() == "windows":
-        ws = os.path.abspath(ws_from)
-        ws2 = os.path.abspath(ws_to)
-        d0 = os.path.splitdrive(ws)[0].lower()
-        d1 = os.path.splitdrive(ws2)[0].lower()
-        if d0 != d1:
-            return ws2
-        else:
-            return os.path.relpath(ws2, ws)
+
+    if platform.system() == "Windows":
+        pa = os.path.abspath(path)
+        sa = os.path.abspath(start)
+        pd = os.path.splitdrive(pa)[0].lower()
+        sd = os.path.splitdrive(sa)[0].lower()
+        return sa if pd != sd else os.path.relpath(sa, pa)
     else:
-        return os.path.relpath(ws_from, ws_to)
+        return os.path.relpath(path, start)
