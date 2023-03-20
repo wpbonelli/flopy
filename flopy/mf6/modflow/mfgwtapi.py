@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS FILE DIRECTLY.  THIS FILE MUST BE CREATED BY
 # mf6/utils/createpackages.py
-# FILE created on December 15, 2022 12:49:36 UTC
+# FILE created on March 20, 2023 22:37:08 UTC
 from .. import mfpackage
 from ..data.mfdatautil import ListTemplateGenerator
 
@@ -35,11 +35,12 @@ class ModflowGwtapi(mfpackage.MFPackage):
         * save_flows (boolean) keyword to indicate that api boundary flow terms
           will be written to the file specified with "BUDGET FILEOUT" in Output
           Control.
-    observations : {varname:data} or continuous data
-        * Contains data for the obs package. Data can be stored in a dictionary
-          containing data for the obs package with variable names as keys and
-          package data as values. Data just for the observations variable is
-          also acceptable. See obs package documentation for more information.
+    obs_filerecord : [obs6_filename]
+        * obs6_filename (string) name of input file to define observations for
+          the api boundary package. See the "Observation utility" section for
+          instructions for preparing observation input files. Tables
+          reftable:gwf-obstypetable and reftable:gwt-obstypetable lists
+          observation type(s) supported by the api boundary package.
     mover : boolean
         * mover (boolean) keyword to indicate that this instance of the api
           boundary Package can be used with the Water Mover (MVR) Package. When
@@ -55,138 +56,57 @@ class ModflowGwtapi(mfpackage.MFPackage):
         Package name for this package.
     parent_file : MFPackage
         Parent package file that references this package. Only needed for
-        utility packages (mfutl*). For example, mfutllaktab package must have
+        utility packages (mfutl*). For example, mfutllaktab package must have 
         a mfgwflak package parent_file.
 
     """
-
-    obs_filerecord = ListTemplateGenerator(
-        ("gwt6", "api", "options", "obs_filerecord")
-    )
+    obs_filerecord = ListTemplateGenerator(('gwt6', 'api', 'options',
+                                            'obs_filerecord'))
     package_abbr = "gwtapi"
     _package_type = "api"
     dfn_file_name = "gwt-api.dfn"
 
     dfn = [
-        [
-            "header",
-        ],
-        [
-            "block options",
-            "name boundnames",
-            "type keyword",
-            "shape",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name print_input",
-            "type keyword",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name print_flows",
-            "type keyword",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name save_flows",
-            "type keyword",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name obs_filerecord",
-            "type record obs6 filein obs6_filename",
-            "shape",
-            "reader urword",
-            "tagged true",
-            "optional true",
-            "construct_package obs",
-            "construct_data continuous",
-            "parameter_name observations",
-        ],
-        [
-            "block options",
-            "name obs6",
-            "type keyword",
-            "shape",
-            "in_record true",
-            "reader urword",
-            "tagged true",
-            "optional false",
-        ],
-        [
-            "block options",
-            "name filein",
-            "type keyword",
-            "shape",
-            "in_record true",
-            "reader urword",
-            "tagged true",
-            "optional false",
-        ],
-        [
-            "block options",
-            "name obs6_filename",
-            "type string",
-            "preserve_case true",
-            "in_record true",
-            "tagged false",
-            "reader urword",
-            "optional false",
-        ],
-        [
-            "block options",
-            "name mover",
-            "type keyword",
-            "tagged true",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block dimensions",
-            "name maxbound",
-            "type integer",
-            "reader urword",
-            "optional false",
-        ],
-    ]
+           ["header", ],
+           ["block options", "name boundnames", "type keyword", "shape",
+            "reader urword", "optional true"],
+           ["block options", "name print_input", "type keyword",
+            "reader urword", "optional true"],
+           ["block options", "name print_flows", "type keyword",
+            "reader urword", "optional true"],
+           ["block options", "name save_flows", "type keyword",
+            "reader urword", "optional true"],
+           ["block options", "name obs_filerecord",
+            "type record obs6 filein obs6_filename", "shape", "reader urword",
+            "tagged true", "optional true"],
+           ["block options", "name obs6", "type keyword", "shape",
+            "in_record true", "reader urword", "tagged true",
+            "optional false"],
+           ["block options", "name filein", "type keyword", "shape",
+            "in_record true", "reader urword", "tagged true",
+            "optional false"],
+           ["block options", "name obs6_filename", "type string",
+            "preserve_case true", "in_record true", "tagged false",
+            "reader urword", "optional false"],
+           ["block options", "name mover", "type keyword", "tagged true",
+            "reader urword", "optional true"],
+           ["block dimensions", "name maxbound", "type integer",
+            "reader urword", "optional false"]]
 
-    def __init__(
-        self,
-        model,
-        loading_package=False,
-        boundnames=None,
-        print_input=None,
-        print_flows=None,
-        save_flows=None,
-        observations=None,
-        mover=None,
-        maxbound=None,
-        filename=None,
-        pname=None,
-        **kwargs,
-    ):
-        super().__init__(
-            model, "api", filename, pname, loading_package, **kwargs
-        )
+    def __init__(self, model, loading_package=False, boundnames=None,
+                 print_input=None, print_flows=None, save_flows=None,
+                 obs_filerecord=None, mover=None, maxbound=None, filename=None,
+                 pname=None, **kwargs):
+        super().__init__(model, "api", filename, pname,
+                         loading_package, **kwargs)
 
         # set up variables
         self.boundnames = self.build_mfdata("boundnames", boundnames)
         self.print_input = self.build_mfdata("print_input", print_input)
         self.print_flows = self.build_mfdata("print_flows", print_flows)
         self.save_flows = self.build_mfdata("save_flows", save_flows)
-        self._obs_filerecord = self.build_mfdata("obs_filerecord", None)
-        self._obs_package = self.build_child_package(
-            "obs", observations, "continuous", self._obs_filerecord
-        )
+        self.obs_filerecord = self.build_mfdata("obs_filerecord",
+                                                obs_filerecord)
         self.mover = self.build_mfdata("mover", mover)
         self.maxbound = self.build_mfdata("maxbound", maxbound)
         self._init_complete = True

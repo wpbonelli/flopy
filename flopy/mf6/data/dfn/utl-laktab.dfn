@@ -1,5 +1,4 @@
 # --------------------- gwf laktab dimensions ---------------------
-# flopy multi-package
 
 block dimensions
 name nrow

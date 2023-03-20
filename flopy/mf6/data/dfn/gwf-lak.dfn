@@ -1,5 +1,4 @@
 # --------------------- gwf lak options ---------------------
-# flopy multi-package
 
 block options
 name auxiliary
@@ -448,7 +447,7 @@ description character string that defines the lake-GWF connection type for the l
 
 block connectiondata
 name bedleak
-type string
+type double precision
 shape
 tagged false
 in_record true

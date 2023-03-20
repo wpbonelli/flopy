@@ -1,5 +1,4 @@
 # --------------------- gwf sfrtab dimensions ---------------------
-# flopy multi-package
 
 block dimensions
 name nrow

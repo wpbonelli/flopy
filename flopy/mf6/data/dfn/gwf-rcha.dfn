@@ -1,5 +1,4 @@
 # --------------------- gwf rcha options ---------------------
-# flopy multi-package
 
 block options
 name readasarrays

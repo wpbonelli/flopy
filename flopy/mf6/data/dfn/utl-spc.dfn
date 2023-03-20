@@ -1,5 +1,4 @@
 # --------------------- ssm spc options ---------------------
-# flopy multi-package
 
 block options
 name print_input

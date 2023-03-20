@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS FILE DIRECTLY.  THIS FILE MUST BE CREATED BY
 # mf6/utils/createpackages.py
-# FILE created on December 15, 2022 12:49:36 UTC
+# FILE created on March 20, 2023 22:37:08 UTC
 from .. import mfpackage
 from ..data.mfdatautil import ListTemplateGenerator
 
@@ -60,21 +60,17 @@ class ModflowGwfwel(mfpackage.MFPackage):
           bottom. AUTO_FLOW_REDUCE is set to 0.1 if the specified value is less
           than or equal to zero. By default, negative pumping rates are not
           reduced during a simulation.
-    afrcsv_filerecord : [afrcsvfile]
-        * afrcsvfile (string) name of the comma-separated value (CSV) output
-          file to write information about well extraction rates that have been
-          reduced by the program. Entries are only written if the extraction
-          rates are reduced.
-    timeseries : {varname:data} or timeseries data
-        * Contains data for the ts package. Data can be stored in a dictionary
-          containing data for the ts package with variable names as keys and
-          package data as values. Data just for the timeseries variable is also
-          acceptable. See ts package documentation for more information.
-    observations : {varname:data} or continuous data
-        * Contains data for the obs package. Data can be stored in a dictionary
-          containing data for the obs package with variable names as keys and
-          package data as values. Data just for the observations variable is
-          also acceptable. See obs package documentation for more information.
+    ts_filerecord : [ts6_filename]
+        * ts6_filename (string) defines a time-series file defining time series
+          that can be used to assign time-varying values. See the "Time-
+          Variable Input" section for instructions on using the time-series
+          capability.
+    obs_filerecord : [obs6_filename]
+        * obs6_filename (string) name of input file to define observations for
+          the Well package. See the "Observation utility" section for
+          instructions for preparing observation input files. Tables
+          reftable:gwf-obstypetable and reftable:gwt-obstypetable lists
+          observation type(s) supported by the Well package.
     mover : boolean
         * mover (boolean) keyword to indicate that this instance of the Well
           Package can be used with the Water Mover (MVR) Package. When the
@@ -118,299 +114,90 @@ class ModflowGwfwel(mfpackage.MFPackage):
         Package name for this package.
     parent_file : MFPackage
         Parent package file that references this package. Only needed for
-        utility packages (mfutl*). For example, mfutllaktab package must have
+        utility packages (mfutl*). For example, mfutllaktab package must have 
         a mfgwflak package parent_file.
 
     """
-
-    auxiliary = ListTemplateGenerator(("gwf6", "wel", "options", "auxiliary"))
-    afrcsv_filerecord = ListTemplateGenerator(
-        ("gwf6", "wel", "options", "afrcsv_filerecord")
-    )
-    ts_filerecord = ListTemplateGenerator(
-        ("gwf6", "wel", "options", "ts_filerecord")
-    )
-    obs_filerecord = ListTemplateGenerator(
-        ("gwf6", "wel", "options", "obs_filerecord")
-    )
-    stress_period_data = ListTemplateGenerator(
-        ("gwf6", "wel", "period", "stress_period_data")
-    )
+    auxiliary = ListTemplateGenerator(('gwf6', 'wel', 'options',
+                                       'auxiliary'))
+    ts_filerecord = ListTemplateGenerator(('gwf6', 'wel', 'options',
+                                           'ts_filerecord'))
+    obs_filerecord = ListTemplateGenerator(('gwf6', 'wel', 'options',
+                                            'obs_filerecord'))
+    stress_period_data = ListTemplateGenerator(('gwf6', 'wel', 'period',
+                                                'stress_period_data'))
     package_abbr = "gwfwel"
     _package_type = "wel"
     dfn_file_name = "gwf-wel.dfn"
 
     dfn = [
-        [
-            "header",
-            "multi-package",
-        ],
-        [
-            "block options",
-            "name auxiliary",
-            "type string",
-            "shape (naux)",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name auxmultname",
-            "type string",
-            "shape",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name boundnames",
-            "type keyword",
-            "shape",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name print_input",
-            "type keyword",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name print_flows",
-            "type keyword",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name save_flows",
-            "type keyword",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name auto_flow_reduce",
-            "type double precision",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name afrcsv_filerecord",
-            "type record auto_flow_reduce_csv fileout afrcsvfile",
-            "shape",
-            "reader urword",
-            "tagged true",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name auto_flow_reduce_csv",
-            "type keyword",
-            "shape",
-            "in_record true",
-            "reader urword",
-            "tagged true",
-            "optional false",
-        ],
-        [
-            "block options",
-            "name fileout",
-            "type keyword",
-            "shape",
-            "in_record true",
-            "reader urword",
-            "tagged true",
-            "optional false",
-        ],
-        [
-            "block options",
-            "name afrcsvfile",
-            "type string",
-            "preserve_case true",
-            "shape",
-            "in_record true",
-            "reader urword",
-            "tagged false",
-            "optional false",
-        ],
-        [
-            "block options",
-            "name ts_filerecord",
-            "type record ts6 filein ts6_filename",
-            "shape",
-            "reader urword",
-            "tagged true",
-            "optional true",
-            "construct_package ts",
-            "construct_data timeseries",
-            "parameter_name timeseries",
-        ],
-        [
-            "block options",
-            "name ts6",
-            "type keyword",
-            "shape",
-            "in_record true",
-            "reader urword",
-            "tagged true",
-            "optional false",
-        ],
-        [
-            "block options",
-            "name filein",
-            "type keyword",
-            "shape",
-            "in_record true",
-            "reader urword",
-            "tagged true",
-            "optional false",
-        ],
-        [
-            "block options",
-            "name ts6_filename",
-            "type string",
-            "preserve_case true",
-            "in_record true",
-            "reader urword",
-            "optional false",
-            "tagged false",
-        ],
-        [
-            "block options",
-            "name obs_filerecord",
-            "type record obs6 filein obs6_filename",
-            "shape",
-            "reader urword",
-            "tagged true",
-            "optional true",
-            "construct_package obs",
-            "construct_data continuous",
-            "parameter_name observations",
-        ],
-        [
-            "block options",
-            "name obs6",
-            "type keyword",
-            "shape",
-            "in_record true",
-            "reader urword",
-            "tagged true",
-            "optional false",
-        ],
-        [
-            "block options",
-            "name obs6_filename",
-            "type string",
-            "preserve_case true",
-            "in_record true",
-            "tagged false",
-            "reader urword",
-            "optional false",
-        ],
-        [
-            "block options",
-            "name mover",
-            "type keyword",
-            "tagged true",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block dimensions",
-            "name maxbound",
-            "type integer",
-            "reader urword",
-            "optional false",
-        ],
-        [
-            "block period",
-            "name iper",
-            "type integer",
-            "block_variable True",
-            "in_record true",
-            "tagged false",
-            "shape",
-            "valid",
-            "reader urword",
-            "optional false",
-        ],
-        [
-            "block period",
-            "name stress_period_data",
-            "type recarray cellid q aux boundname",
-            "shape (maxbound)",
-            "reader urword",
-        ],
-        [
-            "block period",
-            "name cellid",
-            "type integer",
-            "shape (ncelldim)",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-        ],
-        [
-            "block period",
-            "name q",
-            "type double precision",
-            "shape",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-            "time_series true",
-        ],
-        [
-            "block period",
-            "name aux",
-            "type double precision",
-            "in_record true",
-            "tagged false",
-            "shape (naux)",
-            "reader urword",
-            "optional true",
-            "time_series true",
-        ],
-        [
-            "block period",
-            "name boundname",
-            "type string",
-            "shape",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-            "optional true",
-        ],
-    ]
+           ["header", ],
+           ["block options", "name auxiliary", "type string",
+            "shape (naux)", "reader urword", "optional true"],
+           ["block options", "name auxmultname", "type string", "shape",
+            "reader urword", "optional true"],
+           ["block options", "name boundnames", "type keyword", "shape",
+            "reader urword", "optional true"],
+           ["block options", "name print_input", "type keyword",
+            "reader urword", "optional true"],
+           ["block options", "name print_flows", "type keyword",
+            "reader urword", "optional true"],
+           ["block options", "name save_flows", "type keyword",
+            "reader urword", "optional true"],
+           ["block options", "name auto_flow_reduce",
+            "type double precision", "reader urword", "optional true"],
+           ["block options", "name ts_filerecord",
+            "type record ts6 filein ts6_filename", "shape", "reader urword",
+            "tagged true", "optional true"],
+           ["block options", "name ts6", "type keyword", "shape",
+            "in_record true", "reader urword", "tagged true",
+            "optional false"],
+           ["block options", "name filein", "type keyword", "shape",
+            "in_record true", "reader urword", "tagged true",
+            "optional false"],
+           ["block options", "name ts6_filename", "type string",
+            "preserve_case true", "in_record true", "reader urword",
+            "optional false", "tagged false"],
+           ["block options", "name obs_filerecord",
+            "type record obs6 filein obs6_filename", "shape", "reader urword",
+            "tagged true", "optional true"],
+           ["block options", "name obs6", "type keyword", "shape",
+            "in_record true", "reader urword", "tagged true",
+            "optional false"],
+           ["block options", "name obs6_filename", "type string",
+            "preserve_case true", "in_record true", "tagged false",
+            "reader urword", "optional false"],
+           ["block options", "name mover", "type keyword", "tagged true",
+            "reader urword", "optional true"],
+           ["block dimensions", "name maxbound", "type integer",
+            "reader urword", "optional false"],
+           ["block period", "name iper", "type integer",
+            "block_variable True", "in_record true", "tagged false", "shape",
+            "valid", "reader urword", "optional false"],
+           ["block period", "name stress_period_data",
+            "type recarray cellid q aux boundname", "shape (maxbound)",
+            "reader urword"],
+           ["block period", "name cellid", "type integer",
+            "shape (ncelldim)", "tagged false", "in_record true",
+            "reader urword"],
+           ["block period", "name q", "type double precision", "shape",
+            "tagged false", "in_record true", "reader urword",
+            "time_series true"],
+           ["block period", "name aux", "type double precision",
+            "in_record true", "tagged false", "shape (naux)", "reader urword",
+            "optional true", "time_series true"],
+           ["block period", "name boundname", "type string", "shape",
+            "tagged false", "in_record true", "reader urword",
+            "optional true"]]
 
-    def __init__(
-        self,
-        model,
-        loading_package=False,
-        auxiliary=None,
-        auxmultname=None,
-        boundnames=None,
-        print_input=None,
-        print_flows=None,
-        save_flows=None,
-        auto_flow_reduce=None,
-        afrcsv_filerecord=None,
-        timeseries=None,
-        observations=None,
-        mover=None,
-        maxbound=None,
-        stress_period_data=None,
-        filename=None,
-        pname=None,
-        **kwargs,
-    ):
-        super().__init__(
-            model, "wel", filename, pname, loading_package, **kwargs
-        )
+    def __init__(self, model, loading_package=False, auxiliary=None,
+                 auxmultname=None, boundnames=None, print_input=None,
+                 print_flows=None, save_flows=None, auto_flow_reduce=None,
+                 ts_filerecord=None, obs_filerecord=None, mover=None,
+                 maxbound=None, stress_period_data=None, filename=None,
+                 pname=None, **kwargs):
+        super().__init__(model, "wel", filename, pname,
+                         loading_package, **kwargs)
 
         # set up variables
         self.auxiliary = self.build_mfdata("auxiliary", auxiliary)
@@ -419,23 +206,13 @@ class ModflowGwfwel(mfpackage.MFPackage):
         self.print_input = self.build_mfdata("print_input", print_input)
         self.print_flows = self.build_mfdata("print_flows", print_flows)
         self.save_flows = self.build_mfdata("save_flows", save_flows)
-        self.auto_flow_reduce = self.build_mfdata(
-            "auto_flow_reduce", auto_flow_reduce
-        )
-        self.afrcsv_filerecord = self.build_mfdata(
-            "afrcsv_filerecord", afrcsv_filerecord
-        )
-        self._ts_filerecord = self.build_mfdata("ts_filerecord", None)
-        self._ts_package = self.build_child_package(
-            "ts", timeseries, "timeseries", self._ts_filerecord
-        )
-        self._obs_filerecord = self.build_mfdata("obs_filerecord", None)
-        self._obs_package = self.build_child_package(
-            "obs", observations, "continuous", self._obs_filerecord
-        )
+        self.auto_flow_reduce = self.build_mfdata("auto_flow_reduce",
+                                                  auto_flow_reduce)
+        self.ts_filerecord = self.build_mfdata("ts_filerecord", ts_filerecord)
+        self.obs_filerecord = self.build_mfdata("obs_filerecord",
+                                                obs_filerecord)
         self.mover = self.build_mfdata("mover", mover)
         self.maxbound = self.build_mfdata("maxbound", maxbound)
-        self.stress_period_data = self.build_mfdata(
-            "stress_period_data", stress_period_data
-        )
+        self.stress_period_data = self.build_mfdata("stress_period_data",
+                                                    stress_period_data)
         self._init_complete = True

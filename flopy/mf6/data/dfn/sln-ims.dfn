@@ -1,5 +1,4 @@
 # --------------------- sln ims options ---------------------
-# flopy solution_package ims *
 
 block options
 name print_option

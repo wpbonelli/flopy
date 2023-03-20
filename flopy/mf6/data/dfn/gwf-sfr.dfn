@@ -1,5 +1,4 @@
 # --------------------- gwf sfr options ---------------------
-# flopy multi-package
 
 block options
 name auxiliary

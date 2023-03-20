@@ -1,5 +1,4 @@
 # --------------------- gwf rch options ---------------------
-# flopy multi-package
 
 block options
 name fixed_cell

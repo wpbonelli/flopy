@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS FILE DIRECTLY.  THIS FILE MUST BE CREATED BY
 # mf6/utils/createpackages.py
-# FILE created on December 15, 2022 12:49:36 UTC
+# FILE created on March 20, 2023 22:37:08 UTC
 from .. import mfpackage
 from ..data.mfdatautil import ListTemplateGenerator
 
@@ -11,9 +11,9 @@ class ModflowUtlobs(mfpackage.MFPackage):
 
     Parameters
     ----------
-    parent_model_or_package : MFModel/MFPackage
-        Parent_model_or_package that this package is a part of. Package is automatically
-        added to parent_model_or_package when it is initialized.
+    model : MFModel
+        Model that this package is a part of. Package is automatically
+        added to model when it is initialized.
     loading_package : bool
         Do not set this parameter. It is intended for debugging and internal
         processing purposes only.
@@ -67,180 +67,56 @@ class ModflowUtlobs(mfpackage.MFPackage):
         Package name for this package.
     parent_file : MFPackage
         Parent package file that references this package. Only needed for
-        utility packages (mfutl*). For example, mfutllaktab package must have
+        utility packages (mfutl*). For example, mfutllaktab package must have 
         a mfgwflak package parent_file.
 
     """
-
-    continuous = ListTemplateGenerator(("obs", "continuous", "continuous"))
+    continuous = ListTemplateGenerator(('obs', 'continuous',
+                                        'continuous'))
     package_abbr = "utlobs"
     _package_type = "obs"
     dfn_file_name = "utl-obs.dfn"
 
     dfn = [
-        [
-            "header",
-            "multi-package",
-        ],
-        [
-            "block options",
-            "name digits",
-            "type integer",
-            "shape",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block options",
-            "name print_input",
-            "type keyword",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block continuous",
-            "name output",
-            "type record fileout obs_output_file_name binary",
-            "shape",
-            "block_variable true",
-            "in_record false",
-            "reader urword",
-            "optional false",
-        ],
-        [
-            "block continuous",
-            "name fileout",
-            "type keyword",
-            "shape",
-            "in_record true",
-            "reader urword",
-            "tagged true",
-            "optional false",
-        ],
-        [
-            "block continuous",
-            "name obs_output_file_name",
-            "type string",
-            "preserve_case true",
-            "in_record true",
-            "shape",
-            "tagged false",
-            "reader urword",
-        ],
-        [
-            "block continuous",
-            "name binary",
-            "type keyword",
-            "in_record true",
-            "shape",
-            "reader urword",
-            "optional true",
-        ],
-        [
-            "block continuous",
-            "name continuous",
-            "type recarray obsname obstype id id2",
-            "shape",
-            "reader urword",
-            "optional false",
-        ],
-        [
-            "block continuous",
-            "name obsname",
-            "type string",
-            "shape",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-        ],
-        [
-            "block continuous",
-            "name obstype",
-            "type string",
-            "shape",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-        ],
-        [
-            "block continuous",
-            "name id",
-            "type string",
-            "shape",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-            "numeric_index true",
-        ],
-        [
-            "block continuous",
-            "name id2",
-            "type string",
-            "shape",
-            "tagged false",
-            "in_record true",
-            "reader urword",
-            "optional true",
-            "numeric_index true",
-        ],
-    ]
+           ["header", ],
+           ["block options", "name digits", "type integer", "shape",
+            "reader urword", "optional true"],
+           ["block options", "name print_input", "type keyword",
+            "reader urword", "optional true"],
+           ["block continuous", "name output",
+            "type record fileout obs_output_file_name binary", "shape",
+            "block_variable true", "in_record false", "reader urword",
+            "optional false"],
+           ["block continuous", "name fileout", "type keyword", "shape",
+            "in_record true", "reader urword", "tagged true",
+            "optional false"],
+           ["block continuous", "name obs_output_file_name", "type string",
+            "preserve_case true", "in_record true", "shape", "tagged false",
+            "reader urword"],
+           ["block continuous", "name binary", "type keyword",
+            "in_record true", "shape", "reader urword", "optional true"],
+           ["block continuous", "name continuous",
+            "type recarray obsname obstype id id2", "shape", "reader urword",
+            "optional false"],
+           ["block continuous", "name obsname", "type string", "shape",
+            "tagged false", "in_record true", "reader urword"],
+           ["block continuous", "name obstype", "type string", "shape",
+            "tagged false", "in_record true", "reader urword"],
+           ["block continuous", "name id", "type string", "shape",
+            "tagged false", "in_record true", "reader urword",
+            "numeric_index true"],
+           ["block continuous", "name id2", "type string", "shape",
+            "tagged false", "in_record true", "reader urword",
+            "optional true", "numeric_index true"]]
 
-    def __init__(
-        self,
-        parent_model_or_package,
-        loading_package=False,
-        digits=None,
-        print_input=None,
-        continuous=None,
-        filename=None,
-        pname=None,
-        **kwargs,
-    ):
-        super().__init__(
-            parent_model_or_package,
-            "obs",
-            filename,
-            pname,
-            loading_package,
-            **kwargs,
-        )
+    def __init__(self, model, loading_package=False, digits=None,
+                 print_input=None, continuous=None, filename=None, pname=None,
+                 **kwargs):
+        super().__init__(model, "obs", filename, pname,
+                         loading_package, **kwargs)
 
         # set up variables
         self.digits = self.build_mfdata("digits", digits)
         self.print_input = self.build_mfdata("print_input", print_input)
         self.continuous = self.build_mfdata("continuous", continuous)
         self._init_complete = True
-
-
-class UtlobsPackages(mfpackage.MFChildPackages):
-    """
-    UtlobsPackages is a container class for the ModflowUtlobs class.
-
-    Methods
-    ----------
-    initialize
-        Initializes a new ModflowUtlobs package removing any sibling child
-        packages attached to the same parent package. See ModflowUtlobs init
-        documentation for definition of parameters.
-    """
-
-    package_abbr = "utlobspackages"
-
-    def initialize(
-        self,
-        digits=None,
-        print_input=None,
-        continuous=None,
-        filename=None,
-        pname=None,
-    ):
-        new_package = ModflowUtlobs(
-            self._cpparent,
-            digits=digits,
-            print_input=print_input,
-            continuous=continuous,
-            filename=filename,
-            pname=pname,
-            child_builder_call=True,
-        )
-        self.init_package(new_package, filename)
