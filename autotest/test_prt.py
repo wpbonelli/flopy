@@ -351,6 +351,47 @@ def compute_pathlines_mp7(
     p = flopy.utils.PathlineFile(ws / f"{simulation.name}_mp.mppth")
     return p.get_destination_pathline_data(range(gwf.modelgrid.nnodes), to_recarray=True)
 
+
+def load_mf6pathlines(cbb, grid, prpnam=None):
+
+    dtype={'names':['x','y','z','time','k','particleid'],
+           'formats':['<f4','<f4','<f4','<f4','<i4','<i4'],
+          }
+    times = cbb.get_times()
+
+    # Extract pathline data
+    pdict = {}
+    # For each time, read and parse particle data
+    # and add it to a dictionary keyed on a particle identifier consisting
+    # of release point number and release time
+    for totim in times:
+        data = cbb.get_data(text='DATA-PRTCL', paknam=prpnam, totim=totim)
+        for ploc in data[0]:
+            # particle data read from the binary output file are in terms
+            # of one-based indexing; will convert to zero-based indexing
+            irpt, node, xp, yp, zp, trelease, ttrack = [ploc[i] for i in (0, 1, 3, 4, 5, 6, 7)]
+            irpt -= 1
+            node -= 1
+            kp = node // grid.ncpl
+            # issue(mf6): particle ids not assigned yet in mf6
+            pathpoint = (xp, yp, zp, ttrack, kp, 0)
+            key = (irpt, trelease)
+            # Note that repeat locations written for terminated particles
+            # are not filtered out here, though they could be
+            if key not in pdict:
+                pdict[key] = [pathpoint]
+            else:
+                pdict[key].append(pathpoint)
+    # Reformat into mf6pathlines array
+    mf6pathlines = []
+    for key in pdict:
+        path = np.core.records.fromarrays(np.array(pdict[key]).T, dtype=dtype)
+        mf6pathlines.append(path)
+                    
+    # Return mf6pathlines
+    return mf6pathlines
+
+
 def test_pathlines_2d_pollocks(function_tmpdir, example_data_path):
     ws = example_data_path / "mf6-freyberg"
     sim = flopy.mf6.MFSimulation.load(sim_name="freyberg", sim_ws=ws, exe_name="mf6")
@@ -494,14 +535,15 @@ def test_pathlines_2d_pollocks(function_tmpdir, example_data_path):
         porosity=porosity
     )[["x", "y", "particleid"]]
 
-        # plot pathlines
-    for pid in [p.pid for p in particles]:
-        pls_ref_sub = pls_ref[pls_ref["particleid"] == pid]
-        pls_mp7_sub = pls_mp7[pls_mp7["particleid"] == pid]
-        # pls_prt_sub = pls_prt[pls_prt["particleid"] == pid]
-        ax.plot(pls_ref_sub["x"], pls_ref_sub["y"], color="green")
-        ax.plot(pls_mp7_sub["x"], pls_mp7_sub["y"], color="blue", alpha=0.5)
-        # ax.plot(pls_prt_sub["x"], pls_prt_sub["y"], color="purple")
+    # get prt solution
+    import flopy.utils.binaryfile as bf
+    cbb = bf.CellBudgetFile(function_tmpdir / f"{prt_name}.cbb")
+    pls_prt = load_mf6pathlines(cbb, grid)
+
+    # plot pathlines
+    mv.plot_pathline(pls_ref, layer="all", lw=0.5, colors=["green"])
+    mv.plot_pathline(pls_mp7, layer="all", lw=0.8, colors=["blue"])
+    mv.plot_pathline(pls_prt, layer="all", lw=0.5, colors=["purple"])
     
     ax.legend(handles=[
         Patch(color="orange", label="start"),
@@ -511,6 +553,7 @@ def test_pathlines_2d_pollocks(function_tmpdir, example_data_path):
         Line2D([], [], color="purple", label="prt"),
     ])
     plt.show()
+    plt.savefig(f"{sim.name}_pathlines.jpg")
 
     # todo compare results
     # assert np.array_equal(pls_ref, pls_mp7)
