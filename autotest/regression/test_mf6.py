@@ -54,7 +54,7 @@ from flopy.utils.datautil import PyListUtil
 pytestmark = pytest.mark.mf6
 
 
-@requires_exe("mf6")
+# @requires_exe("mf6")
 @pytest.mark.regression
 def test_np001(function_tmpdir, example_data_path):
     # init paths
