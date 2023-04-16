@@ -1298,7 +1298,33 @@ class Vtk:
                 vtk_points.InsertNextPoint(point)
         self.vtk_pathlines.SetPoints(vtk_points)
 
-        # add polyLines for particle tracks
+        def polylineToMultiline(polyline):
+            # https://discourse.vtk.org/t/how-can-i-split-a-polyline-into-its-linear-segments/2434/2
+            # Assumption: points appear in the correct order: p0->p1->p2->p3...
+            points = polyline.GetPoints()
+            nPoints = points.GetNumberOfPoints()
+            cells = self.__vtk.vtkCellArray()
+            for i in range(nPoints - 1):
+                line = self.__vtk.vtkLine()
+                line.GetPointIds().SetId(0, i)
+                line.GetPointIds().SetId(1, i + 1)
+                cells.InsertNextCell(line)
+            poly = self.__vtk.vtkPolyData()
+            poly.SetPoints(points)
+            poly.SetLines(cells)
+            return poly
+
+        def polylineToTube(edges, radius, resolution=10):
+            # https://discourse.vtk.org/t/how-to-show-a-polyline-with-arbitrary-width-and-nice-joins-between-the-nodes/3316
+            tube = self.__vtk.vtkTubeFilter()
+            tube.SetInputData(edges)
+            tube.SetRadius(radius)
+            tube.SetNumberOfSides(resolution)
+            tube.SidesShareVerticesOff()
+            tube.Update()
+            return tube
+
+        # add polylines & tubefilters for particle tracks
         i = 0
         for line in lines:
             n_pts = len(line)
@@ -1310,6 +1336,9 @@ class Vtk:
             self.vtk_pathlines.InsertNextCell(
                 polyLine.GetCellType(), polyLine.GetPointIds()
             )
+
+            pd = polylineToMultiline(polyLine)
+            tb = polylineToTube(pd, radius=1)
 
         # create a Vertex instance for each point
         # todo: are these necessary? since array data are associated with points now
