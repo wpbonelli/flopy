@@ -72,6 +72,7 @@ optional = [
     "shapely >=1.8",
     "vtk",
     "xmipy",
+    "pyvista",
 ]
 doc = [
     "flopy[optional]",
