@@ -1268,20 +1268,17 @@ class Vtk:
     def _set_particle_track_data(self, points, d, lines=None):
         """
         Build VTK geometry for particle tracking results
-        and optionally arrange scalars at grid vertices.
 
         Parameters
         ----------
         points : list or array-like
             list of (x, y, z) points
         d : dict
-            dictionary of numpy arrays to add to vtk
+            dictionary of numpy arrays to add to particle points (e.g., ID, time)
         lines : list or array-like
             list of lists or 2D array of (x, y, z) coordinates
         """
         from vtk.util import numpy_support
-
-        nverts = len(points)
 
         if self.vtk_pathlines is None:
             self.vtk_pathlines = self.__vtk.vtkUnstructuredGrid()
@@ -1298,68 +1295,64 @@ class Vtk:
                 vtk_points.InsertNextPoint(point)
         self.vtk_pathlines.SetPoints(vtk_points)
 
-        def polylineToMultiline(polyline):
-            # https://discourse.vtk.org/t/how-can-i-split-a-polyline-into-its-linear-segments/2434/2
-            # Assumption: points appear in the correct order: p0->p1->p2->p3...
-            points = polyline.GetPoints()
-            nPoints = points.GetNumberOfPoints()
-            cells = self.__vtk.vtkCellArray()
-            for i in range(nPoints - 1):
-                line = self.__vtk.vtkLine()
-                line.GetPointIds().SetId(0, i)
-                line.GetPointIds().SetId(1, i + 1)
-                cells.InsertNextCell(line)
-            poly = self.__vtk.vtkPolyData()
-            poly.SetPoints(points)
-            poly.SetLines(cells)
-            return poly
-
-        def polylineToTube(edges, radius, resolution=10):
-            # https://discourse.vtk.org/t/how-to-show-a-polyline-with-arbitrary-width-and-nice-joins-between-the-nodes/3316
-            tube = self.__vtk.vtkTubeFilter()
-            tube.SetInputData(edges)
-            tube.SetRadius(radius)
-            tube.SetNumberOfSides(resolution)
-            tube.SidesShareVerticesOff()
-            tube.Update()
-            return tube
-
-        # add polylines & tubefilters for particle tracks
+        # add particle tracks
         i = 0
+        pd = self.__vtk.vtkPolyData()
+        ca = self.__vtk.vtkCellArray()
         for line in lines:
+            # create polyline and a polydata to contain it
             n_pts = len(line)
-            polyLine = self.__vtk.vtkPolyLine()
-            polyLine.GetPointIds().SetNumberOfIds(n_pts)
-            for ii in range(0, n_pts):
-                polyLine.GetPointIds().SetId(ii, i)
+            ca.InsertNextCell(n_pts)
+            polyline = self.__vtk.vtkPolyLine()
+            polyline.GetPointIds().SetNumberOfIds(n_pts)
+            for ii in range(n_pts):
+                ca.InsertCellPoint(i)
+                polyline.GetPointIds().SetId(ii, i)
                 i += 1
-            self.vtk_pathlines.InsertNextCell(
-                polyLine.GetCellType(), polyLine.GetPointIds()
-            )
 
-            pd = polylineToMultiline(polyLine)
-            tb = polylineToTube(pd, radius=1)
+        pd.SetPoints(vtk_points)
+        pd.SetLines(ca)
+        # self.vtk_pathlines.InsertNextCell(
+        #     polyline.GetCellType(), polyline.GetPointIds()
+        # )
+
+        # apply tube filter
+        # tube = self.__vtk.vtkTubeFilter()
+        # tube.SetInputData(pd)
+        # tube.SetRadius(15)
+        # tube.SetNumberOfSides(10)
+        # tube.SidesShareVerticesOff()
+        # tube.Update()
+
+        # merge the tube/line data into the unstructured grid
+        # tube_data = tube.GetOutput()
+        # append_filter = self.__vtk.vtkAppendFilter()
+        # append_filter.AddInputData(tube_data)
+        # append_filter.AddInputData(self.vtk_pathlines)
+        # append_filter.Update()
+
+        # self.vtk_pathlines = append_filter.GetOutput()
 
         # create a Vertex instance for each point
         # todo: are these necessary? since array data are associated with points now
-        i = 0
-        for line in lines:
-            for point in line:
-                vertex = self.__vtk.vtkPolyVertex()
-                vertex.GetPointIds().SetNumberOfIds(1)
-                vertex.GetPointIds().SetId(0, i)
-                self.vtk_pathlines.InsertNextCell(
-                    vertex.GetCellType(), vertex.GetPointIds()
-                )
-                i += 1
-        if not any(lines):
-            for i in range(nverts):
-                vertex = self.__vtk.vtkPolyVertex()
-                vertex.GetPointIds().SetNumberOfIds(1)
-                vertex.GetPointIds().SetId(0, i)
-                self.vtk_pathlines.InsertNextCell(
-                    vertex.GetCellType(), vertex.GetPointIds()
-                )
+        # i = 0
+        # for line in lines:
+        #     for point in line:
+        #         vertex = self.__vtk.vtkPolyVertex()
+        #         vertex.GetPointIds().SetNumberOfIds(1)
+        #         vertex.GetPointIds().SetId(0, i)
+        #         self.vtk_pathlines.InsertNextCell(
+        #             vertex.GetCellType(), vertex.GetPointIds()
+        #         )
+        #         i += 1
+        # if not any(lines):
+        #     for i in range(nverts):
+        #         vertex = self.__vtk.vtkPolyVertex()
+        #         vertex.GetPointIds().SetNumberOfIds(1)
+        #         vertex.GetPointIds().SetId(0, i)
+        #         self.vtk_pathlines.InsertNextCell(
+        #             vertex.GetCellType(), vertex.GetPointIds()
+        #         )
 
         # add arrays at points
         for name, array in d.items():
