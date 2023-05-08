@@ -61,6 +61,7 @@ optional = [
     "descartes",
     "fiona",
     "geojson",
+    "imageio",
     "netcdf4",
     "pandas",
     "pyproj",

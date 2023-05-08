@@ -30,7 +30,8 @@ def get_example_notebooks(exclude=None):
     "notebook", get_example_notebooks(exclude=["mf6_lgr"])
 )  # TODO: figure out why this one fails
 def test_notebooks(notebook):
-    args = ["jupytext", "--from", "ipynb", "--execute", notebook]
+    # args = ["jupytext", "--from", "ipynb", "--execute", notebook]
+    args = ["jupyter", "nbconvert", "--to", "notebook", "--inplace", "--execute", notebook]
     stdout, stderr, returncode = run_cmd(*args, verbose=True)
 
     if returncode != 0:

@@ -5,6 +5,7 @@ on:
       - master
       - develop
       - ci-diagnose*
+      - docs*
   pull_request:
     branches:
       - master
