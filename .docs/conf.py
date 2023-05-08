@@ -275,8 +275,3 @@ nbsphinx_prolog = r"""
 
         __ https://github.com/modflowpy/flopy/blob/develop/.docs/{{ docname }}
 """
-
-# Example gallery thumbnails from static files
-nbsphinx_thumbnails = {
-    "Notebooks/flopy3_mt3d-usgs_example_with_sft_lkt_uzt.ipynb": "https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/thumbnails/image/mt3dms_1.png",
-}
