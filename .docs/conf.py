@@ -11,6 +11,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
+from pathlib import Path
 import sys
 
 import yaml
@@ -275,3 +276,9 @@ nbsphinx_prolog = r"""
 
         __ https://github.com/modflowpy/flopy/blob/develop/.docs/{{ docname }}
 """
+
+# install MODFLOW6 and related executables
+from flopy.utils import get_modflow
+bindir = Path.home() / ".local" / "bin"
+bindir.mkdir(exist_ok=True)
+get_modflow(str(bindir))

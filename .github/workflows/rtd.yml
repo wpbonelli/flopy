@@ -47,15 +47,16 @@ jobs:
 
       - name: Upgrade pip
         run: pip install --upgrade pip
+
+      - name: Install flopy and dependencies
+        run: pip install ".[test, doc, optional]"
       
       - name: X server workaround
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get install -y xvfb
-          pip install xvfbwrapper
-
-      - name: Install flopy and dependencies
-        run: pip install ".[test, doc, optional]"
+          # workaround bad X server connection error
+          pip uninstall -y vtk
+          pip install --extra-index-url https://wheels.vtk.org trame vtk-osmesa
 
       - name: Install MODFLOW executables
         uses: modflowpy/install-modflow-action@v1
