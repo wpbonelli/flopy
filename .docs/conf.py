@@ -282,3 +282,6 @@ from flopy.utils import get_modflow
 bindir = Path.home() / ".local" / "bin"
 bindir.mkdir(exist_ok=True)
 get_modflow(str(bindir))
+
+# add modflow bindir to PATH
+os.environ["PATH"] += os.pathsep + str(bindir)

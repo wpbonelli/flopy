@@ -52,7 +52,7 @@ jobs:
         run: pip install ".[test, doc, optional]"
       
       - name: X server workaround
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' || runner.os == 'Windows'
         run: |
           # workaround bad X server connection error
           pip uninstall -y vtk
