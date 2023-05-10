@@ -64,8 +64,7 @@ jobs:
           Set-StrictMode -Version Latest
           $ErrorActionPreference = "Stop"
           $PSDefaultParameterValues['*:ErrorAction']='Stop'
-          git clone --depth 1 git://github.com/pyvista/gl-ci-helpers.git
-          powershell gl-ci-helpers/appveyor/install_opengl.ps1
+          powershell .github/install_opengl.ps1
 
       - name: Install MODFLOW executables
         uses: modflowpy/install-modflow-action@v1
