@@ -51,12 +51,21 @@ jobs:
       - name: Install flopy and dependencies
         run: pip install ".[test, doc, optional]"
       
-      - name: X server workaround
-        if: runner.os == 'Linux' || runner.os == 'Windows'
+      - name: X server connection error workaround
+        if: runner.os == 'Linux'
         run: |
-          # workaround bad X server connection error
           pip uninstall -y vtk
           pip install --extra-index-url https://wheels.vtk.org trame vtk-osmesa
+      
+      - name: Install OpenGL
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = "Stop"
+          $PSDefaultParameterValues['*:ErrorAction']='Stop'
+          git clone --depth 1 git://github.com/pyvista/gl-ci-helpers.git
+          powershell gl-ci-helpers/appveyor/install_opengl.ps1
 
       - name: Install MODFLOW executables
         uses: modflowpy/install-modflow-action@v1

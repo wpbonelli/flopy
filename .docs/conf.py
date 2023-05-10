@@ -285,3 +285,6 @@ get_modflow(str(bindir))
 
 # add modflow bindir to PATH
 os.environ["PATH"] += os.pathsep + str(bindir)
+
+# swap default vtk for vtk-osmesa
+os.system("pip uninstall -y vtk && pip install --extra-index-url https://wheels.vtk.org trame vtk-osmesa")
