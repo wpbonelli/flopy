@@ -143,7 +143,7 @@ extensions = [
 # Settings for GitHub actions integration
 if on_rtd:
     extensions.append("rtds_action")
-    rtds_action_github_repo = "modflowpy/flopy"
+    rtds_action_github_repo = "w-bonelli/flopy"
     rtds_action_path = "_notebooks"
     rtds_action_artifact_prefix = "notebooks-for-"
     rtds_action_github_token = os.environ.get("GITHUB_TOKEN", None)
@@ -260,6 +260,9 @@ intersphinx_mapping = {
     "matplotlib": ("https://matplotlib.org", None),
     "pyproj": ("https://pyproj4.github.io/pyproj/stable/", None),
 }
+
+# disable automatic notebook execution (nbs are built in CI for now)
+nbsphinx_execute = "never"
 
 nbsphinx_prolog = r"""
 {% set docname = env.doc2path(env.docname, base=None) %}
