@@ -1,4 +1,4 @@
-# flopy version file automatically created using update_version.py on December 15, 2022 16:32:52
+# flopy version file automatically created using update_version.py on June 27, 2023 16:11:36
 
 major = 3
 minor = 3
