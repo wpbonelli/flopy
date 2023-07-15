@@ -244,3 +244,16 @@ def test_save_load_node_mapping(function_tmpdir):
     new_heads = mfsplit2.reconstruct_array(array_dict)
     err_msg = "Heads from original and split models do not match"
     np.testing.assert_allclose(new_heads, original_heads, err_msg=err_msg)
+
+
+# @requires_exe("mf6")
+def test_split_model_with_empty_packages(example_data_path, function_tmpdir):
+    sim_path = example_data_path / "mf6-freyberg"
+    sim = MFSimulation.load(sim_ws=sim_path)
+    sim.set_sim_path(function_tmpdir)
+
+    # empty out one of the packages
+    gwf = sim.get_model("freyberg")
+    pak = gwf.get_package("RIV-1")
+    
+    sim.write_simulation()
