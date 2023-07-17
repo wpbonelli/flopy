@@ -1751,6 +1751,9 @@ class Mf6Splitter(object):
         """
         obs_map = {"wellno": {}}
         if isinstance(package, modflow.ModflowGwfmaw):
+            if package.nmawwells.data == 0:
+                return {}
+
             connectiondata = package.connectiondata.array
             packagedata = package.packagedata.array
             perioddata = package.perioddata.data

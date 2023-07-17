@@ -3,6 +3,7 @@ import pytest
 from autotest.conftest import get_example_data_path
 from modflow_devtools.markers import requires_exe
 
+import flopy
 from flopy.mf6 import MFSimulation
 from flopy.mf6.utils import Mf6Splitter
 
@@ -242,5 +243,42 @@ def test_save_load_node_mapping(function_tmpdir):
         array_dict[model] = heads0
 
     new_heads = mfsplit2.reconstruct_array(array_dict)
+    err_msg = "Heads from original and split models do not match"
+    np.testing.assert_allclose(new_heads, original_heads, err_msg=err_msg)
+
+
+def test_split_model_with_empty_packages(example_data_path, function_tmpdir):
+    from shutil import copytree
+
+    # todo reinstate normal loading once FloPy
+    # load/write MAW with no wells is fixed
+    sim_path = example_data_path / "mf6" / "test006_gwfmaw_nowells"
+    ws = function_tmpdir / "unsplit_model"
+    copytree(sim_path, ws)
+
+    sim = MFSimulation.load(sim_ws=ws)
+    sim.run_simulation()
+
+    model_names = sim.model_names
+    gwf = sim.get_model(model_names[0])
+    original_heads = gwf.output.head().get_alldata()[-1]
+    
+    mfsplit = Mf6Splitter(sim)
+    mask = mfsplit.optimize_splitting_mask(nparts=2)
+    new_sim = mfsplit.split_model(mask)
+
+    ws = function_tmpdir / "split_model"
+    new_sim.set_sim_path(ws)
+    new_sim.write_simulation()
+    new_sim.run_simulation()
+
+    ml0 = new_sim.get_model("model1_1")
+    ml1 = new_sim.get_model("model1_2")
+
+    heads0 = ml0.output.head().get_alldata()[-1]
+    heads1 = ml1.output.head().get_alldata()[-1]
+
+    new_heads = mfsplit.reconstruct_array({1: heads0, 2: heads1})
+
     err_msg = "Heads from original and split models do not match"
     np.testing.assert_allclose(new_heads, original_heads, err_msg=err_msg)

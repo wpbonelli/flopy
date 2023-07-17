@@ -1,0 +1,21 @@
+BEGIN OPTIONS
+#none
+END OPTIONS
+
+BEGIN TIMING
+  TDIS6 simulation.tdis
+END TIMING
+
+BEGIN MODELS
+  #modeltype      namefile      modelname
+         GWF6    model1.nam      gwfmaw
+END MODELS
+
+BEGIN EXCHANGES
+END EXCHANGES
+
+BEGIN SOLUTIONGROUP 1
+  IMS6 simulation.ims gwfmaw
+END SOLUTIONGROUP
+
+
