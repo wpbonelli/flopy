@@ -36,6 +36,26 @@ def test_read_big_file(function_tmpdir, benchmark):
     benchmark(read_all_lines)
 
 
+@pytest.mark.slow
+def test_find_anchors(project_root_path, benchmark):
+    fpath = project_root_path.parent / "prt-examples-temp" / "examples" / "ex-prt-tetratech" / "mf6" / "Carrier_FFinit_5TS_OC_top700.rch"
+
+    def find_indices():
+        with open(fpath, "r") as f:
+            indices = {}
+            for i, line in enumerate(f):
+                line = line.lower()
+                if "begin" in line or "end" in line:
+                    indices[i + 1] = line
+        return indices
+    
+    indices = benchmark(find_indices)
+    # indices = find_indices()
+    from pprint import pprint
+    pprint(indices)
+    print(len(indices), "anchors")
+
+
 def test_plot():
     # processing files line by line scales (in runtime) by the number of chars per line
 
