@@ -1034,13 +1034,15 @@ class MFFileAccessList(MFFileAccess):
         self.simple_line = False
 
     def read_binary_data_from_file(
-        self, read_file, modelgrid, precision="double"
+        self, read_file, modelgrid, precision="double", build_cellid=True
     ):
         # read from file
         header, int_cellid_indexes, ext_cellid_indexes = self._get_header(
             modelgrid, precision
         )
         file_array = np.fromfile(read_file, dtype=header, count=-1)
+        if not build_cellid:
+            return file_array
         # build data list for recarray
         cellid_size = len(self._get_cell_header(modelgrid))
         data_list = []

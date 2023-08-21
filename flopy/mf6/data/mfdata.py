@@ -596,26 +596,40 @@ class MFMultiDimVar(MFData):
         else:
             layer_storage = storage.layer_storage[layer]
         # resolve external file path
+        ret, fname = self._get_external_formatting_str(
+            layer_storage.fname,
+            layer_storage.factor,
+            layer_storage.binary,
+            layer_storage.iprn,
+            storage.data_structure_type,
+            ext_file_action,
+        )
+        layer_storage.fname = fname
+        return ret
+
+    def _get_external_formatting_str(self, fname, factor, binary, iprn,
+                                     data_type, ext_file_action):
         file_mgmt = self._simulation_data.mfpath
         model_name = self._data_dimensions.package_dim.model_dim[0].model_name
         ext_file_path = file_mgmt.get_updated_path(
-            layer_storage.fname, model_name, ext_file_action
+            fname, model_name, ext_file_action
         )
-        layer_storage.fname = datautil.clean_filename(ext_file_path)
+        fname = datautil.clean_filename(ext_file_path)
         ext_format = ["OPEN/CLOSE", f"'{ext_file_path}'"]
-        if storage.data_structure_type != DataStructureType.recarray:
-            if layer_storage.factor is not None:
+        if data_type != DataStructureType.recarray:
+            if factor is not None:
                 data_type = self.structure.get_datum_type(
                     return_enum_type=True
                 )
                 ext_format.append("FACTOR")
                 if data_type == DatumType.integer:
-                    ext_format.append(str(int(layer_storage.factor)))
+                    ext_format.append(str(int(factor)))
                 else:
-                    ext_format.append(str(layer_storage.factor))
-        if layer_storage.binary:
+                    ext_format.append(str(factor))
+        if binary:
             ext_format.append("(BINARY)")
-        if layer_storage.iprn is not None:
+        if iprn is not None:
             ext_format.append("IPRN")
-            ext_format.append(str(layer_storage.iprn))
-        return f"{self._simulation_data.indent_string.join(ext_format)}\n"
+            ext_format.append(str(iprn))
+        return f"{self._simulation_data.indent_string.join(ext_format)}\n", \
+               fname

@@ -1,5 +1,6 @@
 # --------------------- gwf ghb options ---------------------
 # flopy multi-package
+# flopy basic-package
 
 block options
 name auxiliary
