@@ -5,7 +5,6 @@ import sys
 
 import numpy as np
 import pandas
-import pandas as pd
 
 from ...datbase import DataListInterface, DataType
 from ...discretization.structuredgrid import StructuredGrid
@@ -59,6 +58,7 @@ class PandasListStorage:
     has_data : bool
         whether or not data exists
     """
+
     def __init__(self):
         self.internal_data = None
         self.fname = None
@@ -143,6 +143,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
     block : MFBlock
         parnet block
     """
+
     def __init__(
         self,
         sim_data,
@@ -210,8 +211,9 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         """Type of data (numpy.dtype) stored in the list"""
         return self.get_dataframe().dtype
 
-    def _append_type_list(self, data_name, data_type):
-        self._data_header.append((data_name, data_type))
+    def _append_type_list(self, data_name, data_type, include_header=False):
+        if include_header:
+            self._data_header[data_name] = data_type
         self._header_names.append(data_name)
         self._data_types.append(data_type)
 
@@ -221,9 +223,20 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         binary flag, data file path, and any comments
         """
         data_dim = self._data_dimensions
-        multiplier, print_format, binary, data_file, data, comment = \
-            process_open_close_line(arr_line, data_dim, self._data_type,
-                                    self._simulation_data.debug, store)
+        (
+            multiplier,
+            print_format,
+            binary,
+            data_file,
+            data,
+            comment,
+        ) = process_open_close_line(
+            arr_line,
+            data_dim,
+            self._data_type,
+            self._simulation_data.debug,
+            store,
+        )
         #  add to active list of external files
         model_name = data_dim.package_dim.model_dim[0].model_name
         self._simulation_data.mfpath.add_ext_file(data_file, model_name)
@@ -239,24 +252,28 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             if data_item.type == DatumType.integer:
                 if data_item.name.lower() == "cellid":
                     if isinstance(self._mg, StructuredGrid):
-                        data["cellid"] = data[["layer", "row", "column"]].\
-                            apply(tuple, axis=1)
+                        data["cellid"] = data[
+                            ["layer", "row", "column"]
+                        ].apply(tuple, axis=1)
                         if not keep_existing:
-                            data = data.drop(columns=["layer", "row", "column"])
+                            data = data.drop(
+                                columns=["layer", "row", "column"]
+                            )
                     elif isinstance(self._mg, VertexGrid):
-                        data["cellid"] = data[["layer", "cell"]].\
-                            apply(tuple, axis=1)
+                        data["cellid"] = data[["layer", "cell"]].apply(
+                            tuple, axis=1
+                        )
                         if not keep_existing:
                             data = data.drop(columns=["layer", "cell"])
                     elif isinstance(self._mg, UnstructuredGrid):
-                        data["cellid"] = data[["node"]].\
-                            apply(tuple, axis=1)
+                        data["cellid"] = data[["node"]].apply(tuple, axis=1)
                         if not keep_existing:
                             data = data.drop(columns=["node"])
                     else:
                         raise MFDataException(
                             "ERROR: Unrecognized model grid "
-                            "{str(self._mg)} not supported by MFBasicList")
+                            "{str(self._mg)} not supported by MFBasicList"
+                        )
                     # reorder columns
                     column_headers = data.columns.tolist()
                     column_headers.insert(0, column_headers.pop())
@@ -291,7 +308,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         and model discretization type.
         """
         # initialize
-        self._data_header = []
+        self._data_header = {}
         self._header_names = []
         self._data_types = []
         self._data_item_names = []
@@ -327,18 +344,19 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                         # get the appropriate cellid column headings for the
                         # model's discretization type
                         if isinstance(self._mg, StructuredGrid):
-                            self._append_type_list("layer", i_type)
-                            self._append_type_list("row", i_type)
-                            self._append_type_list("column", i_type)
+                            self._append_type_list("layer", i_type, True)
+                            self._append_type_list("row", i_type, True)
+                            self._append_type_list("column", i_type, True)
                         elif isinstance(self._mg, VertexGrid):
-                            self._append_type_list("layer", i_type)
-                            self._append_type_list("cell", i_type)
+                            self._append_type_list("layer", i_type, True)
+                            self._append_type_list("cell", i_type, True)
                         elif isinstance(self._mg, UnstructuredGrid):
-                            self._append_type_list("node", i_type)
+                            self._append_type_list("node", i_type, True)
                         else:
                             raise MFDataException(
                                 "ERROR: Unrecognized model grid "
-                                "{str(self._mg)} not supported by MFBasicList")
+                                "{str(self._mg)} not supported by MFBasicList"
+                            )
                     else:
                         self._append_type_list(data_item.name, i_type)
                 elif data_item.type == DatumType.double_precision:
@@ -350,7 +368,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
 
     @staticmethod
     def _unique_column_name(data, col_base_name):
-        """ generate a unique column name based on "col_base_name" """
+        """generate a unique column name based on "col_base_name" """
         col_name = col_base_name
         idx = 2
         while col_name in data:
@@ -372,8 +390,10 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         for data_item in self.structure.data_item_structures:
             if data_idx >= len(columns) + 1:
                 break
-            if data_item.type == DatumType.integer and \
-                    data_item.name.lower() == "cellid":
+            if (
+                data_item.type == DatumType.integer
+                and data_item.name.lower() == "cellid"
+            ):
                 if isinstance(pdata.iloc[0, data_idx], tuple):
                     fields_to_correct.append((data_idx, columns[data_idx]))
                     data_idx += 1
@@ -389,56 +409,59 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 pdata.insert(
                     loc=field_idx,
                     column=self._unique_column_name(pdata, "layer"),
-                    value=pdata.apply(lambda x: x[column_name][0],
-                                      axis=1))
+                    value=pdata.apply(lambda x: x[column_name][0], axis=1),
+                )
                 pdata.insert(
-                    loc=field_idx+1,
+                    loc=field_idx + 1,
                     column=self._unique_column_name(pdata, "row"),
-                    value=pdata.apply(lambda x: x[column_name][1],
-                                      axis=1))
+                    value=pdata.apply(lambda x: x[column_name][1], axis=1),
+                )
                 pdata.insert(
-                    loc=field_idx+2,
+                    loc=field_idx + 2,
                     column=self._unique_column_name(pdata, "column"),
-                    value=pdata.apply(lambda x: x[column_name][2],
-                                      axis=1))
+                    value=pdata.apply(lambda x: x[column_name][2], axis=1),
+                )
             elif isinstance(self._mg, VertexGrid):
                 pdata.insert(
                     loc=field_idx,
                     column=self._unique_column_name(pdata, "layer"),
-                    value=pdata.apply(lambda x: x[column_name][0],
-                                      axis=1))
+                    value=pdata.apply(lambda x: x[column_name][0], axis=1),
+                )
                 pdata.insert(
-                    loc=field_idx+1,
+                    loc=field_idx + 1,
                     column=self._unique_column_name(pdata, "cell"),
-                    value=pdata.apply(
-                        lambda x: x[column_name][1],
-                        axis=1))
+                    value=pdata.apply(lambda x: x[column_name][1], axis=1),
+                )
             elif isinstance(self._mg, UnstructuredGrid):
                 pdata.insert(
                     loc=field_idx,
                     column=self._unique_column_name(pdata, "node"),
-                    value=pdata.apply(lambda x: x[columns[field_idx]][0],
-                                      axis=1))
+                    value=pdata.apply(
+                        lambda x: x[columns[field_idx]][0], axis=1
+                    ),
+                )
             # remove cellid tuple
             pdata = pdata.drop(column_name, axis=1)
         return pdata
 
     def _resolve_columns(self, data):
-        """ resolve the column headings for a specific dataset provided """
+        """resolve the column headings for a specific dataset provided"""
         if len(data[0]) == len(self._header_names) or len(data[0]) == 0:
             return self._header_names, False
 
         if len(data[0]) == len(self._data_item_names):
             return self._data_item_names, True
 
-        if len(data[0]) == len(self._data_item_names) - 1 and \
-                self._data_item_names[-1] == "boundname":
+        if (
+            len(data[0]) == len(self._data_item_names) - 1
+            and self._data_item_names[-1] == "boundname"
+        ):
             return self._data_item_names[:-1], True
 
         return None, None
 
     def _set_data(self, data, check_data=True, append=False):
-        """ store the data provided """
+        """store the data provided"""
         # (re)build data header
         self._build_data_header()
         if isinstance(data, dict) and not self.has_data():
@@ -450,8 +473,9 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 if len(data[0]) == len(self._data_item_names):
                     # data most likely being stored with cellids as tuples,
                     # create a dataframe and untuple the cellids
-                    data = pandas.DataFrame(data,
-                                            columns=self._data_item_names)
+                    data = pandas.DataFrame(
+                        data, columns=self._data_item_names
+                    )
                     data = self._untuple_cellids(data)
                     # make sure columns are still in correct order
                     data = pandas.DataFrame(data, columns=self._header_names)
@@ -459,12 +483,12 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                     raise MFDataException(
                         f"ERROR: Data list {self._data_name} supplied the "
                         f"wrong number of columns of data, expected "
-                        f"{len(self._data_header)} got {len(data[0])}.")
+                        f"{len(self._data_item_names)} got {len(data[0])}."
+                    )
             else:
                 # data size matches the expected header names, create a pandas
                 # dataframe from the data
-                data = pandas.DataFrame(data,
-                                        columns=self._header_names)
+                data = pandas.DataFrame(data, columns=self._header_names)
                 data = self._untuple_cellids(data)
                 # make sure columns are still in correct order
                 data = pandas.DataFrame(data, columns=self._header_names)
@@ -475,10 +499,11 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             # resolve the data's column headings
             columns, untuple_cellids = self._resolve_columns(data)
             if columns is None:
-                message = \
-                    f"ERROR: Data list {self._data_name} supplied the " \
-                    f"wrong number of columns of data, expected " \
-                    f"{len(self._data_header)} got {len(data[0])}."
+                message = (
+                    f"ERROR: Data list {self._data_name} supplied the "
+                    f"wrong number of columns of data, expected "
+                    f"{len(self._data_item_names)} got {len(data[0])}."
+                )
                 type_, value_, traceback_ = sys.exc_info()
                 raise MFDataException(
                     self._data_dimensions.structure.get_model(),
@@ -499,10 +524,11 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 data = pandas.DataFrame(columns=columns)
             else:
                 # create dataset
-                data = pandas.DataFrame(data,
-                                        columns=columns)
-            if self._data_item_names[-1] == "boundname" and \
-                    "boundname" not in columns:
+                data = pandas.DataFrame(data, columns=columns)
+            if (
+                self._data_item_names[-1] == "boundname"
+                and "boundname" not in columns
+            ):
                 # add empty boundname column
                 data["boundname"] = ""
             if untuple_cellids:
@@ -512,10 +538,11 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 data = pandas.DataFrame(data, columns=self._header_names)
         elif isinstance(data, pandas.DataFrame):
             if len(data.columns) != len(self._header_names):
-                message = \
-                    f"ERROR: Data list {self._data_name} supplied the " \
-                    f"wrong number of columns of data, expected " \
-                    f"{len(self._data_header)} got {len(data[0])}."
+                message = (
+                    f"ERROR: Data list {self._data_name} supplied the "
+                    f"wrong number of columns of data, expected "
+                    f"{len(self._data_item_names)} got {len(data[0])}."
+                )
                 type_, value_, traceback_ = sys.exc_info()
                 raise MFDataException(
                     self._data_dimensions.structure.get_model(),
@@ -558,8 +585,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             current_data = self._get_dataframe()
             if current_data is not None:
                 data = pd.concat([current_data, data])
-        if data_storage.data_storage_type == \
-                DataStorageType.external_file:
+        if data_storage.data_storage_type == DataStorageType.external_file:
             # store external data until next write
             data_storage.internal_data = data
         else:
@@ -568,14 +594,15 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             data_storage.modified = True
 
     def has_modified_ext_data(self):
-        """ check to see if external data has been modified since last read """
+        """check to see if external data has been modified since last read"""
         data_storage = self._get_storage()
-        return data_storage.data_storage_type == \
-            DataStorageType.external_file \
+        return (
+            data_storage.data_storage_type == DataStorageType.external_file
             and data_storage.internal_data is not None
+        )
 
     def binary_ext_data(self):
-        """ check for binary data """
+        """check for binary data"""
         data_storage = self._get_storage()
         return data_storage.binary
 
@@ -663,8 +690,10 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             if "filename" in data_record:
                 data_storage.set_external(data_record["filename"])
                 if "binary" in data_record:
-                    if data_record["binary"] and \
-                            self._data_dimensions.package_dim.boundnames():
+                    if (
+                        data_record["binary"]
+                        and self._data_dimensions.package_dim.boundnames()
+                    ):
                         message = (
                             "Unable to store list data ({}) to a binary "
                             "file when using boundnames"
@@ -719,18 +748,28 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             if self._get_storage() is None:
                 self._data_storage = self._new_storage()
             data_storage = self._get_storage()
-            if data_storage.data_storage_type == \
-                    DataStorageType.internal_array:
+            if (
+                data_storage.data_storage_type
+                == DataStorageType.internal_array
+            ):
                 # update internal data
                 self._set_data(data, append=True)
-            elif data_storage.data_storage_type == \
-                    DataStorageType.external_file:
+            elif (
+                data_storage.data_storage_type == DataStorageType.external_file
+            ):
                 # get external data from file
-                external_data = self.get_dataframe()
-                data = pd.concat([external_data, data])
-                ext_record = self.get_record()
+                external_data = self._get_dataframe()
+                if isinstance(data, list):
+                    # build dataframe
+                    data = pandas.DataFrame(
+                        data, columns=external_data.columns
+                    )
+                # concatenate
+                data = pandas.concat([external_data, data])
+                # store
+                ext_record = self._get_record()
                 ext_record["data"] = data
-                self.set_record(ext_record)
+                self._set_record(ext_record)
         except Exception as ex:
             type_, value_, traceback_ = sys.exc_info()
             raise MFDataException(
@@ -862,8 +901,8 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 replace_existing_external
                 or storage is None
                 or storage.data_storage_type == DataStorageType.internal_array
-                or storage.data_storage_type ==
-                    DataStorageType.internal_constant
+                or storage.data_storage_type
+                == DataStorageType.internal_constant
             ):
                 data = self._get_dataframe()
                 # if not empty dataset
@@ -884,13 +923,15 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                     self._set_record(external_data, check_data=check_data)
 
     def external_file_name(self):
-        """Returns external file name, or None if this is not external data.
-        """
+        """Returns external file name, or None if this is not external data."""
         storage = self._get_storage()
         if storage is None:
             return None
-        if storage.data_storage_type == DataStorageType.external_file and \
-                storage.fname is not None and storage.fname != "":
+        if (
+            storage.data_storage_type == DataStorageType.external_file
+            and storage.fname is not None
+            and storage.fname != ""
+        ):
             return storage.fname
         return None
 
@@ -912,7 +953,8 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         num_rows = 0
         line = fd_data_file.readline()
         while line:
-            if line.strip().lower().startswith("end"):
+            line_mod = line.strip().lower()
+            if line_mod.startswith("end"):
                 end_loc = fd_data_file.tell() - len(line)
                 if abs(end_loc) > self._max_file_size:
                     # handle bad end_loc
@@ -923,7 +965,8 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                             line = False
                 fd_data_file.seek(start_loc)
                 return num_rows, end_loc
-            num_rows += 1
+            if len(line_mod) > 0 and line_mod[0] != "#":
+                num_rows += 1
             line = fd_data_file.readline()
         return None, None
 
@@ -967,7 +1010,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 value_,
                 traceback_,
                 message,
-                self._simulation_data.debug
+                self._simulation_data.debug,
             )
         start_loc = location - total_reads - 3
 
@@ -982,24 +1025,39 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             return 0
         return start_loc - chars_traversed + 1
 
-    def _try_pandas_read(self, fd_data_file):
-        delimiter_list = [" ", "	", ","]
+    def _try_pandas_read(self, fd_data_file, start_loc, num_rows=None):
+        delimiter_list = [" ", "\t", ","]
         for delimiter in delimiter_list:
             try:
                 # read flopy formatted data, entire file
-                data_frame = pandas.read_csv(fd_data_file, sep=delimiter,
-                                             names=self._header_names,
-                                             comment="#",
-                                             index_col=False,
-                                             skipinitialspace=True)
-                                             #keep_default_na=False)
+                data_frame = pandas.read_csv(
+                    fd_data_file,
+                    sep=delimiter,
+                    names=self._header_names,
+                    dtype=self._data_header,
+                    nrows=num_rows,
+                    comment="#",
+                    index_col=False,
+                    skipinitialspace=True,
+                )
             except BaseException:
+                fd_data_file.seek(start_loc)
                 continue
 
-            # spot check for NaN in second column
-            if not data_frame[self._header_names[1]].isnull().values.any() \
-                    and data_frame.shape[0] > 0:
+            # basic check for valid dataset
+            valid = data_frame.shape[0] > 0
+            if valid:
+                for name in self._header_names:
+                    if (
+                        name != "boundname"
+                        and data_frame[name].isnull().values.any()
+                    ):
+                        valid = False
+                        break
+            if valid:
                 return data_frame
+            else:
+                fd_data_file.seek(start_loc)
         return None
 
     def _read_text_data(self, fd_data_file, external_file=False):
@@ -1032,40 +1090,23 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         # build header
         self._build_data_header()
         if external_file:
-            #success = True
-            data_frame = self._try_pandas_read(fd_data_file)
+            # success = True
+            data_frame = self._try_pandas_read(fd_data_file, start_loc)
             if data_frame is not None:
                 self._decrement_id_fields(data_frame)
-            #try:
-                # read flopy formatted data, entire file
-            #    data_frame = pandas.read_csv(fd_data_file, sep=" ",
-            #                                 names=self._header_names,
-            #                                 comment="#",
-            #                                 index_col=False,
-            #                                 skipinitialspace=True)
-            #    self._decrement_id_fields(data_frame)
-            #    return_val = [True, ""]
-            #except BaseException:
-            #    success = False
         else:
             # get number of rows of data
             num_rows, end_loc = self._get_data_bounds(fd_data_file)
-            #data_frame = num_rows
             if num_rows is not None:
-                try:
-                    # read flopy formatted data, specified number of rows
-                    data_frame = pandas.read_csv(fd_data_file, sep=" ",
-                                                 names=self._header_names,
-                                                 nrows=num_rows,
-                                                 comment="#",
-                                                 index_col=False,
-                                                 skipinitialspace=True)
+                # try:
+                data_frame = self._try_pandas_read(
+                    fd_data_file, start_loc, num_rows
+                )
+                if data_frame is not None:
                     self._decrement_id_fields(data_frame)
                     # move file pointer to correct location
                     fd_data_file.seek(end_loc)
                     return_val = [True, fd_data_file.readline()]
-                except BaseException:
-                    data_frame = None
 
         if data_frame is None:
             # read user formatted data using MFList class
@@ -1078,15 +1119,13 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 self.path,
                 self._data_dimensions.package_dim,
                 self._package,
-                self._block
+                self._block,
             )
             # start in original location
             fd_data_file.seek(start_loc)
             next_line = fd_data_file.readline()
             return_val = list_data.load(
-                next_line,
-                fd_data_file,
-                self._block.block_headers[-1]
+                next_line, fd_data_file, self._block.block_headers[-1]
             )
             rec_array = list_data.get_data()
             if rec_array is not None:
@@ -1109,7 +1148,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         file_access.write_binary_file(
             self._dataframe_to_recarray(data),
             fd_data_file,
-            self._model_or_sim.modeldiscrit
+            self._model_or_sim.modeldiscrit,
         )
         data_storage = self._get_storage()
         data_storage.internal_data = None
@@ -1138,7 +1177,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             )
 
     def _load_external_data(self, data_storage):
-        """ loads external data into a panda's dataframe """
+        """loads external data into a panda's dataframe"""
         file_path = self._resolve_ext_file_path(data_storage)
         # parse next line in file as data header
         if data_storage.binary:
@@ -1210,8 +1249,13 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             return [False, arr_line]
         if len(arr_line) >= 2 and arr_line[0].upper() == "OPEN/CLOSE":
             try:
-                data, multiplier, iprn, binary, data_file = \
-                    self._process_open_close_line(arr_line)
+                (
+                    data,
+                    multiplier,
+                    iprn,
+                    binary,
+                    data_file,
+                ) = self._process_open_close_line(arr_line)
             except Exception as ex:
                 message = (
                     "An error occurred while processing the following "
@@ -1267,8 +1311,9 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         """
         id_fields = []
         # loop through the data structure
-        for idx, data_item_struct in \
-                enumerate(self.structure.data_item_structures):
+        for idx, data_item_struct in enumerate(
+            self.structure.data_item_structures
+        ):
             if data_item_struct.type == DatumType.keystring:
                 # handle id fields for keystring
                 # ***Code not necessary for this version
@@ -1285,22 +1330,12 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                     dis = data_item_ks.data_item_structures
                     for data_item in dis:
                         self._update_id_fields(
-                            id_fields,
-                            data_item,
-                            data_frame
+                            id_fields, data_item, data_frame
                         )
                 else:
-                    self._update_id_fields(
-                        id_fields,
-                        data_item_ks,
-                        data_frame
-                    )
+                    self._update_id_fields(id_fields, data_item_ks, data_frame)
             else:
-                self._update_id_fields(
-                    id_fields,
-                    data_item_struct,
-                    data_frame
-                )
+                self._update_id_fields(id_fields, data_item_struct, data_frame)
         return id_fields
 
     def _update_id_fields(self, id_fields, data_item_struct, data_frame):
@@ -1322,28 +1357,32 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 else:
                     raise MFDataException(
                         "ERROR: Unrecognized model grid "
-                        "{str(self._mg)} not supported by MFBasicList")
+                        "{str(self._mg)} not supported by MFBasicList"
+                    )
             else:
                 for col in data_frame.columns:
                     if col.startswith(data_item_struct.name):
                         data_item_len = len(data_item_struct.name)
                         if len(col) > data_item_len:
                             col_end = col[data_item_len:]
-                            if len(col_end) > 1 and col_end[0] == "_" and \
-                                    datautil.DatumUtil.is_int(col_end[1:]):
+                            if (
+                                len(col_end) > 1
+                                and col_end[0] == "_"
+                                and datautil.DatumUtil.is_int(col_end[1:])
+                            ):
                                 id_fields.append(col)
                             else:
                                 id_fields.append(data_item_struct.name)
 
     def _increment_id_fields(self, data_frame):
-        """ increment all id fields by 1 (reverse for negative values) """
+        """increment all id fields by 1 (reverse for negative values)"""
         for id_field in self._get_id_fields(data_frame):
             if id_field in data_frame:
                 data_frame.loc[data_frame[id_field].ge(-1), id_field] += 1
                 data_frame.loc[data_frame[id_field].lt(-1), id_field] -= 1
 
     def _decrement_id_fields(self, data_frame):
-        """ decrement all id fields by 1 (reverse for negative values) """
+        """decrement all id fields by 1 (reverse for negative values)"""
         for id_field in self._get_id_fields(data_frame):
             if id_field in data_frame:
                 data_frame.loc[data_frame[id_field].le(-1), id_field] += 1
@@ -1396,7 +1435,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         return self._dataframe_to_recarray(dataframe)
 
     def _get_dataframe(self):
-        """ get and return dataframe for this list data """
+        """get and return dataframe for this list data"""
         data_storage = self._get_storage()
         if data_storage is None or data_storage.data_storage_type is None:
             block_exists = self._block.header_exists(
@@ -1407,8 +1446,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 return pandas.DataFrame(columns=self._header_names)
             else:
                 return None
-        if data_storage.data_storage_type == \
-                DataStorageType.internal_array:
+        if data_storage.data_storage_type == DataStorageType.internal_array:
             data = copy.deepcopy(data_storage.internal_data)
         else:
             if data_storage.internal_data is not None:
@@ -1453,6 +1491,17 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             data_record : dict
 
         """
+        return self._get_record(data_frame)
+
+    def _get_record(self, data_frame=False):
+        """Returns the list's data and metadata in a dictionary.  Data is in
+        key "data" and metadata in keys "filename" and "binary".
+
+        Returns
+        -------
+            data_record : dict
+
+        """
         try:
             if self._get_storage() is None:
                 return None
@@ -1481,7 +1530,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 record["data"] = self._dataframe_to_recarray(data)
         else:
             if "data" not in record:
-                record["data"] = self.get_dataframe()
+                record["data"] = self._get_dataframe()
         return record
 
     def write_pre_entry(
@@ -1489,16 +1538,14 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         fd_data_file,
         ext_file_action=ExtFileAction.copy_relative_paths,
     ):
-        """ write open/close line """
+        """write open/close line"""
         data_storage = self._get_storage()
         if data_storage is None:
             return None
         if data_storage.data_storage_type == DataStorageType.internal_array:
             return DataStorageType.internal_array
         # get and write external string
-        ext_string = self._get_external_formatting_string(
-            0, ext_file_action
-        )
+        ext_string = self._get_external_formatting_string(0, ext_file_action)
         fd_data_file.write(f"{ext_string}\n")
         return data_storage.data_storage_type
 
@@ -1574,8 +1621,10 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         data_storage = self._get_storage()
         if data_storage is None:
             return ""
-        if data_storage.data_storage_type == DataStorageType.external_file \
-                and fd_main is not None:
+        if (
+            data_storage.data_storage_type == DataStorageType.external_file
+            and fd_main is not None
+        ):
             indent = self._simulation_data.indent_string
             ext_string, fname = self._get_external_formatting_str(
                 data_storage.fname,
@@ -1583,7 +1632,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 data_storage.binary,
                 data_storage.iprn,
                 DataStructureType.recarray,
-                ext_file_action
+                ext_file_action,
             )
             data_storage.fname = fname
             fd_main.write(f"{indent}{indent}{ext_string}")
@@ -1591,9 +1640,11 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             return ""
         # Loop through data pieces
         data = self._remove_cellid_fields(data_storage.internal_data)
-        if data_storage.data_storage_type == \
-                DataStorageType.internal_array or not data_storage.binary or \
-                fd_data_file is None:
+        if (
+            data_storage.data_storage_type == DataStorageType.internal_array
+            or not data_storage.binary
+            or fd_data_file is None
+        ):
             # add spacer column
             if "leading_space" not in data:
                 data.insert(loc=0, column="leading_space", value="")
@@ -1602,12 +1653,16 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
 
         result = ""
         # if data is internal or has been modified
-        if (data_storage.data_storage_type ==
-                DataStorageType.internal_array or data is not None or
-                fd_data_file is None):
-            if data_storage.data_storage_type == \
-                    DataStorageType.external_file and data_storage.binary and \
-                    fd_data_file is not None:
+        if (
+            data_storage.data_storage_type == DataStorageType.internal_array
+            or data is not None
+            or fd_data_file is None
+        ):
+            if (
+                data_storage.data_storage_type == DataStorageType.external_file
+                and data_storage.binary
+                and fd_data_file is not None
+            ):
                 # write old way using numpy
                 self._save_binary_data(fd_data_file, data)
             else:
@@ -1621,27 +1676,36 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                     # convert data to 1-based
                     self._increment_id_fields(data)
                     # write converted data
-                    float_format = \
+                    float_format = (
                         f"%{self._simulation_data.reg_format_str[2:-1]}"
-                    result = data.to_csv(fd_data_file, sep=" ",
-                                         header=False, index=False,
-                                         float_format=float_format,
-                                         lineterminator="\n")
+                    )
+                    result = data.to_csv(
+                        fd_data_file,
+                        sep=" ",
+                        header=False,
+                        index=False,
+                        float_format=float_format,
+                        lineterminator="\n",
+                    )
                     # clean up
                     data_storage.modified = False
                     self._decrement_id_fields(data)
-                if data_storage.data_storage_type == \
-                        DataStorageType.external_file:
+                if (
+                    data_storage.data_storage_type
+                    == DataStorageType.external_file
+                ):
                     data_storage.internal_data = None
 
         if data_storage.internal_data is not None:
             # clean up
             if "leading_space" in data_storage.internal_data:
-                data_storage.internal_data = \
-                    data_storage.internal_data.drop(columns="leading_space")
+                data_storage.internal_data = data_storage.internal_data.drop(
+                    columns="leading_space"
+                )
             if "leading_space_2" in data_storage.internal_data:
-                data_storage.internal_data = \
-                    data_storage.internal_data.drop(columns="leading_space_2")
+                data_storage.internal_data = data_storage.internal_data.drop(
+                    columns="leading_space_2"
+                )
         return result
 
     def _get_file_path(self):
@@ -1679,8 +1743,9 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             )
 
 
-class MFPandasTransientList(MFPandasList, mfdata.MFTransient,
-                            DataListInterface):
+class MFPandasTransientList(
+    MFPandasList, mfdata.MFTransient, DataListInterface
+):
     """
     Provides an interface for the user to access and update MODFLOW transient
     pandas list data.
@@ -1885,7 +1950,7 @@ class MFPandasTransientList(MFPandasList, mfdata.MFTransient,
             self.get_data_prep(key)
             return super().binary_ext_data()
 
-    def get_record(self, key=None):
+    def get_record(self, key=None, data_frame=False):
         """Returns the data for stress period `key`.  If no key is specified
         returns all records in a dictionary with zero-based stress period
         numbers as keys.  See MFList's get_record documentation for more
@@ -1895,7 +1960,9 @@ class MFPandasTransientList(MFPandasList, mfdata.MFTransient,
         ----------
             key : int
                 Zero-based stress period to return data from.
-
+            data_frame : bool
+                whether to return a Pandas DataFrame object instead of a
+                recarray
         Returns
         -------
             data_record : dict
@@ -1906,7 +1973,7 @@ class MFPandasTransientList(MFPandasList, mfdata.MFTransient,
                 output = {}
                 for key in self._data_storage.keys():
                     self.get_data_prep(key)
-                    output[key] = super().get_record()
+                    output[key] = super().get_record(data_frame=data_frame)
                 return output
             self.get_data_prep(key)
             return super().get_record()
@@ -1955,11 +2022,11 @@ class MFPandasTransientList(MFPandasList, mfdata.MFTransient,
                     for key in self._data_storage.keys():
                         self.get_data_prep(key)
                         if dataframe:
-                            output[key] = \
-                                super().get_dataframe()
+                            output[key] = super().get_dataframe()
                         else:
-                            output[key] = \
-                                super().get_data(apply_mult=apply_mult)
+                            output[key] = super().get_data(
+                                apply_mult=apply_mult
+                            )
                     return output
             self.get_data_prep(key)
             if dataframe:
@@ -2080,8 +2147,9 @@ class MFPandasTransientList(MFPandasList, mfdata.MFTransient,
                             super().set_record(list_item, autofill, check_data)
                         else:
                             super().set_data(
-                                list_item, autofill=autofill,
-                                check_data=check_data
+                                list_item,
+                                autofill=autofill,
+                                check_data=check_data,
                             )
                 for key in del_keys:
                     del data[key]
@@ -2206,8 +2274,9 @@ class MFPandasTransientList(MFPandasList, mfdata.MFTransient,
             return ""
         else:
             self._get_file_entry_prep(key)
-            return super()._write_file_entry(None,
-                                             ext_file_action=ext_file_action)
+            return super()._write_file_entry(
+                None, ext_file_action=ext_file_action
+            )
 
     def load(
         self,

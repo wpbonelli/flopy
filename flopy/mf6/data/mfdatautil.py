@@ -216,8 +216,9 @@ def list_to_array(sarr, model_grid, kper=0, mask=False):
     return arrays
 
 
-def process_open_close_line(arr_line, data_dim, data_type, sim_data,
-                            store=True):
+def process_open_close_line(
+    arr_line, data_dim, data_type, sim_data, store=True
+):
     # process open/close line
     index = 2
     if data_type == DatumType.integer:

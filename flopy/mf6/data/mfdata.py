@@ -607,8 +607,9 @@ class MFMultiDimVar(MFData):
         layer_storage.fname = fname
         return ret
 
-    def _get_external_formatting_str(self, fname, factor, binary, iprn,
-                                     data_type, ext_file_action):
+    def _get_external_formatting_str(
+        self, fname, factor, binary, iprn, data_type, ext_file_action
+    ):
         file_mgmt = self._simulation_data.mfpath
         model_name = self._data_dimensions.package_dim.model_dim[0].model_name
         ext_file_path = file_mgmt.get_updated_path(
@@ -631,5 +632,7 @@ class MFMultiDimVar(MFData):
         if iprn is not None:
             ext_format.append("IPRN")
             ext_format.append(str(iprn))
-        return f"{self._simulation_data.indent_string.join(ext_format)}\n", \
-               fname
+        return (
+            f"{self._simulation_data.indent_string.join(ext_format)}\n",
+            fname,
+        )

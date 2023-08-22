@@ -1464,13 +1464,21 @@ class MFDataStructure:
         if not self.parent_block.parent_package.basic_package:
             return False
         for item in self.data_item_structures:
-            if ((item.repeating or item.optional) and not
-                    (item.is_cellid or item.is_aux or item.is_boundname)) or \
-                    item.jagged_array is not None or \
-                    item.type == DatumType.keystring or \
-                    item.type == DatumType.keyword or \
-                    (item.description is not None and
-                     "keyword `NONE'" in item.description):
+            if (
+                (
+                    (item.repeating or item.optional)
+                    and not (
+                        item.is_cellid or item.is_aux or item.is_boundname
+                    )
+                )
+                or item.jagged_array is not None
+                or item.type == DatumType.keystring
+                or item.type == DatumType.keyword
+                or (
+                    item.description is not None
+                    and "keyword `NONE'" in item.description
+                )
+            ):
                 return False
         return True
 

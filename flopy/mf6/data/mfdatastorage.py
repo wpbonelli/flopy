@@ -2169,11 +2169,20 @@ class DataStorage:
 
     def process_open_close_line(self, arr_line, layer, store=True):
         data_dim = self.data_dimensions
-        multiplier, print_format, binary, data_file, data, comment = \
-            mfdatautil.process_open_close_line(arr_line, data_dim,
-                                               self._data_type,
-                                               self._simulation_data.debug,
-                                               store)
+        (
+            multiplier,
+            print_format,
+            binary,
+            data_file,
+            data,
+            comment,
+        ) = mfdatautil.process_open_close_line(
+            arr_line,
+            data_dim,
+            self._data_type,
+            self._simulation_data.debug,
+            store,
+        )
         if comment is not None:
             self.layer_storage[layer].comments = MFComment(
                 comment,

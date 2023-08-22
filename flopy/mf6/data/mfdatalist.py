@@ -144,7 +144,7 @@ class MFList(mfdata.MFMultiDimVar, DataListInterface):
         sarr = self.get_data(key=kper)
         model_grid = self._data_dimensions.get_model_grid()
         return list_to_array(sarr, model_grid, kper, mask)
-    
+
     def new_simulation(self, sim_data):
         """Initialize MFList object for a new simulation.
 

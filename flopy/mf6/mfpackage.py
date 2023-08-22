@@ -13,8 +13,14 @@ from ..utils import datautil
 from ..utils.check import mf6check
 from ..version import __version__
 from .coordinates import modeldimensions
-from .data import mfdata, mfdataarray, mfdatalist, mfdatascalar, mfstructure, \
-    mfdataplist
+from .data import (
+    mfdata,
+    mfdataarray,
+    mfdatalist,
+    mfdatascalar,
+    mfstructure,
+    mfdataplist,
+)
 from .data.mfdatautil import DataSearchOutput, MFComment, cellids_equal
 from .data.mfstructure import DatumType, MFDataItemStructure, MFStructure
 from .mfbase import (
@@ -466,9 +472,11 @@ class MFBlock:
                 trans_array.set_data(data, key=0)
             return trans_array
         elif data_type == mfstructure.DataType.list:
-            if structure.basic_item and \
-                    self._container_package.package_type.lower() != "nam" \
-                    and self._simulation_data.use_pandas:
+            if (
+                structure.basic_item
+                and self._container_package.package_type.lower() != "nam"
+                and self._simulation_data.use_pandas
+            ):
                 return mfdataplist.MFPandasList(
                     sim_data,
                     model_or_sim,
@@ -1327,8 +1335,10 @@ class MFBlock:
             if (
                 isinstance(dataset, mfdataarray.MFArray)
                 or (
-                    (isinstance(dataset, mfdatalist.MFList) or
-                     isinstance(dataset, mfdataplist.MFPandasList))
+                    (
+                        isinstance(dataset, mfdatalist.MFList)
+                        or isinstance(dataset, mfdataplist.MFPandasList)
+                    )
                     and dataset.structure.type == DatumType.recarray
                 )
                 and dataset.enabled
@@ -1375,8 +1385,10 @@ class MFBlock:
             if (
                 isinstance(dataset, mfdataarray.MFArray)
                 or (
-                    (isinstance(dataset, mfdatalist.MFList) or
-                     isinstance(dataset, mfdataplist.MFPandasList))
+                    (
+                        isinstance(dataset, mfdatalist.MFList)
+                        or isinstance(dataset, mfdataplist.MFPandasList)
+                    )
                     and dataset.structure.type == DatumType.recarray
                 )
                 and dataset.enabled
@@ -1406,12 +1418,14 @@ class MFBlock:
         transient_key = None
         basic_list = False
         dataset_one = list(self.datasets.values())[0]
-        if isinstance(dataset_one, mfdataplist.MFPandasList) or \
-                isinstance(dataset_one, mfdataplist.MFPandasTransientList):
+        if isinstance(dataset_one, mfdataplist.MFPandasList) or isinstance(
+            dataset_one, mfdataplist.MFPandasTransientList
+        ):
             basic_list = True
             for dataset in self.datasets.values():
-                assert isinstance(dataset, mfdataplist.MFPandasList) or \
-                       isinstance(dataset, mfdataplist.MFPandasTransientList)
+                assert isinstance(
+                    dataset, mfdataplist.MFPandasList
+                ) or isinstance(dataset, mfdataplist.MFPandasTransientList)
             # write block header
             block_header.write_header(fd)
         if len(block_header.data_items) > 0:
@@ -1433,12 +1447,12 @@ class MFBlock:
                     if basic_list:
                         ext_fname = dataset.external_file_name()
                         if ext_fname is not None:
-                            #if dataset.has_modified_ext_data():
+                            # if dataset.has_modified_ext_data():
                             binary = dataset.binary_ext_data()
                             # write block contents to external file
-                            fd_main, fd = self._prepare_external(fd,
-                                                                 ext_fname,
-                                                                 binary)
+                            fd_main, fd = self._prepare_external(
+                                fd, ext_fname, binary
+                            )
                             dataset.write_file_entry(fd, fd_main=fd_main)
                             fd = fd_main
                         else:
@@ -1462,12 +1476,12 @@ class MFBlock:
                     if basic_list:
                         ext_fname = dataset.external_file_name(transient_key)
                         if ext_fname is not None:
-                            #if dataset.has_modified_ext_data(transient_key):
+                            # if dataset.has_modified_ext_data(transient_key):
                             binary = dataset.binary_ext_data(transient_key)
                             # write block contents to external file
-                            fd_main, fd = self._prepare_external(fd,
-                                                                 ext_fname,
-                                                                 binary)
+                            fd_main, fd = self._prepare_external(
+                                fd, ext_fname, binary
+                            )
                             dataset.write_file_entry(
                                 fd,
                                 transient_key,
@@ -1515,11 +1529,14 @@ class MFBlock:
 
             if self.external_file_name is not None:
                 indent_string = self._simulation_data.indent_string
-                fd.write(f"{indent_string}open/close "
-                         f'"{self.external_file_name}"\n')
+                fd.write(
+                    f"{indent_string}open/close "
+                    f'"{self.external_file_name}"\n'
+                )
                 # write block contents to external file
-                fd_main, fd = self._prepare_external(fd,
-                                                     self.external_file_name)
+                fd_main, fd = self._prepare_external(
+                    fd, self.external_file_name
+                )
             # write data sets
             for output in data_set_output:
                 fd.write(output)
@@ -2049,8 +2066,9 @@ class MFPackage(PackageContainer, PackageInterface):
                                         row_size - num_aux_names - offset - 1
                                     )
                                     # loop through auxiliary variables
-                                    for idx, var in \
-                                            enumerate(list(aux_names[0])[1:]):
+                                    for idx, var in enumerate(
+                                        list(aux_names[0])[1:]
+                                    ):
                                         # get index of current aux variable
                                         data_index = aux_start_loc + idx
                                         # verify auxiliary value is either

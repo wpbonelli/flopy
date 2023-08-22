@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pandas
 import pandas as pd
 import pytest
 from modflow_devtools.markers import requires_exe, requires_pkg
@@ -119,9 +120,7 @@ def test_pandas_001(function_tmpdir, example_data_path):
         filename=f"{model_name}.dis",
         pname="mydispkg",
     )
-    ic_package = ModflowGwfic(
-        model, strt=80.0, filename=f"{model_name}.ic"
-    )
+    ic_package = ModflowGwfic(model, strt=80.0, filename=f"{model_name}.ic")
     npf_package = ModflowGwfnpf(
         model,
         save_flows=True,
@@ -151,9 +150,7 @@ def test_pandas_001(function_tmpdir, example_data_path):
     # test saving a text file with recarray data
     data_line = [((0, 0, 4), -2000.0), ((0, 0, 7), -2.0)]
     type_list = [("cellid", object), ("q", float)]
-    data_rec = np.rec.array(
-        data_line, type_list
-    )
+    data_rec = np.rec.array(data_line, type_list)
     well_spd = {
         0: {
             "filename": "wel_0.txt",
@@ -215,6 +212,7 @@ def test_pandas_001(function_tmpdir, example_data_path):
     # test data with aux vars
     riv_spd = {
         0: {
+            "filename": "riv_0.txt",
             "data": [((0, 0, 9), 110, 90.0, 100.0, 1.0, 2.0, 3.0)],
         }
     }
@@ -246,6 +244,7 @@ def test_pandas_001(function_tmpdir, example_data_path):
     # modify external files to resemble user generated text
     wel_file_0_pth = os.path.join(sim.sim_path, "wel_0.txt")
     wel_file_1_pth = os.path.join(sim.sim_path, "wel_1.txt")
+    riv_file_0_pth = os.path.join(sim.sim_path, "riv_0.txt")
     with open(wel_file_0_pth, "w") as fd_wel_0:
         fd_wel_0.write("# comment header\n\n")
         fd_wel_0.write("1 1 5 -2000.0  # comment\n")
@@ -255,10 +254,18 @@ def test_pandas_001(function_tmpdir, example_data_path):
 
     with open(wel_file_1_pth, "w") as fd_wel_1:
         fd_wel_1.write("# comment header\n\n")
-        fd_wel_1.write("	1	1	5	-1000.0	# comment\n")
+        fd_wel_1.write("\t1\t1\t5\t-1000.0\t# comment\n")
         fd_wel_1.write("# more comments\n")
-        fd_wel_1.write("1	1	8	-20.0\n")
+        fd_wel_1.write("1 1\t8\t-20.0\n")
         fd_wel_1.write("# more comments\n")
+
+    with open(riv_file_0_pth, "w") as fd_riv_0:
+        fd_riv_0.write("# comment header\n\n")
+        fd_riv_0.write(
+            "1\t1\t10\t110\t9.00000000E+01\t1.00000000E+02"
+            "\t1.00000000E+00\t2.00000000E+00\t3.00000000E+00"
+            "\t# comment\n"
+        )
 
     # test loading and checking data
     test_sim = MFSimulation.load(
@@ -270,20 +277,21 @@ def test_pandas_001(function_tmpdir, example_data_path):
     )
     test_mod = test_sim.get_model()
     test_wel = test_mod.get_package("wel")
-    well_data_pd = test_wel.stress_period_data.get_dataframe(0)
-    assert isinstance(well_data_pd, pd.DataFrame)
-    assert well_data_pd.iloc[0, 0] == 0
-    assert well_data_pd.iloc[0, 1] == 0
-    assert well_data_pd.iloc[0, 2] == 4
-    assert well_data_pd.iloc[0, 3] == -2000.0
-    assert well_data_pd["layer"][0] == 0
-    assert well_data_pd["row"][0] == 0
-    assert well_data_pd["column"][0] == 4
-    assert well_data_pd["q"][0] == -2000.0
-    assert well_data_pd["layer"][1] == 0
-    assert well_data_pd["row"][1] == 0
-    assert well_data_pd["column"][1] == 7
-    assert well_data_pd["q"][1] == -2.0
+
+    well_data_pd_0 = test_wel.stress_period_data.get_dataframe(0)
+    assert isinstance(well_data_pd_0, pd.DataFrame)
+    assert well_data_pd_0.iloc[0, 0] == 0
+    assert well_data_pd_0.iloc[0, 1] == 0
+    assert well_data_pd_0.iloc[0, 2] == 4
+    assert well_data_pd_0.iloc[0, 3] == -2000.0
+    assert well_data_pd_0["layer"][0] == 0
+    assert well_data_pd_0["row"][0] == 0
+    assert well_data_pd_0["column"][0] == 4
+    assert well_data_pd_0["q"][0] == -2000.0
+    assert well_data_pd_0["layer"][1] == 0
+    assert well_data_pd_0["row"][1] == 0
+    assert well_data_pd_0["column"][1] == 7
+    assert well_data_pd_0["q"][1] == -2.0
     well_data_pd = test_wel.stress_period_data.get_dataframe(1)
     assert isinstance(well_data_pd, pd.DataFrame)
     assert well_data_pd.iloc[0, 0] == 0
@@ -298,3 +306,47 @@ def test_pandas_001(function_tmpdir, example_data_path):
     assert well_data_pd["row"][1] == 0
     assert well_data_pd["column"][1] == 7
     assert well_data_pd["q"][1] == -20.0
+    test_riv = test_mod.get_package("riv")
+    riv_data_pd = test_riv.stress_period_data.get_dataframe(0)
+    assert riv_data_pd.iloc[0, 0] == 0
+    assert riv_data_pd.iloc[0, 1] == 0
+    assert riv_data_pd.iloc[0, 2] == 9
+    assert riv_data_pd.iloc[0, 3] == 110
+    assert riv_data_pd.iloc[0, 4] == 90.0
+    assert riv_data_pd.iloc[0, 5] == 100.0
+    assert riv_data_pd.iloc[0, 6] == 1.0
+    assert riv_data_pd.iloc[0, 7] == 2.0
+    assert riv_data_pd.iloc[0, 8] == 3.0
+
+    well_data_array = test_wel.stress_period_data.to_array()
+    assert "q" in well_data_array
+    array = np.array([0.0, 0.0, 0.0, 0.0, -2000.0, 0.0, 0.0, -2.0, 0.0, 0.0])
+    array.reshape((1, 1, 10))
+    compare = well_data_array["q"] == array
+    assert compare.all()
+
+    well_data_record = test_wel.stress_period_data.get_record()
+    assert 0 in well_data_record
+    assert "binary" in well_data_record[0]
+    well_data_record[0]["binary"] = True
+    well_data_pd_0.iloc[0, 3] = -10000.0
+    well_data_record[0]["data"] = well_data_pd_0
+    test_wel.stress_period_data.set_record(well_data_record)
+
+    updated_record = test_wel.stress_period_data.get_record(data_frame=True)
+    assert 0 in updated_record
+    assert "binary" in updated_record[0]
+    assert updated_record[0]["binary"]
+    assert isinstance(updated_record[0]["data"], pandas.DataFrame)
+    assert updated_record[0]["data"]["q"][0] == -10000
+
+    record = [0, 0, 2, -111.0]
+    test_wel.stress_period_data.append_list_as_record(record, 0)
+
+    combined_data = test_wel.stress_period_data.get_dataframe(0)
+    assert len(combined_data.axes[0]) == 3
+    assert combined_data["q"][2] == -111.0
+
+    test_drn = test_mod.get_package("drn")
+    file_entry = test_drn.stress_period_data.get_file_entry()
+    assert file_entry.strip() == "1 1 1 80 drn_1"
