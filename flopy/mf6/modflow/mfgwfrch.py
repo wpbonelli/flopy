@@ -14,6 +14,7 @@ class ModflowGwfrch(mfpackage.MFPackage):
     model : MFModel
         Model that this package is a part of. Package is automatically
         added to model when it is initialized.
+        added to model when it is initialized.
     loading_package : bool
         Do not set this parameter. It is intended for debugging and internal
         processing purposes only.
@@ -340,7 +341,7 @@ class ModflowGwfrch(mfpackage.MFPackage):
         stress_period_data=None,
         filename=None,
         pname=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             model, "rch", filename, pname, loading_package, **kwargs

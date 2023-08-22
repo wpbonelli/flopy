@@ -460,6 +460,8 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
 
     def _resolve_columns(self, data):
         """resolve the column headings for a specific dataset provided"""
+        if len(data) == 0:
+            return self._header_names, False
         if len(data[0]) == len(self._header_names) or len(data[0]) == 0:
             return self._header_names, False
 
@@ -474,6 +476,16 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
 
         return None, None
 
+    def _untuple_recarray(self, rec):
+        rec_list = rec.tolist()
+        for row, line in enumerate(rec_list):
+            for column, data in enumerate(line):
+                if isinstance(data, tuple) and len(data) == 1:
+                    line_lst = list(line)
+                    line_lst[column] = data[0]
+                    rec_list[row] = tuple(line_lst)
+        return rec_list
+
     def _set_data(self, data, check_data=True, append=False):
         """store the data provided"""
         # (re)build data header
@@ -483,7 +495,10 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             return
         if isinstance(data, np.recarray):
             # verify data shape of data (recarray)
-            if len(data[0]) != len(self._header_names):
+            if len(data) == 0:
+                # create empty dataset
+                data = pandas.DataFrame(columns=self._header_names)
+            elif len(data[0]) != len(self._header_names):
                 if len(data[0]) == len(self._data_item_names):
                     # data most likely being stored with cellids as tuples,
                     # create a dataframe and untuple the cellids
@@ -502,10 +517,16 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             else:
                 # data size matches the expected header names, create a pandas
                 # dataframe from the data
-                data = pandas.DataFrame(data, columns=self._header_names)
-                data = self._untuple_cellids(data)
-                # make sure columns are still in correct order
-                data = pandas.DataFrame(data, columns=self._header_names)
+                data_new = pandas.DataFrame(data, columns=self._header_names)
+                if not self._dataframe_check(data_new):
+                    data_list = self._untuple_recarray(data)
+                    data = pandas.DataFrame(
+                        data_list, columns=self._header_names
+                    )
+                else:
+                    data = self._untuple_cellids(data_new)
+                    # make sure columns are still in correct order
+                    data = pandas.DataFrame(data, columns=self._header_names)
         elif isinstance(data, list) or isinstance(data, tuple):
             if not (isinstance(data[0], list) or isinstance(data[0], tuple)):
                 # get data in the format of a tuple of lists (or tuples)
@@ -598,7 +619,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             # append data to existing dataframe
             current_data = self._get_dataframe()
             if current_data is not None:
-                data = pd.concat([current_data, data])
+                data = pandas.concat([current_data, data])
         if data_storage.data_storage_type == DataStorageType.external_file:
             # store external data until next write
             data_storage.internal_data = data
@@ -1039,6 +1060,18 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             return 0
         return start_loc - chars_traversed + 1
 
+    def _dataframe_check(self, data_frame):
+        valid = data_frame.shape[0] > 0
+        if valid:
+            for name in self._header_names:
+                if (
+                    name != "boundname"
+                    and data_frame[name].isnull().values.any()
+                ):
+                    valid = False
+                    break
+        return valid
+
     def _try_pandas_read(self, fd_data_file, start_loc, num_rows=None):
         delimiter_list = [" ", "\t", ","]
         for delimiter in delimiter_list:
@@ -1059,16 +1092,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 continue
 
             # basic check for valid dataset
-            valid = data_frame.shape[0] > 0
-            if valid:
-                for name in self._header_names:
-                    if (
-                        name != "boundname"
-                        and data_frame[name].isnull().values.any()
-                    ):
-                        valid = False
-                        break
-            if valid:
+            if self._dataframe_check(data_frame):
                 return data_frame
             else:
                 fd_data_file.seek(start_loc)
