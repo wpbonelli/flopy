@@ -13,12 +13,11 @@ from ...discretization.vertexgrid import VertexGrid
 from ...utils import datautil
 from ..data import mfdata
 from ..mfbase import ExtFileAction, MFDataException, VerbosityLevel
-from ...utils.datautil import clean_filename, DatumUtil
 from ..utils.mfenums import DiscretizationType
+from .mfdatalist import MFList
 from .mfdatastorage import DataStorageType, DataStructureType
 from .mfdatautil import list_to_array, process_open_close_line
 from .mffileaccess import MFFileAccessList
-from .mfdatalist import MFList
 from .mfstructure import DatumType, MFDataStructure
 
 
@@ -251,24 +250,39 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         for data_item in self.structure.data_item_structures:
             if data_item.type == DatumType.integer:
                 if data_item.name.lower() == "cellid":
+                    columns = data.columns.tolist()
                     if isinstance(self._mg, StructuredGrid):
-                        data["cellid"] = data[
-                            ["layer", "row", "column"]
-                        ].apply(tuple, axis=1)
-                        if not keep_existing:
-                            data = data.drop(
-                                columns=["layer", "row", "column"]
-                            )
+                        if (
+                            "layer" in columns
+                            and "row" in columns
+                            and "column" in columns
+                        ):
+                            data["cellid"] = data[
+                                ["layer", "row", "column"]
+                            ].apply(tuple, axis=1)
+                            if not keep_existing:
+                                data = data.drop(
+                                    columns=["layer", "row", "column"]
+                                )
                     elif isinstance(self._mg, VertexGrid):
-                        data["cellid"] = data[["layer", "cell"]].apply(
-                            tuple, axis=1
-                        )
-                        if not keep_existing:
-                            data = data.drop(columns=["layer", "cell"])
+                        cell_2 = None
+                        if "cell" in columns:
+                            cell_2 = "cell"
+                        elif "ncpl" in columns:
+                            cell_2 = "ncpl"
+                        if cell_2 is not None and "layer" in columns:
+                            data["cellid"] = data[["layer", cell_2]].apply(
+                                tuple, axis=1
+                            )
+                            if not keep_existing:
+                                data = data.drop(columns=["layer", cell_2])
                     elif isinstance(self._mg, UnstructuredGrid):
-                        data["cellid"] = data[["node"]].apply(tuple, axis=1)
-                        if not keep_existing:
-                            data = data.drop(columns=["node"])
+                        if "node" in columns:
+                            data["cellid"] = data[["node"]].apply(
+                                tuple, axis=1
+                            )
+                            if not keep_existing:
+                                data = data.drop(columns=["node"])
                     else:
                         raise MFDataException(
                             "ERROR: Unrecognized model grid "
@@ -293,7 +307,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
 
     def _get_cellid_size(self, data_item_name):
         """get the number of spatial coordinates used in the cellid"""
-        model_num = DatumUtil.cellid_model_num(
+        model_num = datautil.DatumUtil.cellid_model_num(
             data_item_name,
             self._data_dimensions.structure.model_data,
             self._data_dimensions.package_dim.model_dim,

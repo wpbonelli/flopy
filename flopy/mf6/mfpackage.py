@@ -17,9 +17,9 @@ from .data import (
     mfdata,
     mfdataarray,
     mfdatalist,
+    mfdataplist,
     mfdatascalar,
     mfstructure,
-    mfdataplist,
 )
 from .data.mfdatautil import DataSearchOutput, MFComment, cellids_equal
 from .data.mfstructure import DatumType, MFDataItemStructure, MFStructure
