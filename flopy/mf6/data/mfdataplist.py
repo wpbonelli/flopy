@@ -1780,6 +1780,86 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 self._simulation_data.mfpath.get_sim_path(), data_storage.fname
             )
 
+    def plot(
+        self,
+        key=None,
+        names=None,
+        filename_base=None,
+        file_extension=None,
+        mflay=None,
+        **kwargs,
+    ):
+        """
+        Plot boundary condition (MfList) data
+
+        Parameters
+        ----------
+        key : str
+            MfList dictionary key. (default is None)
+        names : list
+            List of names for figure titles. (default is None)
+        filename_base : str
+            Base file name that will be used to automatically generate file
+            names for output image files. Plots will be exported as image
+            files if file_name_base is not None. (default is None)
+        file_extension : str
+            Valid matplotlib.pyplot file extension for savefig(). Only used
+            if filename_base is not None. (default is 'png')
+        mflay : int
+            MODFLOW zero-based layer number to return.  If None, then all
+            all layers will be included. (default is None)
+        **kwargs : dict
+            axes : list of matplotlib.pyplot.axis
+                List of matplotlib.pyplot.axis that will be used to plot
+                data for each layer. If axes=None axes will be generated.
+                (default is None)
+            pcolor : bool
+                Boolean used to determine if matplotlib.pyplot.pcolormesh
+                plot will be plotted. (default is True)
+            colorbar : bool
+                Boolean used to determine if a color bar will be added to
+                the matplotlib.pyplot.pcolormesh. Only used if pcolor=True.
+                (default is False)
+            inactive : bool
+                Boolean used to determine if a black overlay in inactive
+                cells in a layer will be displayed. (default is True)
+            contour : bool
+                Boolean used to determine if matplotlib.pyplot.contour
+                plot will be plotted. (default is False)
+            clabel : bool
+                Boolean used to determine if matplotlib.pyplot.clabel
+                will be plotted. Only used if contour=True. (default is False)
+            grid : bool
+                Boolean used to determine if the model grid will be plotted
+                on the figure. (default is False)
+            masked_values : list
+                List of unique values to be excluded from the plot.
+
+        Returns
+        ----------
+        out : list
+            Empty list is returned if filename_base is not None. Otherwise
+            a list of matplotlib.pyplot.axis is returned.
+        """
+        from ...plot import PlotUtilities
+
+        if not self.plottable:
+            raise TypeError("Simulation level packages are not plottable")
+
+        if "cellid" not in self.dtype.names:
+            return
+
+        PlotUtilities._plot_mflist_helper(
+            mflist=self,
+            key=key,
+            kper=None,
+            names=names,
+            filename_base=None,
+            file_extension=None,
+            mflay=None,
+            **kwargs,
+        )
+
 
 class MFPandasTransientList(
     MFPandasList, mfdata.MFTransient, DataListInterface
@@ -1843,6 +1923,14 @@ class MFPandasTransientList(
                 return next(iter(data.values())).dtype
         else:
             return None
+
+    @property
+    def plottable(self):
+        """If this list data is plottable"""
+        if self.model is None:
+            return False
+        else:
+            return True
 
     @property
     def data(self):
@@ -2398,3 +2486,93 @@ class MFPandasTransientList(
         ):
             return None
         return self._data_storage[self._current_key]
+
+    def plot(
+        self,
+        key=None,
+        names=None,
+        kper=0,
+        filename_base=None,
+        file_extension=None,
+        mflay=None,
+        **kwargs,
+    ):
+        """
+        Plot stress period boundary condition (MfList) data for a specified
+        stress period
+
+        Parameters
+        ----------
+        key : str
+            MfList dictionary key. (default is None)
+        names : list
+            List of names for figure titles. (default is None)
+        kper : int
+            MODFLOW zero-based stress period number to return. (default is zero)
+        filename_base : str
+            Base file name that will be used to automatically generate file
+            names for output image files. Plots will be exported as image
+            files if file_name_base is not None. (default is None)
+        file_extension : str
+            Valid matplotlib.pyplot file extension for savefig(). Only used
+            if filename_base is not None. (default is 'png')
+        mflay : int
+            MODFLOW zero-based layer number to return.  If None, then all
+            all layers will be included. (default is None)
+        **kwargs : dict
+            axes : list of matplotlib.pyplot.axis
+                List of matplotlib.pyplot.axis that will be used to plot
+                data for each layer. If axes=None axes will be generated.
+                (default is None)
+            pcolor : bool
+                Boolean used to determine if matplotlib.pyplot.pcolormesh
+                plot will be plotted. (default is True)
+            colorbar : bool
+                Boolean used to determine if a color bar will be added to
+                the matplotlib.pyplot.pcolormesh. Only used if pcolor=True.
+                (default is False)
+            inactive : bool
+                Boolean used to determine if a black overlay in inactive
+                cells in a layer will be displayed. (default is True)
+            contour : bool
+                Boolean used to determine if matplotlib.pyplot.contour
+                plot will be plotted. (default is False)
+            clabel : bool
+                Boolean used to determine if matplotlib.pyplot.clabel
+                will be plotted. Only used if contour=True. (default is False)
+            grid : bool
+                Boolean used to determine if the model grid will be plotted
+                on the figure. (default is False)
+            masked_values : list
+                List of unique values to be excluded from the plot.
+
+        Returns
+        ----------
+        out : list
+            Empty list is returned if filename_base is not None. Otherwise
+            a list of matplotlib.pyplot.axis is returned.
+        """
+        from ...plot import PlotUtilities
+
+        if not self.plottable:
+            raise TypeError("Simulation level packages are not plottable")
+
+        # model.plot() will not work for a mf6 model oc package unless
+        # this check is here
+        if self.get_data() is None:
+            return
+
+        if "cellid" not in self.dtype.names:
+            return
+
+        axes = PlotUtilities._plot_mflist_helper(
+            self,
+            key=key,
+            names=names,
+            kper=kper,
+            filename_base=filename_base,
+            file_extension=file_extension,
+            mflay=mflay,
+            **kwargs,
+        )
+        return axes
