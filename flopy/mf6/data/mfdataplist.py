@@ -2261,6 +2261,7 @@ class MFPandasTransientList(
                 # the dictionary key is the stress period the list is for
                 del_keys = []
                 for key, list_item in data.items():
+                    list_item_record = False
                     if list_item is None:
                         self.remove_transient_key(key)
                         del_keys.append(key)
@@ -2270,9 +2271,9 @@ class MFPandasTransientList(
                     else:
                         self.empty_keys[key] = False
                         if isinstance(list_item, dict):
-                            is_record = True
+                            list_item_record = True
                         self._set_data_prep(list_item, key)
-                        if is_record:
+                        if list_item_record:
                             super().set_record(list_item, autofill, check_data)
                         else:
                             super().set_data(
