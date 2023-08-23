@@ -1,5 +1,6 @@
 import copy
 import inspect
+import io
 import os
 import sys
 
@@ -1705,7 +1706,9 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 self._save_binary_data(fd_data_file, data)
             else:
                 if data.shape[0] == 0:
-                    if fd_data_file is None:
+                    if fd_data_file is None or not isinstance(
+                        fd_data_file, io.TextIOBase
+                    ):
                         result = "\n"
                     else:
                         # no data, just write empty line
