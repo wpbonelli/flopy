@@ -397,7 +397,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         and then drop the cellids from "pdata".  Returns the updated "pdata".
         """
         if pdata is None or len(pdata) == 0:
-            return pdata
+            return pdata, 0
         fields_to_correct = []
         data_idx = 0
         # find cellid columns that need to be fixed
@@ -448,6 +448,11 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                     value=pdata.apply(lambda x: x[column_name][1], axis=1),
                 )
             elif isinstance(self._mg, UnstructuredGrid):
+                if column_name == "node":
+                    # fixing a problem where node was specified as a tuple
+                    # make sure new column is named properly
+                    column_name = "node_2"
+                    pdata = pdata.rename({"node": column_name})
                 pdata.insert(
                     loc=field_idx,
                     column=self._unique_column_name(pdata, "node"),
@@ -457,7 +462,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 )
             # remove cellid tuple
             pdata = pdata.drop(column_name, axis=1)
-        return pdata
+        return pdata, len(fields_to_correct)
 
     def _resolve_columns(self, data):
         """resolve the column headings for a specific dataset provided"""
@@ -506,7 +511,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                     data = pandas.DataFrame(
                         data, columns=self._data_item_names
                     )
-                    data = self._untuple_cellids(data)
+                    data = self._untuple_cellids(data)[0]
                     # make sure columns are still in correct order
                     data = pandas.DataFrame(data, columns=self._header_names)
                 else:
@@ -525,15 +530,18 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                         data_list, columns=self._header_names
                     )
                 else:
-                    data = self._untuple_cellids(data_new)
-                    # make sure columns are still in correct order
-                    data = pandas.DataFrame(data, columns=self._header_names)
+                    data, count = self._untuple_cellids(data_new)
+                    if count > 0:
+                        # make sure columns are still in correct order
+                        data = pandas.DataFrame(
+                            data, columns=self._header_names
+                        )
         elif isinstance(data, list) or isinstance(data, tuple):
             if not (isinstance(data[0], list) or isinstance(data[0], tuple)):
                 # get data in the format of a tuple of lists (or tuples)
                 data = [data]
             # resolve the data's column headings
-            columns, untuple_cellids = self._resolve_columns(data)
+            columns = self._resolve_columns(data)[0]
             if columns is None:
                 message = (
                     f"ERROR: Data list {self._data_name} supplied the "
@@ -567,9 +575,9 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             ):
                 # add empty boundname column
                 data["boundname"] = ""
-            if untuple_cellids:
-                # get rid of tuples from cellids
-                data = self._untuple_cellids(data)
+            # get rid of tuples from cellids
+            data, count = self._untuple_cellids(data)
+            if count > 0:
                 # make sure columns are still in correct order
                 data = pandas.DataFrame(data, columns=self._header_names)
         elif isinstance(data, pandas.DataFrame):
@@ -1169,7 +1177,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             rec_array = list_data.get_data()
             if rec_array is not None:
                 data_frame = pandas.DataFrame(rec_array)
-                data_frame = self._untuple_cellids(data_frame)
+                data_frame = self._untuple_cellids(data_frame)[0]
                 return_val = [True, fd_data_file.readline()]
             else:
                 data_frame = None
@@ -1415,8 +1423,11 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
 
     def _increment_id_fields(self, data_frame):
         """increment all id fields by 1 (reverse for negative values)"""
+        dtypes = data_frame.dtypes
         for id_field in self._get_id_fields(data_frame):
             if id_field in data_frame:
+                if id_field in dtypes and dtypes[id_field].str != "<i8":
+                    data_frame.astype({id_field: "<i8"})
                 data_frame.loc[data_frame[id_field].ge(-1), id_field] += 1
                 data_frame.loc[data_frame[id_field].lt(-1), id_field] -= 1
 
