@@ -456,9 +456,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 pdata.insert(
                     loc=field_idx,
                     column=self._unique_column_name(pdata, "node"),
-                    value=pdata.apply(
-                        lambda x: x[column_name][0], axis=1
-                    ),
+                    value=pdata.apply(lambda x: x[column_name][0], axis=1),
                 )
             # remove cellid tuple
             pdata = pdata.drop(column_name, axis=1)
