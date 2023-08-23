@@ -452,12 +452,12 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                     # fixing a problem where node was specified as a tuple
                     # make sure new column is named properly
                     column_name = "node_2"
-                    pdata = pdata.rename({"node": column_name})
+                    pdata = pdata.rename(columns={"node": column_name})
                 pdata.insert(
                     loc=field_idx,
                     column=self._unique_column_name(pdata, "node"),
                     value=pdata.apply(
-                        lambda x: x[columns[field_idx]][0], axis=1
+                        lambda x: x[column_name][0], axis=1
                     ),
                 )
             # remove cellid tuple
