@@ -1288,7 +1288,7 @@ class ModflowGwflak(mfpackage.MFPackage):
         perioddata=None,
         filename=None,
         pname=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             model, "lak", filename, pname, loading_package, **kwargs
