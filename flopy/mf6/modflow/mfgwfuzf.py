@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS FILE DIRECTLY.  THIS FILE MUST BE CREATED BY
 # mf6/utils/createpackages.py
-# FILE created on June 29, 2023 14:20:38 UTC
+# FILE created on August 29, 2023 20:06:54 UTC
 from .. import mfpackage
 from ..data.mfdatautil import ListTemplateGenerator
 
@@ -297,10 +297,7 @@ class ModflowGwfuzf(mfpackage.MFPackage):
     dfn_file_name = "gwf-uzf.dfn"
 
     dfn = [
-        [
-            "header",
-            "multi-package",
-        ],
+        ["header", "multi-package", "package-type advanced-stress-package"],
         [
             "block options",
             "name auxiliary",
@@ -881,7 +878,7 @@ class ModflowGwfuzf(mfpackage.MFPackage):
         perioddata=None,
         filename=None,
         pname=None,
-        **kwargs,
+        **kwargs
     ):
         super().__init__(
             model, "uzf", filename, pname, loading_package, **kwargs

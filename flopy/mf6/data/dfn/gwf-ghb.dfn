@@ -1,6 +1,6 @@
 # --------------------- gwf ghb options ---------------------
 # flopy multi-package
-# flopy basic-package
+# package-type stress-package
 
 block options
 name auxiliary

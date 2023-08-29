@@ -1339,7 +1339,7 @@ class MFList(mfdata.MFMultiDimVar, DataListInterface):
 
         Parameters
         ----------
-            first_line : str
+            first_line : str, None
                 A string containing the first line of data in this list.
             file_handle : file descriptor
                 A file handle for the data file which points to the second

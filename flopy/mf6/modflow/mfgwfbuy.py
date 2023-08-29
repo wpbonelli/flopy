@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS FILE DIRECTLY.  THIS FILE MUST BE CREATED BY
 # mf6/utils/createpackages.py
-# FILE created on June 29, 2023 14:20:38 UTC
+# FILE created on August 29, 2023 20:06:54 UTC
 from .. import mfpackage
 from ..data.mfdatautil import ListTemplateGenerator
 
@@ -95,9 +95,7 @@ class ModflowGwfbuy(mfpackage.MFPackage):
     dfn_file_name = "gwf-buy.dfn"
 
     dfn = [
-        [
-            "header",
-        ],
+        ["header", "package-type stress-package"],
         [
             "block options",
             "name hhformulation_rhs",
@@ -234,7 +232,7 @@ class ModflowGwfbuy(mfpackage.MFPackage):
         packagedata=None,
         filename=None,
         pname=None,
-        **kwargs,
+        **kwargs
     ):
         super().__init__(
             model, "buy", filename, pname, loading_package, **kwargs

@@ -977,7 +977,8 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             return storage.fname
         return None
 
-    def _get_data_bounds(self, fd_data_file):
+    @staticmethod
+    def _file_data_to_memory(fd_data_file, first_line):
         """
         scan data file from starting point to find the extent of the data
 
@@ -989,83 +990,23 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
 
         Returns
         -------
-        int, int : number of rows of data, seek location of end of data
+        list, str : data from file, next line in file after data
         """
-        start_loc = fd_data_file.tell()
-        num_rows = 0
+        data_lines = []
+        clean_first_line = first_line.strip().lower()
+        if clean_first_line.startswith("end"):
+            return data_lines, fd_data_file.readline()
+        if len(clean_first_line) > 0 and clean_first_line[0] != "#":
+            data_lines.append(clean_first_line)
         line = fd_data_file.readline()
         while line:
             line_mod = line.strip().lower()
             if line_mod.startswith("end"):
-                end_loc = fd_data_file.tell() - len(line)
-                if abs(end_loc) > self._max_file_size:
-                    # handle bad end_loc
-                    while line:
-                        line = fd_data_file.read(1)
-                        end_loc = fd_data_file.tell() - len(line)
-                        if abs(end_loc) < self._max_file_size:
-                            line = False
-                fd_data_file.seek(start_loc)
-                return num_rows, end_loc
+                return data_lines, line
             if len(line_mod) > 0 and line_mod[0] != "#":
-                num_rows += 1
+                data_lines.append(line_mod)
             line = fd_data_file.readline()
-        return None, None
-
-    def _line_start_loc(self, fd_data_file):
-        """
-        Find the starting seek location.  This is non-trivial since "tell"
-        does not always produce a valid result.
-
-        Parameters
-        ----------
-        fd_data_file : file descriptor
-            File with data.  File location should be at the beginning of the
-            data.
-
-        Returns
-        -------
-        int : seek location of start of data
-        """
-        total_reads = 0
-        char = " "
-        # find first location where python "tell" returns something valid
-        location = fd_data_file.tell()
-        while abs(location) > self._max_file_size or char == "":
-            char = fd_data_file.read(1)
-            location = fd_data_file.tell()
-            total_reads += 1
-        if char == "":
-            message = (
-                "An error occurred while seeking data in file. Unable "
-                "to determine file location"
-            )
-            type_, value_, traceback_ = sys.exc_info()
-            raise MFDataException(
-                self.structure.get_model(),
-                self.structure.get_package(),
-                self._path,
-                "Seeking line start",
-                self.structure.name,
-                inspect.stack()[0][3],
-                type_,
-                value_,
-                traceback_,
-                message,
-                self._simulation_data.debug,
-            )
-        start_loc = location - total_reads - 3
-
-        # find last end of line
-        chars_traversed = 0
-        while char != "\n" and char != "\r" and start_loc >= chars_traversed:
-            fd_data_file.seek(start_loc - chars_traversed)
-            char = fd_data_file.read(1)
-            if char != "\n" and char != "\r":
-                chars_traversed += 1
-        if chars_traversed > start_loc:
-            return 0
-        return start_loc - chars_traversed + 1
+        return data_lines, ""
 
     def _dataframe_check(self, data_frame):
         valid = data_frame.shape[0] > 0
@@ -1079,7 +1020,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                     break
         return valid
 
-    def _try_pandas_read(self, fd_data_file, start_loc, num_rows=None):
+    def _try_pandas_read(self, fd_data_file):
         delimiter_list = [" ", "\t", ","]
         for delimiter in delimiter_list:
             try:
@@ -1089,23 +1030,22 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                     sep=delimiter,
                     names=self._header_names,
                     dtype=self._data_header,
-                    nrows=num_rows,
                     comment="#",
                     index_col=False,
                     skipinitialspace=True,
                 )
             except BaseException:
-                fd_data_file.seek(start_loc)
+                fd_data_file.seek(0)
                 continue
 
             # basic check for valid dataset
             if self._dataframe_check(data_frame):
                 return data_frame
             else:
-                fd_data_file.seek(start_loc)
+                fd_data_file.seek(0)
         return None
 
-    def _read_text_data(self, fd_data_file, external_file=False):
+    def _read_text_data(self, fd_data_file, first_line, external_file=False):
         """
         read list data from data file
 
@@ -1121,36 +1061,29 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         Returns
         -------
         DataFrame : file's list data
-        list : containing boolean for sucess of operation and the next line of
+        list : containing boolean for success of operation and the next line of
                data in the file
         """
         # initialize
         data_frame = None
         return_val = [False, None]
-        if external_file:
-            start_loc = 0
-        else:
-            start_loc = self._line_start_loc(fd_data_file)
-            fd_data_file.seek(start_loc)
+
         # build header
         self._build_data_header()
+        file_data, next_line = self._file_data_to_memory(
+            fd_data_file, first_line
+        )
+        io_file_data = io.StringIO("\n".join(file_data))
         if external_file:
-            # success = True
-            data_frame = self._try_pandas_read(fd_data_file, start_loc)
+            data_frame = self._try_pandas_read(io_file_data)
             if data_frame is not None:
                 self._decrement_id_fields(data_frame)
         else:
             # get number of rows of data
-            num_rows, end_loc = self._get_data_bounds(fd_data_file)
-            if num_rows is not None:
-                # try:
-                data_frame = self._try_pandas_read(
-                    fd_data_file, start_loc, num_rows
-                )
+            if len(file_data) > 0:
+                data_frame = self._try_pandas_read(io_file_data)
                 if data_frame is not None:
                     self._decrement_id_fields(data_frame)
-                    # move file pointer to correct location
-                    fd_data_file.seek(end_loc)
                     return_val = [True, fd_data_file.readline()]
 
         if data_frame is None:
@@ -1167,10 +1100,9 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 self._block,
             )
             # start in original location
-            fd_data_file.seek(start_loc)
-            next_line = fd_data_file.readline()
+            io_file_data.seek(0)
             return_val = list_data.load(
-                next_line, fd_data_file, self._block.block_headers[-1]
+                None, io_file_data, self._block.block_headers[-1]
             )
             rec_array = list_data.get_data()
             if rec_array is not None:
@@ -1245,7 +1177,9 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             self._decrement_id_fields(pd_data)
         else:
             with open(file_path, "r") as fd_data_file:
-                pd_data, return_val = self._read_text_data(fd_data_file, True)
+                pd_data, return_val = self._read_text_data(
+                    fd_data_file, "", True
+                )
         return pd_data
 
     def load(
@@ -1328,7 +1262,9 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         # else internal
         else:
             # read data into pandas dataframe
-            pd_data, return_val = self._read_text_data(file_handle, False)
+            pd_data, return_val = self._read_text_data(
+                file_handle, first_line, False
+            )
             # verify this is the end of the block?
 
             # store internal data

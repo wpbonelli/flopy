@@ -1,4 +1,5 @@
 # --------------------- gwf csub options ---------------------
+# package-type advanced-stress-package
 
 block options
 name boundnames

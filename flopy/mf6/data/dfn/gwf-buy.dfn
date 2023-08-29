@@ -1,4 +1,5 @@
 # --------------------- gwf buy options ---------------------
+# package-type stress-package
 
 block options
 name hhformulation_rhs

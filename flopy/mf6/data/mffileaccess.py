@@ -215,6 +215,7 @@ class MFFileAccessArray(MFFileAccess):
         if data.size == modelgrid.nnodes:
             write_multi_layer = False
         if write_multi_layer:
+            # write data from each layer with a separate header
             for layer, value in enumerate(data):
                 self._write_layer(
                     fd,
@@ -228,6 +229,7 @@ class MFFileAccessArray(MFFileAccess):
                     layer + 1,
                 )
         else:
+            # write data with a single header
             self._write_layer(
                 fd,
                 data,
@@ -238,7 +240,6 @@ class MFFileAccessArray(MFFileAccess):
                 text,
                 fname,
             )
-        data.tofile(fd)
         fd.close()
 
     def _write_layer(
@@ -1134,6 +1135,9 @@ class MFFileAccessList(MFFileAccess):
         self._data_dimensions.lock()
         self._last_line_info = []
         self._data_line = None
+
+        if first_line is None:
+            first_line = file_handle.readline()
 
         # read in any pre data comments
         current_line = self._read_pre_data_comments(

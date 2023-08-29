@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS FILE DIRECTLY.  THIS FILE MUST BE CREATED BY
 # mf6/utils/createpackages.py
-# FILE created on August 21, 2023 22:26:16 UTC
+# FILE created on August 29, 2023 20:06:54 UTC
 from .. import mfpackage
 from ..data.mfdatautil import ListTemplateGenerator
 
@@ -129,11 +129,7 @@ class ModflowGwfriv(mfpackage.MFPackage):
     dfn_file_name = "gwf-riv.dfn"
 
     dfn = [
-        [
-            "header",
-            "multi-package",
-            "basic-package",
-        ],
+        ["header", "multi-package", "package-type stress-package"],
         [
             "block options",
             "name auxiliary",
@@ -366,7 +362,7 @@ class ModflowGwfriv(mfpackage.MFPackage):
         stress_period_data=None,
         filename=None,
         pname=None,
-        **kwargs,
+        **kwargs
     ):
         super().__init__(
             model, "riv", filename, pname, loading_package, **kwargs
