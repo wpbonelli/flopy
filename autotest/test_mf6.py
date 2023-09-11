@@ -2293,3 +2293,26 @@ def test_namefile_creation(tmpdir):
     except flopy.mf6.mfbase.FlopyException:
         ex_happened = True
     assert ex_happened
+
+
+def test_sfacrecord():
+    r = np.array([0, 1e-3, 3e-3, 0])
+    nper = len(r)
+    rts = [(i, x) for i, x in zip(range(nper + 1), np.append(r, 0.0))]
+    sim = flopy.mf6.MFSimulation()
+    tdis = flopy.mf6.ModflowTdis(sim, nper=nper, perioddata=[(1, 1, 1) for _ in range(nper)])
+    gwf = flopy.mf6.ModflowGwf(sim)
+    ts_dict = {
+        "filename": "recharge.ts",
+        "timeseries": rts,
+        "time_series_namerecord": "recharge",
+        "interpolation_methodrecord": "stepwise",
+        "sfacrecord": 1.0,
+    }
+    rch = flopy.mf6.ModflowGwfrch(
+        gwf,
+        maxbound=1,
+        pname="rch",
+        stress_period_data={0: [[(0, 0, 0), "recharge"]]},
+        timeseries=ts_dict,
+    )
