@@ -1,52 +1,26 @@
-import copy
 import os
-import shutil
-import sys
-from pathlib import Path
 
 import numpy as np
 import pandas
 import pandas as pd
 import pytest
-from modflow_devtools.markers import requires_exe, requires_pkg
+from modflow_devtools.markers import requires_exe
 
-import flopy
 from flopy.mf6 import (
-    ExtFileAction,
-    MFModel,
     MFSimulation,
     ModflowGwf,
-    ModflowGwfchd,
     ModflowGwfdis,
-    ModflowGwfdisv,
     ModflowGwfdrn,
-    ModflowGwfevt,
-    ModflowGwfevta,
-    ModflowGwfghb,
-    ModflowGwfgnc,
-    ModflowGwfgwf,
-    ModflowGwfgwt,
-    ModflowGwfhfb,
     ModflowGwfic,
     ModflowGwfnpf,
     ModflowGwfoc,
-    ModflowGwfrch,
-    ModflowGwfrcha,
     ModflowGwfriv,
-    ModflowGwfsfr,
     ModflowGwfsto,
     ModflowGwfwel,
-    ModflowGwtadv,
-    ModflowGwtdis,
-    ModflowGwtic,
-    ModflowGwtmst,
-    ModflowGwtoc,
-    ModflowGwtssm,
     ModflowIms,
     ModflowTdis,
-    ModflowUtltas,
 )
-from flopy.mf6.data.mfdataplist import MFPandasList
+from flopy.mf6.data.mfdataplist import MFList, MFPandasList
 
 
 pytestmark = pytest.mark.mf6
@@ -54,7 +28,9 @@ pytestmark = pytest.mark.mf6
 
 @requires_exe("mf6")
 @pytest.mark.regression
-def test_pandas_001(function_tmpdir, example_data_path):
+@pytest.mark.parametrize("use_pandas", [True, False])
+@pytest.mark.parametrize("tabular", ["raw", "recarray", "dataframe"])
+def test_pandas_001(function_tmpdir, example_data_path, use_pandas, tabular):
     # init paths
     test_ex_name = "pd001"
     model_name = "pd001_mod"
@@ -73,13 +49,13 @@ def test_pandas_001(function_tmpdir, example_data_path):
         sim_ws=ws,
         continue_=True,
         memory_print_option="summary",
-        use_pandas=True,
+        use_pandas=use_pandas,
     )
     name = sim.name_file
     assert name.continue_.get_data()
     assert name.nocheck.get_data() is None
     assert name.memory_print_option.get_data() == "summary"
-    assert sim.simulation_data.use_pandas
+    assert sim.simulation_data.use_pandas == use_pandas
 
     tdis_rc = [(6.0, 2, 1.0), (6.0, 3, 1.0)]
     tdis_package = ModflowTdis(
@@ -169,13 +145,17 @@ def test_pandas_001(function_tmpdir, example_data_path):
     )
     wel_package.stress_period_data.add_transient_key(1)
     # text user generated pandas dataframe without headers
-    data_pd = pd.DataFrame([(0, 0, 4, -1000.0), (0, 0, 7, -20.0)])
+    wel_data = [(0, 0, 4, -1000.0), (0, 0, 7, -20.0)]
+    if tabular == "dataframe":
+        wel_data = pd.DataFrame(wel_data)
+    if tabular == "recarray":
+        wel_data = pd.DataFrame(wel_data).to_records(index=False)
     wel_package.stress_period_data.set_data(
-        {1: {"filename": "wel_1.txt", "iprn": 1, "data": data_pd}}
+        {1: {"filename": "wel_1.txt", "iprn": 1, "data": wel_data}}
     )
 
     # test getting data
-    assert isinstance(wel_package.stress_period_data, MFPandasList)
+    assert isinstance(wel_package.stress_period_data, MFPandasList if tabular == "dataframe" else MFList)
     well_data_pd = wel_package.stress_period_data.get_dataframe(0)
     assert isinstance(well_data_pd, pd.DataFrame)
     assert well_data_pd.iloc[0, 0] == 0

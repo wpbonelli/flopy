@@ -28,7 +28,7 @@ pytest_plugins = ["modflow_devtools.fixtures"]
 SHAPEFILE_EXTENSIONS = ["prj", "shx", "dbf"]
 
 
-# misc utilities
+# path locators
 
 
 def get_project_root_path() -> Path:
@@ -43,7 +43,7 @@ def get_flopy_data_path() -> Path:
     return get_project_root_path() / "flopy" / "data"
 
 
-# path fixtures
+# fixtures
 
 
 @pytest.fixture(scope="session")
@@ -66,17 +66,18 @@ def example_shapefiles(example_data_path) -> List[Path]:
     return [f.resolve() for f in (example_data_path / "prj_test").glob("*")]
 
 
-# fixture to automatically close any plots (or optionally show them)
-
-
 @pytest.fixture(autouse=True)
 def close_plot(request):
+    """
+    Automatically close any plots (or optionally show them)
+    """
     yield
 
     # plots only shown if requested via CLI flag,
     # figures are available, and we're not in CI
     show = request.config.getoption("--show-plots")
-    if len(plt.get_fignums()) > 0 and not is_in_ci() and show:
+    nfig = len(plt.get_fignums())
+    if show and nfig > 0 and not is_in_ci():
         plt.show()
     else:
         plt.close("all")
@@ -88,11 +89,10 @@ def patch_macos_ci_matplotlib():
     # e.g. https://github.com/modflowpy/flopy/runs/7748574375?check_suite_focus=true#step:9:57
     if is_in_ci() and system().lower() == "darwin":
         import matplotlib
-
         matplotlib.use("agg")
 
 
-# pytest configuration hooks
+# configuration hooks
 
 
 @pytest.hookimpl(hookwrapper=True, tryfirst=True)

@@ -42,7 +42,8 @@ def copy_modpath_files(source, model_ws, baseName):
         shutil.copy(src, dst)
 
 
-def test_mpsim(function_tmpdir, mp6_test_path):
+@pytest.mark.parametrize("use_pandas", [True, False])
+def test_mpsim(function_tmpdir, mp6_test_path, use_pandas):
     copy_modpath_files(mp6_test_path, function_tmpdir, "EXAMPLE.")
 
     m = Modflow.load("EXAMPLE.nam", model_ws=function_tmpdir)
@@ -112,24 +113,23 @@ def test_mpsim(function_tmpdir, mp6_test_path):
     mp.write_input()
 
     # test StartingLocationsFile._write_wo_pandas
-    for use_pandas in [True, False]:
-        sim = Modpath6Sim(model=mp)
-        # starting locations file
-        stl = StartingLocationsFile(model=mp, use_pandas=use_pandas)
-        stldata = StartingLocationsFile.get_empty_starting_locations_data(
-            npt=2
-        )
-        stldata["label"] = ["p1", "p2"]
-        stldata[1]["i0"] = 5
-        stldata[1]["j0"] = 6
-        stldata[1]["xloc0"] = 0.1
-        stldata[1]["yloc0"] = 0.2
-        stl.data = stldata
-        mp.write_input()
-        stllines = open(function_tmpdir / "ex6.loc").readlines()
-        assert stllines[3].strip() == "group1"
-        assert int(stllines[4].strip()) == 2
-        assert stllines[6].strip().split()[-1] == "p2"
+    sim = Modpath6Sim(model=mp)
+    # starting locations file
+    stl = StartingLocationsFile(model=mp, use_pandas=use_pandas)
+    stldata = StartingLocationsFile.get_empty_starting_locations_data(
+        npt=2
+    )
+    stldata["label"] = ["p1", "p2"]
+    stldata[1]["i0"] = 5
+    stldata[1]["j0"] = 6
+    stldata[1]["xloc0"] = 0.1
+    stldata[1]["yloc0"] = 0.2
+    stl.data = stldata
+    mp.write_input()
+    stllines = open(function_tmpdir / "ex6.loc").readlines()
+    assert stllines[3].strip() == "group1"
+    assert int(stllines[4].strip()) == 2
+    assert stllines[6].strip().split()[-1] == "p2"
 
 
 @requires_pkg("shapefile", "shapely")
@@ -304,14 +304,15 @@ def test_get_destination_data(function_tmpdir, mp6_test_path):
     pthobj.write_shapefile(shpname=fpth, direction="ending", mg=mg4)
 
 
-def test_loadtxt(function_tmpdir, mp6_test_path):
+@pytest.mark.parametrize("use_pandas", [True, False])
+def test_loadtxt(function_tmpdir, mp6_test_path, use_pandas):
     copy_modpath_files(mp6_test_path, function_tmpdir, "EXAMPLE-3.")
 
     pthfile = function_tmpdir / "EXAMPLE-3.pathline"
     pthld = PathlineFile(pthfile)
     ra = loadtxt(pthfile, delimiter=" ", skiprows=3, dtype=pthld.dtype)
     ra2 = loadtxt(
-        pthfile, delimiter=" ", skiprows=3, dtype=pthld.dtype, use_pandas=False
+        pthfile, delimiter=" ", skiprows=3, dtype=pthld.dtype, use_pandas=use_pandas
     )
     assert np.array_equal(ra, ra2)
 
@@ -809,12 +810,10 @@ def make_mp_model(nm, m, ws, use_pandas):
 
 @requires_exe("mf2005")
 @parametrize_with_cases("ml", cases=Mp6Cases2)
-def test_mp_wpandas_wo_pandas(ml):
+def test_mp_starting_locs_w_and_wout_pandas(ml):
     """
-    test that user can pass and create a mp model without an accompanying modflow model
-    Returns
-    -------
-
+    Create a model with and without pandas and check equivalence of 
+    starting locations file
     """
 
     mp_pandas = make_mp_model("pandas", ml, ml.model_ws, use_pandas=True)
