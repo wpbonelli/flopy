@@ -955,6 +955,24 @@ class BudgetIndexError(Exception):
     pass
 
 
+def totim_from_kstpkper(kper, kstp, perlen, nstp, tsmult):
+    kper_len = np.sum(perlen[:kper])
+    this_perlen = perlen[kper]
+    this_nstp = nstp[kper]
+    this_tsmult = tsmult[kper]
+    if this_tsmult == 1:
+        dt1 = this_perlen / float(this_nstp)
+    else:
+        dt1 = this_perlen * (this_tsmult - 1.0) / ((this_tsmult**this_nstp) - 1.0)
+    kstp_len = [dt1]
+    for i in range(kstp + 1):
+        kstp_len.append(kstp_len[-1] * this_tsmult)
+    # kstp_len = np.array(kstp_len)
+    # kstp_len = kstp_len[:kstp].sum()
+    kstp_len = sum(kstp_len[: kstp + 1])
+    return kper_len + kstp_len
+
+
 class CellBudgetFile:
     """
     The CellBudgetFile class provides convenient ways to retrieve and

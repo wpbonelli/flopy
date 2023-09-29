@@ -19,6 +19,7 @@ from flopy.utils import (
 )
 from flopy.utils.binaryfile import (
     get_headfile_precision,
+    totim_from_kstpkper,
     write_budget,
     write_head,
 )
@@ -561,3 +562,18 @@ def test_read_mf2005_freyberg(example_data_path, function_tmpdir, compact):
     assert len(cbb_data) == len(cbb_data_kstpkper)
     for i in range(len(cbb_data)):
         assert np.array_equal(cbb_data[i], cbb_data_kstpkper[i])
+
+
+def test_totim_from_kstpkper():
+    pd = [
+        # perlen, nstp, tsmult
+        (10, 10, 1),
+        (1, 1, 1),
+        (10, 2, 1)
+    ]
+    perlen, nstp, tsmult = zip(*pd)
+
+    totim = totim_from_kstpkper(0, 0, perlen, nstp, tsmult)
+    assert totim == 1
+    totim = totim_from_kstpkper(0, 1, perlen, nstp, tsmult)
+    assert totim == 2
