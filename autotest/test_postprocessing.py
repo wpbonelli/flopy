@@ -37,27 +37,10 @@ def mf6_freyberg_path(example_data_path):
     return example_data_path / "mf6-freyberg"
 
 
-@pytest.mark.parametrize(
-    "nlay, nrow, ncol",
-    [
-        # extended in 1 dimension
-        [3, 1, 1],
-        [1, 3, 1],
-        [1, 1, 3],
-        # 2D
-        [3, 3, 1],
-        [1, 3, 3],
-        [3, 1, 3],
-        # 3D
-        [3, 3, 3],
-    ],
-)
-@pytest.mark.mf6
-@requires_exe("mf6")
-def test_get_structured_faceflows(function_tmpdir, nlay, nrow, ncol):
+def get_structured_sim(ws, nlay, nrow, ncol):
     name = "gsff"
     sim = flopy.mf6.MFSimulation(
-        sim_name=name, exe_name="mf6", version="mf6", sim_ws=function_tmpdir
+        sim_name=name, exe_name="mf6", version="mf6", sim_ws=ws
     )
 
     # tdis
@@ -130,13 +113,35 @@ def test_get_structured_faceflows(function_tmpdir, nlay, nrow, ncol):
     # solver
     ims = flopy.mf6.ModflowIms(sim)
 
-    # write and run the model
+    return sim
+
+
+@pytest.mark.parametrize(
+    "nlay, nrow, ncol",
+    [
+        # extended in 1 dimension
+        [3, 1, 1],
+        [1, 3, 1],
+        [1, 1, 3],
+        # 2D
+        [3, 3, 1],
+        [1, 3, 3],
+        [3, 1, 3],
+        # 3D
+        [3, 3, 3],
+    ],
+)
+@pytest.mark.mf6
+@requires_exe("mf6")
+def test_get_structured_faceflows(function_tmpdir, nlay, nrow, ncol):
+    sim = get_structured_sim(function_tmpdir, nlay, nrow, ncol)   
     sim.write_simulation()
     sim.check()
     success, buff = sim.run_simulation()
     assert success
 
     # load budget output
+    gwf = sim.get_model()
     budget = gwf.output.budget()
     flow_ja_face = budget.get_data(text="FLOW-JA-FACE")[0]
     frf, fff, flf = get_structured_faceflows(
@@ -144,6 +149,57 @@ def test_get_structured_faceflows(function_tmpdir, nlay, nrow, ncol):
         grb_file=function_tmpdir / f"{gwf.name}.dis.grb",
         verbose=True,
     )
+
+    # expect nonzero flows only in extended (>1 cell) dimensions
+    assert np.any(frf) == (ncol > 1)
+    assert np.any(fff) == (nrow > 1)
+    assert np.any(flf) == (nlay > 1)
+
+    frf1, fff1, flf1 = get_structured_faceflows(
+        flow_ja_face,
+        grb_file=function_tmpdir / f"{gwf.name}.dis.grb",
+        verbose=True,
+        iter_nodes=True
+    )
+
+    assert np.array_equal(frf, frf1)
+    assert np.array_equal(fff, fff1)
+    assert np.array_equal(flf, flf1)
+
+
+@pytest.mark.parametrize(
+    "nlay, nrow, ncol",
+    [
+        # extended in 1 dimension
+        [1000, 1, 1],
+        [1, 1000, 1],
+        [1, 1, 1000],
+        # 2D
+        [100, 100, 1],
+        [1, 100, 100],
+        [100, 1, 100],
+        # 3D
+        [50, 50, 50],
+    ],
+)
+@pytest.mark.mf6
+@requires_exe("mf6")
+def test_get_structured_faceflows_benchmark(function_tmpdir, nlay, nrow, ncol, benchmark):
+    sim = get_structured_sim(function_tmpdir, nlay, nrow, ncol)   
+    sim.write_simulation()
+    sim.check()
+    success, buff = sim.run_simulation()
+    assert success
+
+    # load budget output
+    gwf = sim.get_model()
+    budget = gwf.output.budget()
+    flow_ja_face = budget.get_data(text="FLOW-JA-FACE")[0]
+    frf, fff, flf = benchmark(lambda: get_structured_faceflows(
+        flow_ja_face,
+        grb_file=function_tmpdir / f"{gwf.name}.dis.grb",
+        verbose=True,
+    ))
 
     # expect nonzero flows only in extended (>1 cell) dimensions
     assert np.any(frf) == (ncol > 1)

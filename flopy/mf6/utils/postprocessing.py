@@ -12,6 +12,7 @@ def get_structured_faceflows(
     nrow=None,
     ncol=None,
     verbose=False,
+    iter_nodes=False
 ):
     """
     Get the face flows for the flow right face, flow front face, and
@@ -80,70 +81,109 @@ def get_structured_faceflows(
 
     # create empty flat face flow arrays
     shape = (nlay, nrow, ncol)
-    frf = np.zeros(shape, dtype=float).flatten()  # right
-    fff = np.zeros(shape, dtype=float).flatten()  # front
-    flf = np.zeros(shape, dtype=float).flatten()  # lower
 
-    def get_face(m, n, nlay, nrow, ncol):
-        """
-        Determine connection direction at (m, n)
-        in a connection or intercell flow matrix.
+    if iter_nodes:
+        frf = np.zeros(shape, dtype=float).flatten()  # right
+        fff = np.zeros(shape, dtype=float).flatten()  # front
+        flf = np.zeros(shape, dtype=float).flatten()  # lower
 
-        Notes
-        -----
-        For visual intuition in 2 dimensions
-        https://stackoverflow.com/a/16330162/6514033
-        helps. MODFLOW uses the left-side scheme in 3D.
+        def get_face(m, n, nlay, nrow, ncol):
+            """
+            Determine connection direction at (m, n)
+            in a connection or intercell flow matrix.
 
-        Parameters
-        ----------
-        m : int
-            row index
-        n : int
-            column index
-        nlay : int
-            number of layers in the grid
-        nrow : int
-            number of rows in the grid
-        ncol : int
-            number of columns in the grid
+            Notes
+            -----
+            For visual intuition in 2 dimensions
+            https://stackoverflow.com/a/16330162/6514033
+            helps. MODFLOW uses the left-side scheme in 3D.
 
-        Returns
-        -------
-        face : int
-            0: right, 1: front, 2: lower
-        """
+            Parameters
+            ----------
+            m : int
+                row index
+            n : int
+                column index
+            nlay : int
+                number of layers in the grid
+            nrow : int
+                number of rows in the grid
+            ncol : int
+                number of columns in the grid
 
-        d = m - n
-        if d == 1:
-            # handle 1D cases
-            if nrow == 1 and ncol == 1:
+            Returns
+            -------
+            face : int
+                0: right, 1: front, 2: lower
+            """
+
+            d = m - n
+            if d == 1:
+                # handle 1D cases
+                if nrow == 1 and ncol == 1:
+                    return 2
+                elif nlay == 1 and ncol == 1:
+                    return 1
+                elif nlay == 1 and nrow == 1:
+                    return 0
+                else:
+                    # handle 2D layers/rows case
+                    return 1 if ncol == 1 else 0
+            elif d == nrow * ncol:
                 return 2
-            elif nlay == 1 and ncol == 1:
-                return 1
-            elif nlay == 1 and nrow == 1:
-                return 0
             else:
-                # handle 2D layers/rows case
-                return 1 if ncol == 1 else 0
-        elif d == nrow * ncol:
-            return 2
-        else:
-            return 1
+                return 1
 
-    # fill right, front and lower face flows
-    # (below main diagonal)
-    flows = [frf, fff, flf]
-    for n in range(grb.nodes):
-        for i in range(ia[n] + 1, ia[n + 1]):
-            m = ja[i]
-            if m <= n:
-                continue
-            face = get_face(m, n, nlay, nrow, ncol)
-            flows[face][n] = -1 * flowja[i]
+        # fill right, front and lower face flows
+        # (below main diagonal)
+        flows = [frf, fff, flf]
+        for n in range(grb.nodes):
+            for i in range(ia[n] + 1, ia[n + 1]):
+                m = ja[i]
+                if m <= n:
+                    continue
+                face = get_face(m, n, nlay, nrow, ncol)
+                flows[face][n] = -1 * flowja[i]
 
-    # reshape and return
-    return frf.reshape(shape), fff.reshape(shape), flf.reshape(shape)
+        # reshape and return
+        return frf.reshape(shape), fff.reshape(shape), flf.reshape(shape)
+    else:
+        frf = np.zeros((nlay, nrow, ncol))
+        fff = np.zeros((nlay, nrow, ncol))
+        flf = np.zeros((nlay, nrow, ncol))
+
+        def get_node(k, i, j):
+            return j + i * ncol + k * nrow * ncol
+
+        def get_flow(n, m, ia, ja, flowja):
+            for ipos in range(ia[n] + 1, ia[n + 1]):
+                if m == ja[ipos]:
+                    return flowja[ipos]
+            return 0.
+                
+        for k in range(nlay):
+            for i in range(nrow):
+                for j in range(ncol):
+                
+                    # get node number for k, i, j
+                    n = get_node(k, i, j)
+                    
+                    # fill flow to right (positive to east)
+                    if j < ncol - 1:
+                        m = get_node(k, i, j + 1)
+                        frf[k, i, j] = -get_flow(n, m, ia, ja, flowja)
+                    
+                    # fill flow to front (positive to south)
+                    if i < nrow - 1:
+                        m = get_node(k, i + 1, j)
+                        fff[k, i, j] = -get_flow(n, m, ia, ja, flowja)
+
+                    # fill flow to lower (positive flow upward)
+                    if k < nlay - 1:
+                        m = get_node(k + 1, i, j)
+                        flf[k, i, j] = -get_flow(n, m, ia, ja, flowja)
+        
+        return frf, fff, flf
 
 
 def get_residuals(
