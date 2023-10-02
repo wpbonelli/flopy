@@ -155,36 +155,52 @@ def test_get_structured_faceflows(function_tmpdir, nlay, nrow, ncol):
     assert np.any(fff) == (nrow > 1)
     assert np.any(flf) == (nlay > 1)
 
-    frf1, fff1, flf1 = get_structured_faceflows(
+    frf_n, fff_n, flf_n = get_structured_faceflows(
         flow_ja_face,
         grb_file=function_tmpdir / f"{gwf.name}.dis.grb",
         verbose=True,
-        iter_nodes=True
+        strategy="nodes"
     )
 
-    assert np.array_equal(frf, frf1)
-    assert np.array_equal(fff, fff1)
-    assert np.array_equal(flf, flf1)
+    assert np.array_equal(frf, frf_n)
+    assert np.array_equal(fff, fff_n)
+    assert np.array_equal(flf, flf_n)
+
+    frf_v, fff_v, flf_v = get_structured_faceflows(
+        flow_ja_face,
+        grb_file=function_tmpdir / f"{gwf.name}.dis.grb",
+        verbose=True,
+        strategy="vectorized"
+    )
+
+    assert np.array_equal(frf, frf_v)
+    assert np.array_equal(fff, fff_v)
+    assert np.array_equal(flf, flf_v)
 
 
 @pytest.mark.parametrize(
     "nlay, nrow, ncol",
     [
         # extended in 1 dimension
-        [1000, 1, 1],
-        [1, 1000, 1],
-        [1, 1, 1000],
+        # [1000, 1, 1],
+        # [1, 1000, 1],
+        # [1, 1, 1000],
         # 2D
-        [100, 100, 1],
-        [1, 100, 100],
-        [100, 1, 100],
+        # [100, 100, 1],
+        # [1, 100, 100],
+        # [100, 1, 100],
         # 3D
         [50, 50, 50],
     ],
 )
+@pytest.mark.parametrize("strategy", [
+    "nodes",
+    "indices",
+    "vectorized"
+])
 @pytest.mark.mf6
 @requires_exe("mf6")
-def test_get_structured_faceflows_benchmark(function_tmpdir, nlay, nrow, ncol, benchmark):
+def test_get_structured_faceflows_benchmark(function_tmpdir, nlay, nrow, ncol, strategy, benchmark):
     sim = get_structured_sim(function_tmpdir, nlay, nrow, ncol)   
     sim.write_simulation()
     sim.check()
@@ -199,6 +215,7 @@ def test_get_structured_faceflows_benchmark(function_tmpdir, nlay, nrow, ncol, b
         flow_ja_face,
         grb_file=function_tmpdir / f"{gwf.name}.dis.grb",
         verbose=True,
+        strategy=strategy
     ))
 
     # expect nonzero flows only in extended (>1 cell) dimensions

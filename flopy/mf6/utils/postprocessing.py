@@ -3,6 +3,54 @@ import numpy as np
 from .binarygrid_util import MfGrdFile
 
 
+def get_face(m, n, nlay, nrow, ncol):
+    """
+    Determine connection direction at (m, n)
+    in a connection or intercell flow matrix.
+
+    Notes
+    -----
+    For visual intuition in 2 dimensions
+    https://stackoverflow.com/a/16330162/6514033
+    helps. MODFLOW uses the left-side scheme in 3D.
+
+    Parameters
+    ----------
+    m : int
+        row index
+    n : int
+        column index
+    nlay : int
+        number of layers in the grid
+    nrow : int
+        number of rows in the grid
+    ncol : int
+        number of columns in the grid
+
+    Returns
+    -------
+    face : int
+        0: right, 1: front, 2: lower
+    """
+
+    d = m - n
+    if d == 1:
+        # handle 1D cases
+        if nrow == 1 and ncol == 1:
+            return 2
+        elif nlay == 1 and ncol == 1:
+            return 1
+        elif nlay == 1 and nrow == 1:
+            return 0
+        else:
+            # handle 2D layers/rows case
+            return 1 if ncol == 1 else 0
+    elif d == nrow * ncol:
+        return 2
+    else:
+        return 1
+
+
 def get_structured_faceflows(
     flowja,
     grb_file=None,
@@ -12,7 +60,7 @@ def get_structured_faceflows(
     nrow=None,
     ncol=None,
     verbose=False,
-    iter_nodes=False
+    strategy="indices"
 ):
     """
     Get the face flows for the flow right face, flow front face, and
@@ -79,65 +127,18 @@ def get_structured_faceflows(
     # evaluate size of flowja relative to ja
     __check_flowja_size(flowja, ja)
 
-    # create empty flat face flow arrays
     shape = (nlay, nrow, ncol)
+    nnodes = nlay * nrow * ncol
 
-    if iter_nodes:
+    if strategy == "nodes":
         frf = np.zeros(shape, dtype=float).flatten()  # right
         fff = np.zeros(shape, dtype=float).flatten()  # front
         flf = np.zeros(shape, dtype=float).flatten()  # lower
 
-        def get_face(m, n, nlay, nrow, ncol):
-            """
-            Determine connection direction at (m, n)
-            in a connection or intercell flow matrix.
-
-            Notes
-            -----
-            For visual intuition in 2 dimensions
-            https://stackoverflow.com/a/16330162/6514033
-            helps. MODFLOW uses the left-side scheme in 3D.
-
-            Parameters
-            ----------
-            m : int
-                row index
-            n : int
-                column index
-            nlay : int
-                number of layers in the grid
-            nrow : int
-                number of rows in the grid
-            ncol : int
-                number of columns in the grid
-
-            Returns
-            -------
-            face : int
-                0: right, 1: front, 2: lower
-            """
-
-            d = m - n
-            if d == 1:
-                # handle 1D cases
-                if nrow == 1 and ncol == 1:
-                    return 2
-                elif nlay == 1 and ncol == 1:
-                    return 1
-                elif nlay == 1 and nrow == 1:
-                    return 0
-                else:
-                    # handle 2D layers/rows case
-                    return 1 if ncol == 1 else 0
-            elif d == nrow * ncol:
-                return 2
-            else:
-                return 1
-
         # fill right, front and lower face flows
         # (below main diagonal)
         flows = [frf, fff, flf]
-        for n in range(grb.nodes):
+        for n in range(nnodes):
             for i in range(ia[n] + 1, ia[n + 1]):
                 m = ja[i]
                 if m <= n:
@@ -147,7 +148,7 @@ def get_structured_faceflows(
 
         # reshape and return
         return frf.reshape(shape), fff.reshape(shape), flf.reshape(shape)
-    else:
+    elif strategy == "indices":
         frf = np.zeros((nlay, nrow, ncol))
         fff = np.zeros((nlay, nrow, ncol))
         flf = np.zeros((nlay, nrow, ncol))
@@ -184,7 +185,20 @@ def get_structured_faceflows(
                         flf[k, i, j] = -get_flow(n, m, ia, ja, flowja)
         
         return frf, fff, flf
-
+    elif strategy == "vectorized":
+        def to_q(n, face):
+            ias = [i for i in range(ia[n] + 1, ia[n + 1]) if ja[i] > n]
+            jas = [ja[i] for i in ias]
+            faces = [get_face(m, n, nlay, nrow, ncol) for m in jas]
+            return -flowja[ias[faces.index(face)]] if face in faces else 0
+    
+        nodes = np.linspace(0, nnodes - 1, nnodes).astype(int)
+        to_q_v = np.vectorize(to_q)
+        return \
+            to_q_v(nodes, 0).reshape(shape), \
+            to_q_v(nodes, 1).reshape(shape), \
+            to_q_v(nodes, 2).reshape(shape)
+        
 
 def get_residuals(
     flowja, grb_file=None, ia=None, ja=None, shape=None, verbose=False
