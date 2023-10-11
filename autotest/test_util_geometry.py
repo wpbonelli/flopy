@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
+from autotest.test_grid_cases import GridCases
 
-from flopy.utils.geometry import is_clockwise
+from flopy.utils.geometry import is_clockwise, point_in_polygon
 
 
 def test_does_isclockwise_work():
@@ -27,3 +28,13 @@ def test_does_isclockwise_work():
     rslt = is_clockwise(xv, yv)
 
     assert bool(rslt) is False, "is_clockwise() failed"
+
+
+def test_point_in_polygon_basic():
+    grid = GridCases().structured_small()
+    xpts = grid.xcellcenters
+    ypts = grid.ycellcenters
+    poly = grid.verts[grid.iverts[0]].tolist()
+    mask = point_in_polygon(xpts, ypts, poly)
+    assert mask.sum() == 1
+    assert mask[0, 0] == True
