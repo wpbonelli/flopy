@@ -673,10 +673,11 @@ class NetCdf:
         needed for the netcdf file
         """
         pyproj = import_optional_dependency("pyproj")
-        from ..utils.parse_version import Version
+        from packaging.version import Version
+        from importlib.metadata import version
 
         # Check if using newer pyproj version conventions
-        if version.parse(pyproj.__version__) < version.parse("2.2"):
+        if Version(version("pyproj")) < Version("2.2"):
             raise ValueError(
                 "The FloPy NetCDF module requires pyproj >= 2.2.0."
             )

@@ -6,8 +6,9 @@ import numpy as np
 
 from .geometry import transform
 from .geospatial_utils import GeoSpatialUtil
-from .parse_version import Version
 from .utl_import import import_optional_dependency
+from packaging.version import Version
+from importlib.metadata import version
 
 NUMPY_GE_121 = Version(np.__version__) >= Version("1.21")
 

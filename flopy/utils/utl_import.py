@@ -41,8 +41,8 @@ import importlib
 import sys
 import types
 import warnings
-
-from .parse_version import Version
+from packaging.version import Version
+from importlib.metadata import version
 
 # Update .docs/optional_dependencies.md when updating versions!
 
