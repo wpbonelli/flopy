@@ -9,6 +9,7 @@ from matplotlib.axes import Axes
 from modflow_devtools.markers import requires_exe
 
 import flopy
+from flopy.modflow import Modflow
 from flopy.utils import (
     BinaryHeader,
     CellBudgetFile,
@@ -434,6 +435,61 @@ def mf6_gwf_2sp_st_tr(function_tmpdir):
         model=gwf, nlay=1, nrow=1, ncol=10, delr=1, delc=10, top=10, botm=0
     )
 
+<<<<<<< HEAD
+=======
+    records = v.get_unique_record_names()
+    for record in records:
+        indices = v.get_indices(text=record.strip())
+        for idx, kk in enumerate(kstpkper):
+            t0 = v.get_data(kstpkper=kk, text=record.strip())[0]
+            t1 = v.get_data(idx=indices[idx], text=record)[0]
+            assert np.array_equal(
+                t0, t1
+            ), "binary budget item {0} read using kstpkper != binary budget item {0} read using idx".format(
+                record
+            )
+    v.close()
+
+
+@pytest.fixture
+@pytest.mark.mf6
+@requires_exe("mf6")
+def mf6_gwf_2sp_st_tr(function_tmpdir):
+    """
+    A basic flow model with 2 stress periods,
+    first steady-state, the second transient.
+    """
+
+    name = "mf6_gwf_2sp"
+    sim = flopy.mf6.MFSimulation(
+        sim_name=name,
+        version="mf6",
+        exe_name="mf6",
+        sim_ws=function_tmpdir,
+    )
+
+    tdis = flopy.mf6.ModflowTdis(
+        simulation=sim,
+        nper=2,
+        perioddata=[(0, 1, 1), (10, 10, 1)],
+    )
+
+    ims = flopy.mf6.ModflowIms(
+        simulation=sim,
+        complexity="SIMPLE",
+    )
+
+    gwf = flopy.mf6.ModflowGwf(
+        simulation=sim,
+        modelname=name,
+        save_flows=True,
+    )
+
+    dis = flopy.mf6.ModflowGwfdis(
+        model=gwf, nlay=1, nrow=1, ncol=10, delr=1, delc=10, top=10, botm=0
+    )
+
+>>>>>>> origin/master
     npf = flopy.mf6.ModflowGwfnpf(
         model=gwf,
         icelltype=[0],
@@ -447,7 +503,11 @@ def mf6_gwf_2sp_st_tr(function_tmpdir):
 
     wel = flopy.mf6.ModflowGwfwel(
         model=gwf,
+<<<<<<< HEAD
         stress_period_data={0: None, 1: [[(0, 0, 0), -1]]},
+=======
+        stress_period_data={0: 0, 1: [[(0, 0, 0), -1]]},
+>>>>>>> origin/master
     )
 
     sto = flopy.mf6.ModflowGwfsto(
