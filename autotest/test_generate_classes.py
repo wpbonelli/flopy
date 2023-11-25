@@ -84,6 +84,10 @@ def test_generate_classes_from_github_refs(
     if worker_id != "master" and "loadfile" not in argv:
         pytest.skip("can't run in parallel")
 
+    python = virtualenv.python
+    venv = Path(python).parent
+    print(f"Using temp venv at {venv} with python {python}")
+
     # create virtual environment
     venv = function_tmpdir / "venv"
     python = venv / "bin" / "python"

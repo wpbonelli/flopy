@@ -1,11 +1,11 @@
 # DO NOT MODIFY THIS FILE DIRECTLY.  THIS FILE MUST BE CREATED BY
 # mf6/utils/createpackages.py
-# FILE created on August 29, 2023 20:06:54 UTC
+# FILE created on September 30, 2023 14:44:04 UTC
 from .. import mfpackage
 from ..data.mfdatautil import ListTemplateGenerator
 
 
-class ModflowGwfchd(mfpackage.MFPackage):
+class ModflowGwfchd(mfpackage.MFPackge):
     """
     ModflowGwfchd defines a chd package within a gwf6 model.
 
