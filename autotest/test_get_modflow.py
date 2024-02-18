@@ -120,15 +120,24 @@ def test_get_release(repo):
     release = get_release(repo=repo, tag=tag)
     assets = release["assets"]
 
+    # if an ARM mac distribution is added to the executables
+    # repo, remove the hacks below and add "macarm.zip" here
     expected_assets = ["linux.zip", "mac.zip", "win64.zip"]
     expected_ostags = [a.replace(".zip", "") for a in expected_assets]
     actual_assets = [asset["name"] for asset in assets]
 
     if repo == "modflow6":
-        # can remove if modflow6 releases follow asset name conventions followed in executables and nightly build repos
+        # todo: uncomment when mf6 ships an apple silicon distribution
+        # expected_assets += "macarm.zip"  
+
+        # remove hack if mf6 releases follow same asset naming conventions
+        # as exes and nightly build releases: [linux/mac/macarm/win64].zip
         assert {a.rpartition("_")[2] for a in actual_assets} >= {
             a for a in expected_assets if not a.startswith("win")
         }
+    elif repo == "modflow6-nightly-build":
+        # for now nightly build is the only distribution for ARM macs
+        expected_assets += "macarm.zip"
     else:
         for ostag in expected_ostags:
             assert any(
@@ -137,7 +146,7 @@ def test_get_release(repo):
 
 
 @pytest.mark.parametrize("bindir", bindir_options.keys())
-def test_select_bindir(bindir, function_tmpdir):
+def test_select_bindir(bindir):
     expected_path = bindir_options[bindir]
     if not os.access(expected_path, os.W_OK):
         pytest.skip(f"{expected_path} is not writable")

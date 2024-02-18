@@ -2,7 +2,10 @@ import os
 import shutil
 import tempfile
 import time
+from pathlib import Path
 from warnings import warn
+
+from pooch import retrieve, Unzip
 
 from .createpackages import create_packages
 
@@ -52,29 +55,20 @@ def list_files(pth, exts=["py"]):
 
 
 def download_dfn(owner, repo, ref, new_dfn_pth):
-    try:
-        from modflow_devtools.download import download_and_unzip
-    except ImportError:
-        raise ImportError(
-            "The modflow-devtools package must be installed in order to "
-            "generate the MODFLOW 6 classes. This can be with:\n"
-            "     pip install modflow-devtools"
-        )
-
-    mf6url = f"https://github.com/{owner}/{repo}/archive/{ref}.zip"
-    print(f"  Downloading MODFLOW 6 repository from {mf6url}")
     with tempfile.TemporaryDirectory() as tmpdirname:
-        dl_path = download_and_unzip(mf6url, tmpdirname, verbose=True)
-        dl_contents = list(dl_path.glob("modflow6-*"))
-        proj_path = next(iter(dl_contents), None)
-        if not proj_path:
-            raise ValueError(
-                f"Could not find modflow6 project dir in {dl_path}: found {dl_contents}"
+        url = f"https://github.com/{owner}/{repo}/archive/{ref}.zip"
+        print(f"  Downloading MODFLOW 6 repository from {url}")
+        retrieve(url, known_hash=None, path=tmpdirname, processor=Unzip())
+        dl_path = Path(tmpdirname)
+        dl_files = list(dl_path.glob("modflow6-*"))
+        proj_root = next(iter(dl_files), None)
+        if not proj_root:
+            raise FileNotFoundError(
+                f"Could not find modflow6 project dir in {dl_path}: found {dl_files}"
             )
-        downloaded_dfn_pth = os.path.join(
-            proj_path, "doc", "mf6io", "mf6ivar", "dfn"
+        shutil.copytree(
+            Path(proj_root) / "doc" / "mf6io" / "mf6ivar" / "dfn", new_dfn_pth
         )
-        shutil.copytree(downloaded_dfn_pth, new_dfn_pth)
 
 
 def backup_existing_dfns(flopy_dfn_path):

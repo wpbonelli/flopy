@@ -19,6 +19,12 @@ import zipfile
 from importlib.util import find_spec
 from pathlib import Path
 
+from modflow_devtools.ostags import (
+    SUPPORTED_OSTAGS,
+    get_binary_suffixes,
+    get_ostag,
+)
+
 __all__ = ["run_main"]
 __license__ = "CC0"
 
@@ -33,7 +39,6 @@ renamed_prefix = {
     "modflow6-nightly-build": "modflow6_nightly",
 }
 available_repos = list(renamed_prefix.keys())
-available_ostags = ["linux", "mac", "win32", "win64"]
 max_http_tries = 3
 
 # Check if this is running from flopy
@@ -51,30 +56,6 @@ flopy_appdata_path = (
     if sys.platform.startswith("win")
     else Path.home() / ".local" / "share" / "flopy"
 )
-
-
-def get_ostag() -> str:
-    """Determine operating system tag from sys.platform."""
-    if sys.platform.startswith("linux"):
-        return "linux"
-    elif sys.platform.startswith("win"):
-        return "win" + ("64" if sys.maxsize > 2**32 else "32")
-    elif sys.platform.startswith("darwin"):
-        return "mac"
-    raise ValueError(f"platform {sys.platform!r} not supported")
-
-
-def get_suffixes(ostag) -> Tuple[str, str]:
-    if ostag in ["win32", "win64"]:
-        return ".exe", ".dll"
-    elif ostag == "linux":
-        return "", ".so"
-    elif ostag == "mac":
-        return "", ".dylib"
-    else:
-        raise KeyError(
-            f"unrecognized ostag {ostag!r}; choose one of {available_ostags}"
-        )
 
 
 def get_request(url, params={}):
@@ -373,7 +354,7 @@ def run_main(
     if ostag is None:
         ostag = get_ostag()
 
-    exe_suffix, lib_suffix = get_suffixes(ostag)
+    exe_suffix, lib_suffix = get_binary_suffixes(ostag)
 
     # select bindir if path not provided
     if bindir.startswith(":"):
@@ -712,7 +693,7 @@ Examples:
     )
     parser.add_argument(
         "--ostag",
-        choices=available_ostags,
+        choices=SUPPORTED_OSTAGS,
         help="Operating system tag; default is to automatically choose.",
     )
     parser.add_argument(

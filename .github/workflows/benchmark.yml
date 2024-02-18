@@ -39,7 +39,9 @@ jobs:
             powershell
 
       - name: Install FloPy
-        run: pip install .
+        run: |
+          pip install https://github.com/MODFLOW-USGS/modflow-devtools/zipball/develop
+          pip install .
 
       - name: Install Modflow executables
         uses: modflowpy/install-modflow-action@v1
