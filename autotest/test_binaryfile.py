@@ -167,6 +167,9 @@ def test_headu_file_data(function_tmpdir, example_data_path):
         t1 = np.array([d.min(), d.max()])
         assert np.allclose(t1, minmaxtrue[i])
 
+    # test get_alldata()
+    alldata = headobj.get_alldata()
+
 
 @pytest.mark.slow
 def test_headufile_get_ts(example_data_path):

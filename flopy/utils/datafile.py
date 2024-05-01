@@ -574,7 +574,9 @@ class LayerFile:
         rv = []
         for totim in self.times:
             h = self.get_data(totim=totim, mflay=mflay)
+            h = [np.pad(hh, 7801) for hh in h]
             rv.append(h)
+        import pdb; pdb.set_trace()
         rv = np.array(rv)
         rv[rv == nodata] = np.nan
         return rv

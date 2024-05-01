@@ -222,14 +222,14 @@ def test_ts(function_tmpdir, example_data_path):
     )
 
     sim.write_simulation()
-    ret = sim.run_simulation()
-    assert ret
+    success, _ = sim.run_simulation()
+    assert success
     sim2 = flopy.mf6.MFSimulation.load("mfsim.nam", sim_ws=ws, exe_name="mf6")
     sim2_ws = os.path.join(ws, "2")
     sim2.set_sim_path(sim2_ws)
     sim2.write_simulation()
-    ret = sim2.run_simulation()
-    assert ret
+    success, _ = sim2.run_simulation()
+    assert success
 
     # compare datasets
     model2 = sim2.get_model()
@@ -1813,6 +1813,11 @@ def test005_create_tests_advgw_tidal(function_tmpdir, example_data_path):
         time_series_namerecord="rch_2",
         interpolation_methodrecord="linear",
     )
+
+    # model.remove_package("rch_1")
+    # model.remove_package("RIV")
+
+    import pdb; pdb.set_trace()
 
     rch3_period = {}
     rch3_period_array = []
