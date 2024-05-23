@@ -48,3 +48,4 @@ dependencies:
   - imageio
   - pymetis
   - xmipy
+  - pooch

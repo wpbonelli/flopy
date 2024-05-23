@@ -32,6 +32,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pooch
 
 proj_root = Path.cwd().parent.parent
 
@@ -79,6 +80,12 @@ plt.show()
 # At the core of the `ZoneBudget` object is a numpy structured array. The class provides some wrapper functions to help us interogate the array and save it to disk.
 
 # Create a ZoneBudget object and get the budget record array
+aX_pth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/zonbud_examples/{cbc_f.name}",
+    fname=cbc_f.name,
+    path=loadpth,
+    known_hash=None,
+)
 zb = flopy.utils.ZoneBudget(cbc_f, zon, kstpkper=(0, 1096))
 zb.get_budget()
 

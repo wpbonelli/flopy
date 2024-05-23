@@ -66,6 +66,7 @@ optional = [
     "geopandas",
     "imageio",
     "netcdf4",
+    "pooch",
     "pymetis ; platform_system != 'Windows'",
     "pyproj",
     "pyshp",
