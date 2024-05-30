@@ -17,11 +17,15 @@
 # # SFR2 package loading and querying
 
 import os
+from pathlib import Path
 
 # +
 import sys
 
+import pooch
 import flopy
+
+proj_root = Path.cwd().parents[1]
 
 print(sys.version)
 print(f"flopy version: {flopy.__version__}")
@@ -33,15 +37,20 @@ m = flopy.modflow.Modflow()
 
 # Read the SFR2 file
 
-f = os.path.join(
-    "..", "..", "examples", "data", "mf2005_test", "testsfr2_tab_ICALC2.sfr"
+loadpth = proj_root / "examples" / "data" / "mf2005_test"
+fname = "testsfr2_tab_ICALC2.sfr"
+fpth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mf2005_test/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None,
 )
-stuff = open(f).readlines()
+stuff = open(fpth).readlines()
 stuff
 
 # Load the SFR2 file
 
-sfr = flopy.modflow.ModflowSfr2.load(f, m, nper=50)
+sfr = flopy.modflow.ModflowSfr2.load(fpth, m, nper=50)
 
 sfr.segment_data.keys()
 

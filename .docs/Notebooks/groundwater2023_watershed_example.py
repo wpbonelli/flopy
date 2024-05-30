@@ -30,13 +30,15 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 from shapely.geometry import LineString
-
+import pooch
 import flopy
 import flopy.plot.styles as styles
 from flopy.discretization import StructuredGrid, VertexGrid
 from flopy.utils.gridgen import Gridgen
 from flopy.utils.triangle import Triangle
 from flopy.utils.voronoi import VoronoiGrid
+
+proj_root = pl.Path.cwd().parents[1]
 
 print(sys.version)
 print(f"numpy version: {np.__version__}")
@@ -103,7 +105,14 @@ if not os.path.isdir(temp_path):
     os.mkdir(temp_path)
 
 # Load the fine topography that will be sampled
-ascii_file = pl.Path("../../examples/data/geospatial/fine_topo.asc")
+loadpth = proj_root / "examples" / "data" / "geospatial"
+fname = "fine_topo.asc"
+ascii_file = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/geospatial/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None,
+)
 fine_topo = flopy.utils.Raster.load(ascii_file)
 
 # Define the problem size and extents

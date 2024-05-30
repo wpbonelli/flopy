@@ -34,7 +34,7 @@ import numpy as np
 import pandas as pd
 import pooch
 
-proj_root = Path.cwd().parent.parent
+proj_root = Path.cwd().parents[1]
 
 import flopy
 

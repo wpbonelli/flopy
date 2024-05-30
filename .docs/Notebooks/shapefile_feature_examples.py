@@ -32,16 +32,20 @@ import shutil
 import sys
 import warnings
 from tempfile import TemporaryDirectory
+from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import pooch
 
 import flopy
 from flopy.export.shapefile_utils import recarray2shp, shp2recarray
 from flopy.utils import geometry
 from flopy.utils.geometry import LineString, Point, Polygon
 from flopy.utils.modpathfile import EndpointFile, PathlineFile
+
+proj_root = Path.cwd().parents[1]
 
 warnings.simplefilter("ignore", UserWarning)
 print(sys.version)
@@ -131,7 +135,15 @@ ra.geometry[0].plot()
 # * create geometry objects for pathlines from a MODPATH simulation
 # * plot the paths using the built in plotting method
 
-pthfile = PathlineFile("../../examples/data/mp6/EXAMPLE-3.pathline")
+loadpth = proj_root / "examples" / "data" / "mp6"
+fname = "EXAMPLE-3.pathline"
+plfilepth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mp6/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
+)
+pthfile = PathlineFile(plfilepth)
 pthdata = pthfile._data.view(np.recarray)
 
 # +
@@ -164,7 +176,14 @@ ax.set_aspect(1)
 
 # ## Points
 
-eptfile = EndpointFile("../../examples/data/mp6/EXAMPLE-3.endpoint")
+fname = "EXAMPLE-3.endpoint"
+epfilepth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mp6/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
+)
+eptfile = EndpointFile(epfilepth)
 eptdata = eptfile.get_alldata()
 
 # +

@@ -26,12 +26,15 @@ import os
 import sys
 from pprint import pformat
 from tempfile import TemporaryDirectory
+from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-
+import pooch
 import flopy
+
+proj_root = Path.cwd().parents[1]
 
 print(sys.version)
 print(f"numpy version: {np.__version__}")
@@ -45,14 +48,7 @@ temp_dir = TemporaryDirectory()
 model_name = "advgw_tidal"
 workspace = os.path.join(temp_dir.name, model_name)
 
-data_pth = os.path.join(
-    "..",
-    "..",
-    "examples",
-    "data",
-    "mf6",
-    "test005_advgw_tidal",
-)
+data_pth = proj_root / "examples" / "data" / "mf6" / "test005_advgw_tidal"
 assert os.path.isdir(data_pth)
 
 # +
@@ -268,7 +264,15 @@ ghb = flopy.mf6.ModflowGwfghb(
     stress_period_data=ghb_period,
 )
 ts_recarray = []
-fd = open(os.path.join(data_pth, "tides.txt"))
+fname = "tides.txt"
+fpth = pooch.retrieve(
+    # "data" / "mf6" / "test005_advgw_tidal"
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mf6/test005_advgw_tidal{fname}",
+    fname=fname,
+    path=data_pth,
+    known_hash=None,
+)
+fd = open(fpth)
 for line in fd:
     line_list = line.strip().split(",")
     ts_recarray.append((float(line_list[0]), float(line_list[1])))

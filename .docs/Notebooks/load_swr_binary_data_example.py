@@ -24,11 +24,14 @@ import sys
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from pathlib import Path
 
 # +
 from IPython.display import Image
-
+import pooch
 import flopy
+
+proj_root = Path.cwd().parents[1]
 
 print(sys.version)
 print(f"numpy version: {np.__version__}")
@@ -37,7 +40,7 @@ print(f"flopy version: {flopy.__version__}")
 
 # +
 # Set the paths
-datapth = os.path.join("..", "..", "examples", "data", "swr_test")
+datapth = proj_root / "examples" / "data" / "swr_test"
 
 # SWR Process binary files
 files = ("SWR004.obs", "SWR004.vel", "SWR004.str", "SWR004.stg", "SWR004.flow")
@@ -48,7 +51,14 @@ files = ("SWR004.obs", "SWR004.vel", "SWR004.str", "SWR004.stg", "SWR004.flow")
 # Create an instance of the `SwrObs` class and load the observation data.
 
 # +
-sobj = flopy.utils.SwrObs(os.path.join(datapth, files[0]))
+fname = files[0]
+fpth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/swr_test/{fname}",
+    fname=fname,
+    path=datapth,
+    known_hash=None,
+)
+sobj = flopy.utils.SwrObs(fpth)
 
 ts = sobj.get_data()
 # -
@@ -83,7 +93,14 @@ ax.legend()
 #
 # Load discharge data from the flow file. The flow file contains the simulated flow between connected reaches for each connection in the model.
 
-sobj = flopy.utils.SwrFlow(os.path.join(datapth, files[1]))
+fname = files[1]
+fpth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/swr_test/{fname}",
+    fname=fname,
+    path=datapth,
+    known_hash=None,
+)
+sobj = flopy.utils.SwrFlow(fpth)
 times = np.array(sobj.get_times()) / 3600.0
 obs1 = sobj.get_ts(irec=1, iconn=0)
 obs2 = sobj.get_ts(irec=14, iconn=13)
@@ -92,17 +109,38 @@ obs5 = sobj.get_ts(irec=5, iconn=4)
 
 # Load discharge data from the structure file. The structure file contains the simulated structure flow for each reach with a structure.
 
-sobj = flopy.utils.SwrStructure(os.path.join(datapth, files[2]))
+fname = files[2]
+fpth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/swr_test/{fname}",
+    fname=fname,
+    path=datapth,
+    known_hash=None,
+)
+sobj = flopy.utils.SwrStructure(fpth)
 obs3 = sobj.get_ts(irec=17, istr=0)
 
 # Load stage data from the stage file. The flow file contains the simulated stage for each reach in the model.
 
-sobj = flopy.utils.SwrStage(os.path.join(datapth, files[3]))
+fname = files[3]
+fpth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/swr_test/{fname}",
+    fname=fname,
+    path=datapth,
+    known_hash=None,
+)
+sobj = flopy.utils.SwrStage(fpth)
 obs6 = sobj.get_ts(irec=13)
 
 # Load budget data from the budget file. The budget file contains the simulated budget for each reach group in the model. The budget file also contains the stage data for each reach group. In this case the number of reach groups equals the number of reaches in the model.
 
-sobj = flopy.utils.SwrBudget(os.path.join(datapth, files[4]))
+fname = files[4]
+fpth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/swr_test/{fname}",
+    fname=fname,
+    path=datapth,
+    known_hash=None,
+)
+sobj = flopy.utils.SwrBudget(fpth)
 obs7 = sobj.get_ts(irec=17)
 
 # #### Plot the data loaded from the individual binary SWR Process files.
@@ -139,16 +177,37 @@ ax.legend()
 #
 # Several things that we need in addition to the stage data include reach lengths and bottom elevations. We load these data from an existing file.
 
-sd = np.genfromtxt(os.path.join(datapth, "SWR004.dis.ref"), names=True)
+fname = "SWR004.dis.ref"
+fpth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/swr_test/{fname}",
+    fname=fname,
+    path=datapth,
+    known_hash=None,
+)
+sd = np.genfromtxt(fpth, names=True)
 
 # The contents of the file are shown in the cell below.
 
-fc = open(os.path.join(datapth, "SWR004.dis.ref")).readlines()
+fname = "SWR004.dis.ref"
+fpth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/swr_test/{fname}",
+    fname=fname,
+    path=datapth,
+    known_hash=None,
+)
+fc = open(fpth).readlines()
 fc
 
 # Create an instance of the `SwrStage` class for SWR Process stage data.
 
-sobj = flopy.utils.SwrStage(os.path.join(datapth, files[3]))
+fname = files[3]
+fpth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/swr_test/{fname}",
+    fname=fname,
+    path=datapth,
+    known_hash=None,
+)
+sobj = flopy.utils.SwrStage(fpth)
 
 # Create a selection condition (`iprof`) that can be used to extract data for the reaches of interest (reaches 0, 1, and 8 through 17). Use this selection condition to extract reach lengths (from `sd['RLEN']`) and the bottom elevation  (from `sd['BELEV']`) for the reaches of interest. The selection condition will also be used to extract the stage data for reaches of interest.
 

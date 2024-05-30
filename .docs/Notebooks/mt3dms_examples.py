@@ -39,10 +39,14 @@ import os
 import sys
 from pprint import pformat
 from tempfile import TemporaryDirectory
+from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import pooch
+
+proj_root = Path.cwd().parents[1]
 
 import flopy
 from flopy.utils.util_array import read1d
@@ -51,7 +55,7 @@ mpl.rcParams["figure.figsize"] = (8, 8)
 
 exe_name_mf = "mf2005"
 exe_name_mt = "mt3dms"
-datadir = os.path.join("..", "..", "examples", "data", "mt3d_test", "mt3dms")
+datadir = proj_root / "examples" / "data" / "mt3d_test" / "mt3dms"
 
 # temporary directory
 temp_dir = TemporaryDirectory()
@@ -1194,7 +1198,14 @@ def p08(dirname, mixelm):
         botm=[6.75 - delv * k for k in range(1, nlay + 1)],
         perlen=perlen_mf,
     )
-    f = open(os.path.join(datadir, "p08shead.dat"))
+    fname = "p08shead.dat"
+    fpth = pooch.retrieve(
+        url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_test/mt3dms/{fname}",
+        fname=fname,
+        path=datadir,
+        known_hash=None,
+    )
+    f = open(fpth)
     strt = np.empty((nlay * ncol), dtype=float)
     strt = read1d(f, strt).reshape((nlay, nrow, ncol))
     f.close()
@@ -1574,7 +1585,14 @@ def p10(dirname, mixelm, perlen=1000, isothm=1, sp2=0.0, ttsmult=1.2):
     # bottom
     ibound[:, -1, :] = -1
 
-    f = open(os.path.join(datadir, "p10shead.dat"))
+    fname = "p10shead.dat"
+    fpth = pooch.retrieve(
+        url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_test/mt3dms/{fname}",
+        fname=fname,
+        path=datadir,
+        known_hash=None,
+    )
+    f = open(fpth)
     s0 = np.empty((nrow * ncol), dtype=float)
     s0 = read1d(f, s0).reshape((nrow, ncol))
     f.close()
@@ -1610,7 +1628,14 @@ def p10(dirname, mixelm, perlen=1000, isothm=1, sp2=0.0, ttsmult=1.2):
         exe_name=exe_name_mt,
         modflowmodel=mf,
     )
-    f = open(os.path.join(datadir, "p10cinit.dat"))
+    fname = "p10cinit.dat"
+    fpth = pooch.retrieve(
+        url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_test/mt3dms/{fname}",
+        fname=fname,
+        path=datadir,
+        known_hash=None,
+    )
+    f = open(fpth)
     c0 = np.empty((nrow * ncol), dtype=float)
     c0 = read1d(f, c0).reshape((nrow, ncol))
     f.close()

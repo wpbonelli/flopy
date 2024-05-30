@@ -32,12 +32,15 @@
 import os
 import sys
 from tempfile import TemporaryDirectory
+from pathlib import Path
 
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
-
+import pooch
 import flopy
+
+proj_root = Path.cwd().parents[1]
 
 print(sys.version)
 print(f"numpy version: {np.__version__}")
@@ -124,28 +127,25 @@ nwt = flopy.modflow.ModflowNwt(
 # ### Instantiate discretization (DIS) package for MODFLOW-NWT
 
 # +
-elv_pth = os.path.join(
-    "..",
-    "..",
-    "examples",
-    "data",
-    "mt3d_example_sft_lkt_uzt",
-    "dis_arrays",
-    "grnd_elv.txt",
+fname = "grnd_elv.txt"
+loadpth = proj_root / "examples" / "data" / "mt3d_example_sft_lkt_uzt" / "dis_arrays"
+elv_pth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_example_sft_lkt_uzt/dis_arrays/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
 )
 
 # Top of Layer 1 elevation determined using GW Vistas and stored locally
 grndElv = np.loadtxt(elv_pth)
 
 # Bottom of layer 1 elevation also determined from use of GUI and stored locally
-bt1_pth = os.path.join(
-    "..",
-    "..",
-    "examples",
-    "data",
-    "mt3d_example_sft_lkt_uzt",
-    "dis_arrays",
-    "bot1.txt",
+fname = "bot1.txt"
+bt1_pth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_example_sft_lkt_uzt/dis_arrays/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
 )
 bot1Elv = np.loadtxt(bt1_pth)
 
@@ -226,15 +226,15 @@ upw = flopy.modflow.ModflowUpw(
 # ### Instantiate basic (BAS or BA6) package for MODFLOW-NWT
 
 # +
-ibnd1_pth = os.path.join(
-    "..",
-    "..",
-    "examples",
-    "data",
-    "mt3d_example_sft_lkt_uzt",
-    "bas_arrays",
-    "ibnd_lay1.txt",
+fname = "ibnd_lay1.txt"
+loadpth = proj_root / "examples" / "data" / "mt3d_example_sft_lkt_uzt" / "bas_arrays"
+ibnd1_pth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_example_sft_lkt_uzt/bas_arrays/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
 )
+
 ibnd1 = np.loadtxt(ibnd1_pth)
 ibnd2 = np.ones(ibnd1.shape)
 ibnd3 = np.ones(ibnd2.shape)
@@ -242,36 +242,30 @@ ibnd3 = np.ones(ibnd2.shape)
 ibnd = [ibnd1, ibnd2, ibnd3]
 ibnd = np.array(ibnd)
 
-StHd1_pth = os.path.join(
-    "..",
-    "..",
-    "examples",
-    "data",
-    "mt3d_example_sft_lkt_uzt",
-    "bas_arrays",
-    "strthd1.txt",
+fname = "strthd1.txt"
+StHd1_pth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_example_sft_lkt_uzt/bas_arrays/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
 )
 StHd1 = np.loadtxt(StHd1_pth)
 
-StHd2_pth = os.path.join(
-    "..",
-    "..",
-    "examples",
-    "data",
-    "mt3d_example_sft_lkt_uzt",
-    "bas_arrays",
-    "strthd2.txt",
+fname = "strthd2.txt"
+StHd2_pth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_example_sft_lkt_uzt/bas_arrays/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
 )
 StHd2 = np.loadtxt(StHd2_pth)
 
-StHd3_pth = os.path.join(
-    "..",
-    "..",
-    "examples",
-    "data",
-    "mt3d_example_sft_lkt_uzt",
-    "bas_arrays",
-    "strthd3.txt",
+fname = "strthd3.txt"
+StHd3_pth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_example_sft_lkt_uzt/bas_arrays/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
 )
 StHd3 = np.loadtxt(StHd3_pth)
 
@@ -342,28 +336,25 @@ ghb = flopy.modflow.ModflowGhb(mf, stress_period_data=sp)
 # Remember that the cell indices stored in the pre-prepared NO3_ReachInput.csv file are based on 0-based indexing.
 # Flopy will convert to 1-based when it writes the files
 
-rpth = os.path.join(
-    "..",
-    "..",
-    "examples",
-    "data",
-    "mt3d_example_sft_lkt_uzt",
-    "sfr_data",
-    "no3_reachinput.csv",
+fname = "no3_reachinput.csv"
+loadpth = proj_root / "examples" / "data" / "mt3d_example_sft_lkt_uzt" / "sfr_data"
+rpth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_example_sft_lkt_uzt/sfr_data/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
 )
 reach_data = np.genfromtxt(rpth, delimiter=",", names=True)
 reach_data
 
 # Read pre-prepared segment data into numpy recarrays using numpy.genfromtxt()
 
-spth = os.path.join(
-    "..",
-    "..",
-    "examples",
-    "data",
-    "mt3d_example_sft_lkt_uzt",
-    "sfr_data",
-    "no3_segmentdata.csv",
+fname = "no3_segmentdata.csv"
+spth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_example_sft_lkt_uzt/sfr_data/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
 )
 ss_segment_data = np.genfromtxt(spth, delimiter=",", names=True)
 segment_data = {0: ss_segment_data, 1: ss_segment_data}
@@ -404,14 +395,13 @@ sfr = flopy.modflow.ModflowSfr2(
 
 # +
 # Read pre-prepared lake arrays
-LakArr_pth = os.path.join(
-    "..",
-    "..",
-    "examples",
-    "data",
-    "mt3d_example_sft_lkt_uzt",
-    "lak_arrays",
-    "lakarr1.txt",
+fname = "lakarr1.txt"
+loadpth = proj_root / "examples" / "data" / "mt3d_example_sft_lkt_uzt" / "lak_arrays"
+LakArr_pth = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_example_sft_lkt_uzt/lak_arrays/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
 )
 LakArr_lyr1 = np.loadtxt(LakArr_pth)
 LakArr_lyr2 = np.zeros(LakArr_lyr1.shape)
@@ -538,23 +528,20 @@ eps = 3.0
 thts = 0.30
 thti = 0.13079
 
-fname_uzbnd = os.path.join(
-    "..",
-    "..",
-    "examples",
-    "data",
-    "mt3d_example_sft_lkt_uzt",
-    "uzf_arrays",
-    "iuzbnd.txt",
+fname = "iuzbnd.txt"
+loadpth = proj_root / "examples" / "data" / "mt3d_example_sft_lkt_uzt" / "uzf_arrays"
+fname_uzbnd = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_example_sft_lkt_uzt/uzf_arrays/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
 )
-fname_runbnd = os.path.join(
-    "..",
-    "..",
-    "examples",
-    "data",
-    "mt3d_example_sft_lkt_uzt",
-    "uzf_arrays",
-    "irunbnd.txt",
+fname = "irunbnd.txt"
+fname_runbnd = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_example_sft_lkt_uzt/uzf_arrays/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
 )
 
 iuzfbnd = np.loadtxt(fname_uzbnd)
@@ -589,23 +576,20 @@ uzf = flopy.modflow.ModflowUzf1(
 # ### Instantiate Drain (DRN) package for MODFLOW-NWT
 
 # +
-fname_drnElv = os.path.join(
-    "..",
-    "..",
-    "examples",
-    "data",
-    "mt3d_example_sft_lkt_uzt",
-    "drn_arrays",
-    "elv.txt",
+fname = "elv.txt"
+loadpth = proj_root / "examples" / "data" / "mt3d_example_sft_lkt_uzt" / "drn_arrays"
+fname_drnElv = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_example_sft_lkt_uzt/drn_arrays/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
 )
-fname_drnCond = os.path.join(
-    "..",
-    "..",
-    "examples",
-    "data",
-    "mt3d_example_sft_lkt_uzt",
-    "drn_arrays",
-    "cond.txt",
+fname = "cond.txt"
+fname_drnCond = pooch.retrieve(
+    url=f"https://github.com/modflowpy/flopy/raw/develop/examples/data/mt3d_example_sft_lkt_uzt/drn_arrays/{fname}",
+    fname=fname,
+    path=loadpth,
+    known_hash=None
 )
 
 drnElv = np.loadtxt(fname_drnElv)
