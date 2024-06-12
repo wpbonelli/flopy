@@ -942,3 +942,148 @@ def test_flopy_issue_1492(function_tmpdir):
         pmv.contour_array(head, levels=[0.2, 0.4, 0.6, 0.8], linewidths=3.0)
         pmv.plot_vector(spdis["qx"], spdis["qy"], color="white")
         plt.show()
+
+
+@pytest.mark.slow
+@requires_exe("mf6", "gridgen")
+@requires_pkg("shapely")
+def test_flopy_issue_2168(function_tmpdir):
+    from shapely.geometry import Polygon
+
+    name = "dummy"
+    nlay = 3
+    nrow = 10
+    ncol = 10
+    delr = delc = 1.0
+    top = 1
+    bot = 0
+    dz = (top - bot) / nlay
+    botm = [top - k * dz for k in range(1, nlay + 1)]
+
+    # Create a dummy model and regular grid to use as the base grid for gridgen
+    sim = flopy.mf6.MFSimulation(
+        sim_name=name, sim_ws=function_tmpdir, exe_name="mf6"
+    )
+    gwf = flopy.mf6.ModflowGwf(sim, modelname=name)
+
+    dis = flopy.mf6.ModflowGwfdis(
+        gwf,
+        nlay=nlay,
+        nrow=nrow,
+        ncol=ncol,
+        delr=delr,
+        delc=delc,
+        top=top,
+        botm=botm,
+    )
+
+    # Create and build the gridgen model with a refined area touching active domain
+    g = Gridgen(gwf.modelgrid, model_ws=function_tmpdir)
+    ad = [Polygon([(0, 10), (10, 0), (10, 10), (0, 10)])]
+    polys = [Polygon([(4, 4), (10, 4), (10, 10), (4, 10)])]
+    g.add_active_domain(ad, range(3))
+    g.add_refinement_features(polys, "polygon", 3, range(nlay))
+    g.build()
+    # g.plot()
+    # plt.gca().plot(*list(zip(*ad[0].exterior.coords)), color="red")
+    # plt.gca().plot(*list(zip(*polys[0].exterior.coords)), color="blue")
+    # plt.show()
+    disv_gridprops = g.get_gridprops_disv()
+
+    # find the cell numbers for constant heads
+    chdspd = []
+    ilay = 0
+    for x, y, head in [(0, 10, 1.0), (10, 0, 0.0)]:
+        ra = g.intersect([(x, y)], "point", ilay)
+        ic = ra["nodenumber"][0]
+        chdspd.append([(ilay, ic), head])
+
+    # build run and post-process the MODFLOW 6 model
+    name = "mymodel"
+    sim = flopy.mf6.MFSimulation(
+        sim_name=name, sim_ws=function_tmpdir, exe_name="mf6"
+    )
+    tdis = flopy.mf6.ModflowTdis(sim)
+    ims = flopy.mf6.ModflowIms(sim, linear_acceleration="bicgstab")
+    gwf = flopy.mf6.ModflowGwf(sim, modelname=name, save_flows=True)
+    disv = flopy.mf6.ModflowGwfdisv(gwf, **disv_gridprops)
+    ic = flopy.mf6.ModflowGwfic(gwf)
+    npf = flopy.mf6.ModflowGwfnpf(
+        gwf, xt3doptions=True, save_specific_discharge=True
+    )
+    # chd = flopy.mf6.ModflowGwfchd(gwf, stress_period_data=chdspd)
+    budget_file = f"{name}.bud"
+    head_file = f"{name}.hds"
+    oc = flopy.mf6.ModflowGwfoc(
+        gwf,
+        budget_filerecord=budget_file,
+        head_filerecord=head_file,
+        saverecord=[("HEAD", "ALL"), ("BUDGET", "ALL")],
+    )
+    sim.write_simulation()
+
+    gwf.modelgrid.set_coord_info(angrot=15)
+
+    # write grid and model shapefiles
+    fname = function_tmpdir / "grid.shp"
+    gwf.modelgrid.write_shapefile(fname)
+    fname = function_tmpdir / "model.shp"
+    gwf.export(fname)
+
+    sim.run_simulation(silent=False)
+    head = gwf.output.head().get_data()
+    bud = gwf.output.budget()
+    spdis = bud.get_data(text="DATA-SPDIS")[0]
+    f = plt.figure(figsize=(10, 10))
+    vmin = head.min()
+    vmax = head.max()
+    for ilay in range(gwf.modelgrid.nlay):
+        ax = plt.subplot(1, gwf.modelgrid.nlay, ilay + 1)
+        pmv = flopy.plot.PlotMapView(gwf, layer=ilay, ax=ax)
+        ax.set_aspect("equal")
+        pmv.plot_array(head.flatten(), cmap="jet", vmin=vmin, vmax=vmax)
+        pmv.plot_grid(colors="k", alpha=0.1)
+        pmv.contour_array(
+            head,
+            levels=[0.2, 0.4, 0.6, 0.8],
+            linewidths=3.0,
+            vmin=vmin,
+            vmax=vmax,
+        )
+        ax.set_title(f"Layer {ilay + 1}")
+        pmv.plot_vector(spdis["qx"], spdis["qy"], color="white")
+        fname = "results.png"
+        fname = function_tmpdir / fname
+        plt.savefig(fname)
+        plt.close("all")
+
+    # test plotting
+    # load up the vertex example problem
+    name = "mymodel"
+    sim = flopy.mf6.MFSimulation.load(
+        sim_name=name,
+        version="mf6",
+        exe_name="mf6",
+        sim_ws=function_tmpdir,
+    )
+    # get gwf model
+    gwf = sim.get_model(name)
+
+    # get the dis package
+    dis = gwf.disv
+
+    # try plotting an array
+    top = dis.top
+    ax = top.plot()
+    assert ax
+    plt.close("all")
+
+    # try plotting a package
+    ax = dis.plot()
+    assert ax
+    plt.close("all")
+
+    # try plotting a model
+    ax = gwf.plot()
+    assert ax
+    plt.close("all")
