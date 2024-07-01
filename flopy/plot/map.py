@@ -817,16 +817,16 @@ class PlotMapView:
             tp = plotutil.filter_modpath_by_travel_time(p, travel_time)
 
             # transform data!
-            x0r, y0r = geometry.transform(
-                tp["x"],
-                tp["y"],
-                self.mg.xoffset,
-                self.mg.yoffset,
-                self.mg.angrot_radians,
-            )
+            # x0r, y0r = geometry.transform(
+            #     tp["x"],
+            #     tp["y"],
+            #     self.mg.xoffset,
+            #     self.mg.yoffset,
+            #     self.mg.angrot_radians,
+            # )
 
             # build polyline array
-            arr = np.vstack((x0r, y0r)).T
+            arr = np.vstack((tp["x"], tp["y"])).T
 
             # select based on layer
             if kon >= 0:
