@@ -1,10 +1,7 @@
 import sys
 from os import environ
 from pathlib import Path
-<<<<<<< HEAD
 from platform import system
-=======
->>>>>>> 5cf4ed2a (restore test_generate_classes.py)
 from pprint import pprint
 from typing import Iterable
 from warnings import warn
@@ -34,10 +31,6 @@ def pytest_generate_tests(metafunc):
     against all of the versions of mf6io flopy guarantees
     support for- maybe develop and latest release? Though
     some backwards compatibility seems ideal if possible.
-<<<<<<< HEAD
-=======
-    This would need changes in GH Actions CI test matrix.
->>>>>>> 5cf4ed2a (restore test_generate_classes.py)
     """
 
     owner = "MODFLOW-USGS"
