@@ -36,8 +36,8 @@ dependencies = [
 dynamic = ["version", "readme"]
 
 [project.optional-dependencies]
-dev = ["flopy[gen,lint,test,optional,doc]"]
-gen = [
+dev = ["flopy[codegen,lint,test,optional,doc]"]
+codegen = [
     "boltons>=1.0",
     "Jinja2>=3.0"
 ]
