@@ -101,7 +101,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install .
-          pip install ".[test, optional]"
+          pip install ".[dev]"
       
       - name: Install Modflow executables
         uses: modflowpy/install-modflow-action@v1
@@ -156,7 +156,9 @@ jobs:
             powershell
 
       - name: Install FloPy
-        run: pip install .
+        run: |
+          pip install .
+          pip install ".[codegen]"
 
       - name: Install Modflow-related executables
         uses: modflowpy/install-modflow-action@v1
