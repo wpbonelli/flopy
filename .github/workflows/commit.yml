@@ -158,7 +158,7 @@ jobs:
       - name: Install FloPy
         run: |
           pip install .
-          pip install ".[codegen]"
+          pip install ".[dev]"
 
       - name: Install Modflow-related executables
         uses: modflowpy/install-modflow-action@v1

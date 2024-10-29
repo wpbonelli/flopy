@@ -94,7 +94,7 @@ def test_generate_classes_from_github_refs(
     print(f"Using temp venv at {venv} to test class generation from {ref}")
 
     # install flopy and dependencies
-    deps = [str(project_root_path), "modflow-devtools"]
+    deps = [str(project_root_path), "modflow-devtools", "Jinja2", "boltons"]
     for dep in deps:
         out, err, ret = run_cmd(str(pip), "install", dep, verbose=True)
         assert not ret, out + err

@@ -39,7 +39,8 @@ dynamic = ["version", "readme"]
 dev = ["flopy[codegen,lint,test,optional,doc]"]
 codegen = [
     "boltons>=1.0",
-    "Jinja2>=3.0"
+    "Jinja2>=3.0",
+    "modflow-devtools"
 ]
 lint = [
     "cffconvert",
