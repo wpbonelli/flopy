@@ -1,11 +1,25 @@
+{% macro var_name(var) %}
+{% if var.name|last == "_" %}{{ var.name.replace("_", "\\\_") }}{% else %}{{ var.name }}{% endif %}
+{% endmacro %}
+
+{% macro var_type(var) %}
+{% if var.children is defined %}
+[{{ var.children.values()|map(attribute="name")|join(', ') }}]
+{% elif var.kind == "array" %}
+[{{ var.kind }}]
+{% else %}
+{{ var.kind }}
+{% endif %}
+{% endmacro %}
+
 {% macro vars_docs(vars, start_indent=0) %}
-{%- for v in vars.values() recursive %}
-{{ ""|indent(start_indent, first=true) }}{% if loop.depth > 1 %}* {% endif %}{% if v.name|last == "_" %}{{ v.name.replace("_", "\\\_") }}{% else %}{{ v.name }}{% endif %}{% if v.meta is defined and v.meta.type is defined %} : {{ v.meta.type }}{% endif %}
-    {%- if v.description is defined and v.description is not none %}
-{{ v.description|wordwrap|indent(start_indent + (loop.depth * 4), first=true) }}
-    {%- endif %}
-    {%- if v.children is defined and v.children is not none -%}
-{{ loop(v.children.values())|indent(start_indent, first=true) }}
-    {%- endif %}
+{%- for var in vars.values() recursive %}
+{{ ""|indent(start_indent, first=true) }}{% if loop.depth > 1 %}* {% endif %}{{ var_name(var) }} : {{ var_type(var) }}
+{%- if var.description is defined %}
+{{ var.description|wordwrap|indent(start_indent + (loop.depth * 4), first=true) }}
+{%- endif %}
+{%- if var.children is defined -%}
+{{ loop(var.children.values())|indent(start_indent, first=true) }}
+{%- endif %}
 {% endfor -%}
 {% endmacro %}

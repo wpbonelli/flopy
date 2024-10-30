@@ -1,9 +1,8 @@
 from ast import literal_eval
 from collections import UserDict
-from dataclasses import dataclass
 from enum import Enum
-from keyword import kwlist
-from os import PathLike
+from os import curdir
+from pathlib import Path
 from typing import (
     Any,
     Dict,
@@ -11,50 +10,142 @@ from typing import (
     NamedTuple,
     Optional,
     Tuple,
-    Union,
+    TypedDict,
 )
 from warnings import warn
 
+import tomlkit
 from boltons.dictutils import OMD
+from boltons.iterutils import remap
 
 from flopy.mf6.utils.codegen.utils import try_literal_eval, try_parse_bool
-
-_SCALARS = {
-    "keyword",
-    "integer",
-    "double precision",
-    "string",
-}
-
 
 Vars = Dict[str, "Var"]
 Dfns = Dict[str, "Dfn"]
 Refs = Dict[str, "Ref"]
 
 
-@dataclass
-class Var:
-    """MODFLOW 6 input variable specification."""
+def _sub_common(common, descr) -> Optional[str]:
+    if not descr:
+        return None
+    descr = descr.replace("\\", "")
+    _, replace, tail = descr.strip().partition("REPLACE")
+    if replace:
+        key, _, subs = tail.strip().partition(" ")
+        subs = literal_eval(subs)
+        cvar = common.get(key, None)
+        if cvar is None:
+            warn(
+                "Can't substitute description text, "
+                f"common variable not found: {key}"
+            )
+        else:
+            descr = cvar.get("description", "")
+            if any(subs):
+                descr = descr.replace("\\", "").replace("{#1}", subs["{#1}"])
+    return descr
+
+
+class Var(TypedDict):
+    """A MODFLOW 6 input variable."""
 
     class Kind(Enum):
-        """
-        An input variable's kind. This is an enumeration
-        of the general shapes of data MODFLOW 6 accepts.
-        """
-
+        Keyword = "keyword"
+        Integer = "integer"
+        Double = "double"
+        String = "string"
         Array = "array"
-        Scalar = "scalar"
         Record = "record"
         Union = "union"
         List = "list"
+        Path = "path"
 
     name: str
+    block: str
     kind: Kind
-    block: Optional[str] = None
-    default: Optional[Any] = None
-    children: Optional[Vars] = None
-    description: Optional[str] = None
-    meta: Optional[Dict[str, Any]] = None
+    default: Optional[Any]
+    description: Optional[str]
+    children: Optional[Vars]
+    ref: Optional["Ref"]
+
+
+class Ref(TypedDict):
+    """
+    A foreign-key-like reference between a file input variable
+    and another input definition. This allows an input context
+    to refer to another input context, by including a filepath
+    variable whose name acts as a foreign key.
+
+    This mechanism is used to represent subpackages.
+
+    The referring context's `__init__` method is modified such
+    that the variable named `val` replaces the `key` variable.
+    """
+
+    key: str
+    val: str
+    abbr: str
+    param: str
+    parent: str
+    description: Optional[str]
+
+    @classmethod
+    def from_comments(cls, comments: List[str]) -> Optional["Ref"]:
+        lines = {
+            "subpkg": next(
+                iter(
+                    c
+                    for c in comments
+                    if isinstance(c, str) and c.startswith("# flopy subpac")
+                ),
+                None,
+            ),
+            "parent": next(
+                iter(
+                    c
+                    for c in comments
+                    if isinstance(c, str) and c.startswith("# flopy parent")
+                ),
+                None,
+            ),
+        }
+
+        def _subpkg():
+            line = lines["subpkg"]
+            _, key, abbr, param, val = line.split()
+            matches = [v for v in lines.values() if v["name"] == val]
+            if not any(matches):
+                descr = None
+            else:
+                if len(matches) > 1:
+                    warn(f"Multiple matches for referenced variable {val}")
+                match = matches[0]
+                descr = match.get("description", None)
+
+            return {
+                "key": key,
+                "val": val,
+                "abbr": abbr,
+                "param": param,
+                "description": descr,
+            }
+
+        def _parent():
+            line = lines["parent"]
+            split = line.split()
+            return split[1]
+
+        return (
+            cls(**_subpkg(), parent=_parent())
+            if all(v for v in lines.values())
+            else None
+        )
+
+    @classmethod
+    def load(cls, f) -> Optional["Ref"]:
+        lines = f.readlines()
+        comments = [l for l in lines if l.startswith("#")]
+        return cls.from_comments(comments)
 
 
 class Dfn(UserDict):
@@ -65,13 +156,8 @@ class Dfn(UserDict):
     """
 
     class Name(NamedTuple):
-        """
-        Uniquely identifies an input definition.
-        Consists of a left term and a right term.
-        """
-
-        l: str
-        r: str
+        component: str
+        subcomponent: str
 
         @classmethod
         def parse(cls, v: str) -> "Dfn.Name":
@@ -81,20 +167,22 @@ class Dfn(UserDict):
                 raise ValueError(f"Bad DFN name format: {v}")
 
     name: Optional[Name]
-    meta: Optional[Dict[str, Any]]
+    subpkg: Optional[Ref]
 
     def __init__(
         self,
         data: Optional[Vars] = None,
         name: Optional[Name] = None,
-        meta: Optional[Dict[str, Any]] = None,
+        subpkg: Optional[Ref] = None,
     ):
         self.data = OMD(data)
         self.name = name
-        self.meta = meta
+        self.subpkg = subpkg
 
     @staticmethod
-    def _load(f, common: Optional[dict] = None) -> Tuple[OMD, List[str]]:
+    def _load_v1_internal(
+        f, common: Optional[dict] = None
+    ) -> Tuple[OMD, Optional[Ref]]:
         """
         Internal use only. Loads the DFN as an ordered multi-dictionary* and
         a list of string metadata. This is later parsed into more structured
@@ -108,7 +196,6 @@ class Dfn(UserDict):
         """
         var = dict()
         flat = list()
-        meta = list()
         common = common or dict()
 
         for line in f:
@@ -118,21 +205,6 @@ class Dfn(UserDict):
             # record context name and flopy metadata
             # attributes, skip all other comment lines
             if line.startswith("#"):
-                _, sep, tail = line.partition("flopy")
-                if sep == "flopy":
-                    tail = tail.strip()
-                    if "solution_package" in tail:
-                        tail = tail.split()
-                        tail.pop(1)
-                    meta.append(tail)
-                    continue
-                _, sep, tail = line.partition("package-type")
-                if sep == "package-type":
-                    if meta is None:
-                        meta = list
-                    meta.append(f"{sep} {tail.strip()}")
-                    continue
-                _, sep, tail = line.partition("solution_package")
                 continue
 
             # if we hit a newline and the parameter dict
@@ -155,33 +227,20 @@ class Dfn(UserDict):
             # remove backslashes, TODO: generate/insert citations.
             descr = var.get("description", None)
             if descr:
-                descr = descr.replace("\\", "")
-                _, replace, tail = descr.strip().partition("REPLACE")
-                if replace:
-                    key, _, subs = tail.strip().partition(" ")
-                    subs = literal_eval(subs)
-                    cvar = common.get(key, None)
-                    if cvar is None:
-                        warn(
-                            "Can't substitute description text, "
-                            f"common variable not found: {key}"
-                        )
-                    else:
-                        descr = cvar.get("description", "")
-                        if any(subs):
-                            descr = descr.replace("\\", "").replace(
-                                "{#1}", subs["{#1}"]
-                            )
-                var["description"] = descr
+                var["description"] = _sub_common(common, descr)
 
         # add the final parameter
         if any(var):
             flat.append((var["name"], var))
 
-        return OMD(flat), meta
+        # load subpkg ref if any
+        f.seek(0)
+        ref = Ref.load(f)
+
+        return OMD(flat), ref
 
     @classmethod
-    def load(
+    def _load_v1(
         cls,
         f,
         name: Optional[Name] = None,
@@ -191,78 +250,42 @@ class Dfn(UserDict):
         """Load an input definition."""
 
         refs = refs or dict()
-        referenced = dict()
-        flat, meta = Dfn._load(f, **kwargs)
+        flat, subpkg = Dfn._load_v1_internal(f, **kwargs)
 
-        def _map(spec: Dict[str, Any]) -> Var:
-            """
-            Convert a variable specification from its representation
-            in an input definition file to a Pythonic form.
+        def _map(var: Dict[str, Any]) -> Tuple[str, Var]:
+            var = {k: try_parse_bool(v) for k, v in var.items()}
 
-            Notes
-            -----
-            This involves expanding nested type hierarchies, mapping
-            types to roughly equivalent Python primitives/composites.
-            The composite inflation step will not be necessary after
-            DFNs move to a structured format.
-
-            If a variable does not have a `default` attribute, it will
-            default to `False` if it is a keyword, otherwise to `None`.
-
-            Any filepath variable whose name functions as a foreign key
-            for another context will be given a pointer to the context.
-
-            """
-
-            # parse booleans from strings. everything else can
-            # stay a string except default values, which we'll
-            # try to parse as arbitrary literals below, and at
-            # some point types, once we introduce type hinting
-            spec = {k: try_parse_bool(v) for k, v in spec.items()}
-
-            _name = spec["name"]
-            _type = spec.get("type", None)
-            block = spec.get("block", None)
-            shape = spec.get("shape", None)
+            _name = var["name"]
+            _type = var.get("type", None)
+            block = var.get("block", None)
+            shape = var.get("shape", None)
             shape = None if shape == "" else shape
-            default = spec.get("default", None)
-            description = spec.get("description", "")
+            default = var.get("default", None)
+            default if _type == "string" else try_literal_eval(default)
+            description = var.get("description", "")
             children = dict()
-
-            # if var is a foreign key, register the reference
             ref = refs.get(_name, None)
-            if ref:
-                referenced[_name] = ref
 
             def _fields(record_name: str) -> Vars:
                 """Recursively load/convert a record's fields."""
                 record = next(iter(flat.getlist(record_name)), None)
-                assert record
                 names = _type.split()[1:]
-                fields = {
-                    v["name"]: _map(v)
-                    for v in flat.values(multi=True)
-                    if v["name"] in names
-                    and not v["type"].startswith("record")
-                    and v.get("in_record", False)
-                }
+                fields = dict(
+                    [
+                        _map(v)
+                        for v in flat.values(multi=True)
+                        if v["name"] in names
+                        and not v["type"].startswith("record")
+                        and v.get("in_record", False)
+                    ]
+                )
 
                 # if the record represents a file...
                 if "file" in _name:
-                    # remove filein/fileout
-                    for term in ["filein", "fileout"]:
-                        if term in names:
-                            fields.pop(term)
-
-                    # remove leading keyword
-                    keyword = next(iter(fields), None)
-                    if keyword:
-                        fields.pop(keyword)
-
-                    # set the type
+                    # set the variable's kind
                     n = list(fields.keys())[0]
                     path_field = fields[n]
-                    path_field._type = Union[str, PathLike]
+                    path_field["kind"] = Var.Kind.Path
                     fields[n] = path_field
 
                 # if tagged, remove the leading keyword
@@ -302,234 +325,250 @@ class Dfn(UserDict):
                         for v in flat.values(multi=True)
                         if v["name"] in names and v.get("in_record", False)
                     ]
-                    return all(t in _SCALARS for t in types)
+                    return all(
+                        t
+                        in ["keyword", "integer", "double precision", "string"]
+                        for t in types
+                    )
 
                 if is_explicit_record:
                     record = next(iter(flat.getlist(names[0])), None)
-                    children = {names[0]: _map(record)}
-                    kind = Var.Kind.List
+                    children = dict([_map(record)])
+                    kind = Var.Kind.Record
                 elif _is_implicit_scalar_record():
                     fields = _fields(_name)
                     children = {
                         _name: Var(
                             name=_name,
-                            kind=Var.Kind.Record,
                             block=block,
+                            kind=Var.Kind.Record,
                             children=fields,
                             description=description,
-                            meta={
-                                "type": f"[{', '.join([f.meta['type'] for f in fields.values()])}]"
-                            },
                         )
                     }
-                    kind = Var.Kind.List
+                    kind = Var.Kind.Record
                 else:
                     # implicit complex record (i.e. some fields are records or unions)
-                    fields = {
-                        v["name"]: _map(v)
-                        for v in flat.values(multi=True)
-                        if v["name"] in names and v.get("in_record", False)
-                    }
+                    fields = dict(
+                        [
+                            _map(v)
+                            for v in flat.values(multi=True)
+                            if v["name"] in names and v.get("in_record", False)
+                        ]
+                    )
                     first = list(fields.values())[0]
                     single = len(fields) == 1
-                    name_ = first.name if single else _name
+                    name_ = first["name"] if single else _name
                     children = {
                         name_: Var(
                             name=name_,
-                            kind=Var.Kind.Record,
                             block=block,
-                            children=first.children if single else fields,
+                            kind=Var.Kind.Record,
+                            children=first["children"] if single else fields,
                             description=description,
-                            meta={
-                                "type": f"[{', '.join([v.meta['type'] for v in fields.values()])}]"
-                            },
                         )
                     }
-                    kind = Var.Kind.List
-                type_ = f"[{', '.join([v.name for v in children.values()])}]"
+                    kind = Var.Kind.Record
 
             # union (product), children are choices
             elif _type.startswith("keystring"):
                 names = _type.split()[1:]
-                children = {
-                    v["name"]: _map(v)
-                    for v in flat.values(multi=True)
-                    if v["name"] in names and v.get("in_record", False)
-                }
+                children = dict(
+                    [
+                        _map(v)
+                        for v in flat.values(multi=True)
+                        if v["name"] in names and v.get("in_record", False)
+                    ]
+                )
                 kind = Var.Kind.Union
-                type_ = f"[{', '.join([v.name for v in children.values()])}]"
 
             # record (sum), children are fields
             elif _type.startswith("record"):
                 children = _fields(_name)
                 kind = Var.Kind.Record
-                type_ = f"[{', '.join([v.meta['type'] for v in children.values()])}]"
 
             # at this point, if it has a shape, it's an array
             elif shape is not None:
-                if _type not in _SCALARS:
+                if _type not in [
+                    "keyword",
+                    "integer",
+                    "double precision",
+                    "string",
+                ]:
                     raise TypeError(f"Unsupported array type: {_type}")
-                elif _type == "string":
-                    kind = Var.Kind.List
-                else:
-                    kind = Var.Kind.Array
-                type_ = f"[{_type}]"
+                kind = Var.Kind.Array
 
             # finally scalars
             else:
-                kind = Var.Kind.Scalar
-                type_ = _type
+                kind = Var.Kind[_type.split()[0].title()]
 
-            # create var
-            return Var(
-                # if name is a reserved keyword, add a trailing underscore to it.
-                # convert dashes to underscores since it may become a class attr.
-                name=(f"{_name}_" if _name in kwlist else _name).replace(
-                    "-", "_"
-                ),
-                kind=kind,
+            return _name, Var(
+                name=_name,
                 block=block,
+                kind=kind.value,
+                default=default,
                 description=description,
-                default=(
-                    try_literal_eval(default) if _type != "string" else default
-                ),
                 children=children,
-                # type is a string for now, when
-                # introducing type hints make it
-                # a proper type...
-                meta={"ref": ref, "type": type_},
+                ref=ref,
             )
 
-        # pass the original DFN representation as
-        # metadata so the shim can use it for now
-        _vars = list(flat.values(multi=True))
-
-        # convert input variable specs to
-        # structured form, descending into
-        # composites recursively as needed
-        flat = {
-            var["name"]: _map(var)
-            for var in flat.values(multi=True)
-            if not var.get("in_record", False)
-        }
-
-        # reset the var name. we may have altered
-        # it when converting the variable e.g. to
-        # avoid collision with a reserved keyword
-        flat = {v.name: v for v in flat.values()}
-
-        return cls(
-            flat,
-            name,
-            {
-                "dfn": (_vars, meta),
-                "refs": referenced,
-            },
+        vars_ = dict(
+            [
+                _map(var)
+                for var in flat.values(multi=True)
+                if not var.get("in_record", False)
+            ]
         )
 
-
-@dataclass
-class Ref:
-    """
-    A foreign-key-like reference between a file input variable
-    and another input definition. This allows an input context
-    to refer to another input context, by including a filepath
-    variable whose name acts as a foreign key for a different
-    input context. The referring context's `__init__` method
-    is modified such that the variable named `val` replaces
-    the `key` variable.
-
-    Notes
-    -----
-    This class is used to represent subpackage references.
-
-    Parameters
-    ----------
-    key : str
-        The name of the foreign key file input variable.
-    val : str
-        The name of the data variable in the referenced context.
-    abbr : str
-        An abbreviation of the referenced context's name.
-    param : str
-        The referenced parameter name.
-    parents : List[str]
-        The referenced context's supported parents.
-    description : Optional[str]
-        The reference's description.
-    """
-
-    key: str
-    val: str
-    abbr: str
-    param: str
-    parent: str
-    description: Optional[str]
+        return cls(vars_, name, subpkg)
 
     @classmethod
-    def from_dfn(cls, dfn: Dfn) -> Optional["Ref"]:
-        """
-        Try to load a reference from the definition.
-        Returns `None` if the definition cannot be
-        referenced by other contexts.
-        """
+    def _load_v2(
+        cls,
+        f,
+        name: Optional[Name] = None,
+        refs: Optional[Dfns] = None,
+        **kwargs,
+    ) -> "Dfn":
+        def _load_vars(data):
+            vars_ = data["vars"]
+            common = kwargs.get("common", None)
+            if common:
+                vars_ = {
+                    name: {
+                        "description": _sub_common(
+                            common, var.get("description", None)
+                        )
+                        ** var
+                    }
+                    for name, var in vars_.items()
+                }
 
-        # TODO: all this won't be necessary once we
-        # structure DFN format; we can then support
-        # subpackage references directly instead of
-        # by making assumptions about `dfn.meta`
+        def _load_refs(vars_):
+            return filter(None, [refs.get(k, None) for k in vars_.keys()])
 
-        if not dfn.meta or "dfn" not in dfn.meta:
-            return None
+        data = tomlkit.load(f)
+        vars_ = _load_vars(data)
+        refs_ = _load_refs(vars_)
+        subpkg = data["subpkg"]
+        return cls(vars_, name, refs_, subpkg)
 
-        _, meta = dfn.meta["dfn"]
+    @classmethod
+    def load(
+        cls,
+        f,
+        name: Optional[Name] = None,
+        refs: Optional[Dfns] = None,
+        version: int = 1,
+        **kwargs,
+    ) -> "Dfn":
+        if version == 1:
+            return cls._load_v1(f, name, refs, **kwargs)
+        elif version == 2:
+            return cls._load_v2(f, name, refs, **kwargs)
+        else:
+            raise ValueError(f"Unsupported DFN file version {version}")
 
-        lines = {
-            "subpkg": next(
-                iter(
-                    m
-                    for m in meta
-                    if isinstance(m, str) and m.startswith("subpac")
-                ),
-                None,
-            ),
-            "parent": next(
-                iter(
-                    m
-                    for m in meta
-                    if isinstance(m, str) and m.startswith("parent")
-                ),
-                None,
-            ),
-        }
+    @classmethod
+    def _load_all_v1(cls, dfndir: Path) -> Dict[str, "Dfn"]:
+        # find definition files
+        paths = [
+            p
+            for p in dfndir.glob("*.dfn")
+            if p.stem not in ["common", "flopy"]
+        ]
 
-        def _subpkg():
-            line = lines["subpkg"]
-            _, key, abbr, param, val = line.split()
-            matches = [v for v in dfn.values() if v.name == val]
-            if not any(matches):
-                descr = None
-            else:
-                if len(matches) > 1:
-                    warn(f"Multiple matches for referenced variable {val}")
-                match = matches[0]
-                descr = match.description
+        # try to load common variables
+        common_path = dfndir / "common.dfn"
+        if not common_path.is_file:
+            common = None
+        else:
+            with open(common_path, "r") as f:
+                common, _ = Dfn._load_v1_internal(f)
 
-            return {
-                "key": key,
-                "val": val,
-                "abbr": abbr,
-                "param": param,
-                "description": descr,
-            }
+        # load subpackage references first
+        refs: Refs = {}
+        for path in paths:
+            name = Dfn.Name(*path.stem.split("-"))
+            with open(path) as f:
+                dfn = Dfn.load(f, name=name, common=common)
+                ref = Ref.load(f)
+                if ref:
+                    refs[ref["key"]] = ref
 
-        def _parent():
-            line = lines["parent"]
-            split = line.split()
-            return split[1]
+        # load all the input definitions
+        dfns: Dfns = {}
+        for path in paths:
+            name = Dfn.Name(*path.stem.split("-"))
+            with open(path) as f:
+                dfn = Dfn.load(f, name=name, refs=refs, common=common)
+                dfns[name] = dfn
 
-        return (
-            cls(**_subpkg(), parent=_parent())
-            if all(v for v in lines.values())
-            else None
-        )
+        return dfns
+
+    @classmethod
+    def _load_all_v2(cls, dfndir: Path) -> Dict[str, "Dfn"]:
+        # find definition files
+        paths = [
+            p
+            for p in dfndir.glob("*.toml")
+            if p.stem not in ["common", "flopy"]
+        ]
+
+        # try to load common variables
+        common_path = dfndir / "common.toml"
+        if not common_path.is_file:
+            common = None
+        else:
+            with open(common_path, "r") as f:
+                common = Dfn._load_v2(f)
+
+        # load all the input definitions
+        dfns: Dfns = {}
+        for path in paths:
+            name = Dfn.Name(*path.stem.split("-"))
+            with open(path) as f:
+                dfn = Dfn.load(f, name=name, version=2, common=common)
+                dfns[name] = dfn
+
+        return dfns
+
+    @classmethod
+    def load_all(cls, dfndir: Path, version: int = 1) -> Dict[str, "Dfn"]:
+        if version == 1:
+            return cls._load_all_v1(dfndir)
+        elif version == 2:
+            return cls._load_all_v2(dfndir)
+        else:
+            raise ValueError(f"Unsupported DFN file version {version}")
+
+
+if __name__ == "__main__":
+    """Convert DFN files to TOML (or JSON or YAML)."""
+
+    import argparse
+
+    mf6_path = Path(__file__).parents[2]
+    dfn_path = mf6_path / "data" / "dfn"
+
+    parser = argparse.ArgumentParser(
+        description="Convert DFN files to TOML (or JSON or YAML)."
+    )
+    parser.add_argument(
+        "--dfndir",
+        type=str,
+        default=dfn_path,
+        help="Directory containing DFN files.",
+    )
+    parser.add_argument(
+        "--outdir",
+        default=curdir,
+        help="Output directory.",
+    )
+
+    args = parser.parse_args()
+    dfndir = args.dfndir
+    outdir = args.outdir
+    for dfn in Dfn.load_all(dfndir).values():
+        with open(Path(outdir) / f"{'-'.join(dfn.name)}.toml", "w") as f:
+            tomlkit.dump(dfn, f)

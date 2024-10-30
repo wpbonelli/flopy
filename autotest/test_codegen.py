@@ -22,7 +22,7 @@ def test_dfn_load(dfn_name):
         open(DFN_PATH / f"{dfn_name}.dfn", "r") as dfn_file,
     ):
         name = Dfn.Name.parse(dfn_name)
-        common, _ = Dfn._load(common_file)
+        common, _ = Dfn._load_v1_internal(common_file)
         Dfn.load(dfn_file, name=name, common=common)
 
 
@@ -33,7 +33,7 @@ def test_make_targets(dfn_name, function_tmpdir):
         open(DFN_PATH / f"{dfn_name}.dfn", "r") as dfn_file,
     ):
         name = Dfn.Name.parse(dfn_name)
-        common, _ = Dfn._load(common_file)
+        common, _ = Dfn._load_v1_internal(common_file)
         dfn = Dfn.load(dfn_file, name=name, common=common)
 
     make_targets(dfn, function_tmpdir, verbose=True)

@@ -17,16 +17,19 @@ def _cls_attrs(ctx: dict) -> List[str]:
         var_name = var["name"]
         var_kind = var.get("kind", None)
         var_block = var.get("block", None)
-        var_ref = var.get("meta", dict()).get("ref", None)
+        var_ref = var.get("ref", None)
 
         if (
             var_kind is None
             or var_kind == "scalar"
             or var_name in ["cvoptions", "output"]
-            or (ctx_name.r == "dis" and var_name == "packagedata")
+            or (ctx_name.subcomponent == "dis" and var_name == "packagedata")
             or (
                 var_name != "packages"
-                and (ctx_name.l is not None and ctx_name.r == "nam")
+                and (
+                    ctx_name.component is not None
+                    and ctx_name.subcomponent == "nam"
+                )
             )
         ):
             return None
@@ -44,24 +47,36 @@ def _cls_attrs(ctx: dict) -> List[str]:
                         f"'{var_block}'",
                         f"'{var_ref['key']}'",
                     ]
-                    if ctx_name.l is not None and ctx_name.l not in [
+                    if (
+                        ctx_name.component is not None
+                        and ctx_name.component
+                        not in [
+                            "sim",
+                            "sln",
+                            "utl",
+                            "exg",
+                        ]
+                    ):
+                        args.insert(0, f"'{ctx_name.component}6'")
+                    return f"{var_ref['key']} = ListTemplateGenerator(({', '.join(args)}))"
+
+            def _args():
+                args = [
+                    f"'{ctx_name.subcomponent}'",
+                    f"'{var_block}'",
+                    f"'{var_name}'",
+                ]
+                if (
+                    ctx_name.component is not None
+                    and ctx_name.component
+                    not in [
                         "sim",
                         "sln",
                         "utl",
                         "exg",
-                    ]:
-                        args.insert(0, f"'{ctx_name.l}6'")
-                    return f"{var_ref['key']} = ListTemplateGenerator(({', '.join(args)}))"
-
-            def _args():
-                args = [f"'{ctx_name.r}'", f"'{var_block}'", f"'{var_name}'"]
-                if ctx_name.l is not None and ctx_name.l not in [
-                    "sim",
-                    "sln",
-                    "utl",
-                    "exg",
-                ]:
-                    args.insert(0, f"'{ctx_name.l}6'")
+                    ]
+                ):
+                    args.insert(0, f"'{ctx_name.component}6'")
                 return args
 
             kind = var_kind if var_kind == "array" else "list"
@@ -70,11 +85,8 @@ def _cls_attrs(ctx: dict) -> List[str]:
         return None
 
     def _dfn() -> List[List[str]]:
-        dfn, meta = ctx["meta"]["dfn"]
-
         def _meta():
-            exclude = ["subpackage", "parent_name_type"]
-            return [v for v in meta if not any(p in v for p in exclude)]
+            return []
 
         def _dfn():
             def _var(var: dict) -> List[str]:
@@ -95,24 +107,24 @@ def _cls_attrs(ctx: dict) -> List[str]:
                     if k not in exclude
                 ]
 
-            return [_var(var) for var in dfn]
+            return [_var(var) for var in ctx["vars"].values()]
 
         return [["header"] + _meta()] + _dfn()
 
     attrs = list(filter(None, [_attr(v) for v in ctx["vars"].values()]))
 
     if ctx["base"] == "MFModel":
-        attrs.append(f"model_type = {ctx_name.l}")
+        attrs.append(f"model_type = {ctx_name.component}")
     elif ctx["base"] == "MFPackage":
         attrs.extend(
             [
-                f"package_abbr = '{ctx_name.r}'"
-                if ctx_name.l == "exg"
-                else f"package_abbr = '{'' if ctx_name.l in ['sln', 'sim', 'exg', None] else ctx_name.l}{ctx_name.r}'",
-                f"_package_type = '{ctx_name.r}'",
-                f"dfn_file_name = '{ctx_name.l}-{ctx_name.r}.dfn'"
-                if ctx_name.l == "exg"
-                else f"dfn_file_name = '{ctx_name.l or 'sim'}-{ctx_name.r}.dfn'",
+                f"package_abbr = '{ctx_name.subcomponent}'"
+                if ctx_name.component == "exg"
+                else f"package_abbr = '{'' if ctx_name.component in ['sln', 'sim', 'exg', None] else ctx_name.component}{ctx_name.subcomponent}'",
+                f"_package_type = '{ctx_name.subcomponent}'",
+                f"dfn_file_name = '{ctx_name.component}-{ctx_name.subcomponent}.dfn'"
+                if ctx_name.component == "exg"
+                else f"dfn_file_name = '{ctx_name.component or 'sim'}-{ctx_name.subcomponent}.dfn'",
                 f"dfn = {pformat(_dfn(), indent=10)}",
             ]
         )
@@ -285,74 +297,34 @@ def _is_context(o) -> bool:
 
 
 def _parent(ctx: dict) -> str:
-    ref = ctx["meta"].get("ref", None)
+    ref = ctx.get("ref", None)
     if ref:
         return ref["parent"]
     name = ctx["name"]
-    ref = ctx["meta"].get("ref", None)
+    ref = ctx.get("ref", None)
     if name == ("sim", "nam"):
         return None
-    elif name.l is None or name.r is None or name.l in ["sim", "exg", "sln"]:
+    elif (
+        name.component is None
+        or name.subcomponent is None
+        or name.component in ["sim", "exg", "sln"]
+    ):
         return "simulation"
     elif ref:
-        if name.l == "utl" and name.r == "hpc":
+        if name.component == "utl" and name.subcomponent == "hpc":
             return "simulation"
         return "package"
     return "model"
 
 
-def _replace_refs_exg(ctx: dict) -> dict:
-    refs = ctx.get("meta", dict()).get("refs", dict())
-    if any(refs):
-        for key, ref in refs.items():
-            key_var = ctx["vars"].get(key, None)
-            if not key_var:
-                continue
-            ctx["vars"][key] = {
-                **key_var,
-                "name": ref["val"],
-                "description": ref.get("description", None),
-                "ref": ref,
-                "default": None,
-            }
-    return ctx
+def _transform(o):
+    ctx = dict(o)
+    ctx_name = ctx["name"]
+    ctx_base = ctx_name.base
+    ref_name = "param" if ctx_base == "MFSimulationBase" else "val"
+    refs = ctx.get("refs", dict())
 
-
-def _replace_refs_pkg(ctx: dict) -> dict:
-    refs = ctx.get("meta", dict()).get("refs", dict())
-    if any(refs):
-        for key, ref in refs.items():
-            key_var = ctx["vars"].get(key, None)
-            if not key_var:
-                continue
-            ctx["vars"][key] = {
-                **key_var,
-                "name": ref["val"],
-                "description": ref.get("description", None),
-                "ref": ref,
-                "default": None,
-            }
-    return ctx
-
-
-def _replace_refs_mdl(ctx: dict) -> dict:
-    refs = ctx.get("meta", dict()).get("refs", dict())
-    if any(refs):
-        for key, ref in refs.items():
-            key_var = ctx["vars"].get(key, None)
-            if not key_var:
-                continue
-            ctx["vars"][key] = {
-                **key_var,
-                "name": ref["val"],
-                "description": ref.get("description", None),
-                "ref": ref,
-            }
-    return ctx
-
-
-def _replace_refs_sim(ctx: dict) -> dict:
-    refs = ctx.get("meta", dict()).get("refs", dict())
+    # swap ref params
     if any(refs) and ctx["name"] != (None, "nam"):
         for key, ref in refs.items():
             key_var = ctx["vars"].get(key, None)
@@ -360,31 +332,22 @@ def _replace_refs_sim(ctx: dict) -> dict:
                 continue
             ctx["vars"][key] = {
                 **key_var,
-                "name": ref["param"],
+                "name": ref[ref_name],
                 "description": ref.get("description", None),
                 "ref": ref,
                 "default": None,
             }
+
+    # avoid reserved keyword / name collisions
+    for name, var in ctx["vars"].items():
+        if name in kwlist:
+            ctx["vars"][name] = {"name": f"{name}_", **var}
+
     return ctx
 
 
-def _transform_context(o):
-    ctx = dict(o)
-    ctx_name = ctx["name"]
-    ctx_base = ctx_name.base
-    if ctx_base == "MFSimulationBase":
-        return _replace_refs_sim(ctx)
-    elif ctx_base == "MFModel":
-        return _replace_refs_mdl(ctx)
-    elif ctx_base == "MFPackage":
-        if ctx_name.l == "exg":
-            return _replace_refs_exg(ctx)
-        else:
-            return _replace_refs_pkg(ctx)
-
-
 SHIM = {
-    "keep_none": ["default", "block", "metadata"],
+    "keep_none": ["default"],
     "quote_str": ["default"],
     "set_pairs": [
         (
@@ -397,5 +360,5 @@ SHIM = {
             ],
         ),
     ],
-    "transform": [(_is_context, _transform_context)],
+    "transform": [(_is_context, _transform)],
 }

@@ -1,14 +1,12 @@
 from dataclasses import dataclass
 from typing import (
-    Any,
-    Dict,
     Iterator,
     List,
     NamedTuple,
     Optional,
 )
 
-from flopy.mf6.utils.codegen.dfn import Dfn, Ref, Vars
+from flopy.mf6.utils.codegen.dfn import Dfn, Vars
 from flopy.mf6.utils.codegen.renderable import renderable
 from flopy.mf6.utils.codegen.shim import SHIM
 
@@ -31,8 +29,7 @@ class Context:
     becomes the first `__init__` method parameter).
 
     The context class may reference other contexts via foreign key
-    relations held by its variables, and may itself be referenced
-    by other contexts if desired.
+    relations held by its variables, and may itself be referenced.
 
     """
 
@@ -59,8 +56,8 @@ class Context:
 
         """
 
-        l: str
-        r: Optional[str]
+        component: str
+        subcomponent: Optional[str]
 
         @property
         def title(self) -> str:
@@ -70,26 +67,26 @@ class Context:
             remains unique. The title is substituted into
             the file name and class name.
             """
-            l, r = self
+            comp, sub = self
             if self == ("sim", "nam"):
                 return "simulation"
-            if l is None:
-                return r
-            if r is None:
-                return l
-            if l == "sim":
-                return r
-            if l in ["sln", "exg"]:
-                return r
-            return l + r
+            if comp is None:
+                return sub
+            if sub is None:
+                return comp
+            if comp == "sim":
+                return sub
+            if comp in ["sln", "exg"]:
+                return sub
+            return comp + sub
 
         @property
         def base(self) -> str:
             """Base class from which the input context should inherit."""
-            _, r = self
+            _, sub = self
             if self == ("sim", "nam"):
                 return "MFSimulationBase"
-            if r is None:
+            if sub is None:
                 return "MFModel"
             return "MFPackage"
 
@@ -106,19 +103,19 @@ class Context:
             elif self.base == "MFModel":
                 return "model.py.jinja"
             elif self.base == "MFPackage":
-                if self.l == "exg":
+                if self.component == "exg":
                     return "exchange.py.jinja"
                 return "package.py.jinja"
 
         @property
         def description(self) -> str:
             """A description of the input context."""
-            l, r = self
+            comp, sub = self
             title = self.title.title()
             if self.base == "MFPackage":
-                return f"Modflow{title} defines a {r.upper()} package."
+                return f"Modflow{title} defines a {sub.upper()} package."
             elif self.base == "MFModel":
-                return f"Modflow{title} defines a {l.upper()} model."
+                return f"Modflow{title} defines a {comp.upper()} model."
             elif self.base == "MFSimulationBase":
                 return (
                     "MFSimulation is used to load, build, and/or save a MODFLOW 6 simulation."
@@ -140,25 +137,25 @@ class Context:
             definition files. All other definition files produce a single
             context.
             """
-            if dfn.name.r == "nam":
-                if dfn.name.l == "sim":
+            if dfn.name.subcomponent == "nam":
+                if dfn.name.component == "sim":
                     return [
-                        Context.Name(None, dfn.name.r),  # nam pkg
+                        Context.Name(None, dfn.name.subcomponent),  # nam pkg
                         Context.Name(*dfn.name),  # simulation
                     ]
                 else:
                     return [
                         Context.Name(*dfn.name),  # nam pkg
-                        Context.Name(dfn.name.l, None),  # model
+                        Context.Name(dfn.name.component, None),  # model
                     ]
-            elif dfn.name in [
+            elif (dfn.name.component, dfn.name.subcomponent) in [
                 ("gwf", "mvr"),
                 ("gwf", "gnc"),
                 ("gwt", "mvt"),
             ]:
                 return [
                     Context.Name(*dfn.name),
-                    Context.Name(None, dfn.name.r),
+                    Context.Name(None, dfn.name.subcomponent),
                 ]
             return [Context.Name(*dfn.name)]
 
@@ -166,7 +163,6 @@ class Context:
     vars: Vars
     base: Optional[type] = None
     description: Optional[str] = None
-    meta: Optional[Dict[str, Any]] = None
 
     @classmethod
     def from_dfn(cls, dfn: Dfn) -> Iterator["Context"]:
@@ -175,15 +171,10 @@ class Context:
         These are structured representations of input context classes.
         Each input definition yields one or more input contexts.
         """
-        meta = dfn.meta.copy()
-        ref = Ref.from_dfn(dfn)
-        if ref:
-            meta["ref"] = ref
         for name in Context.Name.from_dfn(dfn):
             yield Context(
                 name=name,
                 vars=dfn.data,
                 base=name.base,
                 description=name.description,
-                meta=meta,
             )
