@@ -14,18 +14,18 @@ class Modflow{{ title }}(MFPackage):
 
     Parameters
     ----------
-    {{ macros.vars_docs(vars, indent=4) }}
+{{ macros.vars_docs(vars)|indent(4) }}
     """
 
     {% for attr in vars|attrs %}
     {{ attr }}
-    {%- endfor %}
+    {% endfor %}
 
     def __init__(
         self,
         {{ name|parent }},
         loading_package=False,
-        {{ macros.init_vars(vars, indent=8, skip=name|skip_init) }}
+        {{ macros.init_vars(vars, skip=name|skip_init)|indent(8) }}
         filename=None,
         pname=None,
         **kwargs,
@@ -43,7 +43,7 @@ class Modflow{{ title }}(MFPackage):
             Do not set this parameter. It is intended for debugging and internal
             processing purposes only.
 
-        {{ macros.vars_docs(vars, indent=8) }}
+{{ macros.vars_docs(vars)|indent(8) }}
 
         filename : str
             File name for this package.
@@ -66,9 +66,9 @@ class Modflow{{ title }}(MFPackage):
             **kwargs
         )
 
-        {% for statement in vars|init %}
+        _ for statement in vars|init
         {{ statement }}
-        {%- endfor %}
+        _ endfor
 
         self._init_complete = True
 
@@ -94,15 +94,15 @@ class {{ title }}Packages(MFChildPackages):
 
     def initialize(
         self,
-        {{ macros.init_vars(vars, alias=true, indent=8, skip=name|skip_init) }}
+        {{ macros.init_vars(vars, alias=true, skip=name|skip_init)|indent(8) }}
         filename=None,
         pname=None,
     ):
         new_package = Modflow{{ title }}(
             self._cpparent,
-            {%- for n, var in vars.items() if n not in name|skip_init %}
+            {% for n, var in vars.items() if n not in name|skip_init %}
             {{ n|safe_name }}={{ n|safe_name }},
-            {%- endfor %}
+            {% endfor %}
             filename=filename,
             pname=pname,
             child_builder_call=True,
@@ -112,15 +112,15 @@ class {{ title }}Packages(MFChildPackages):
     {% if name.r != "obs" %}
     def append_package(
         self,
-        {{ macros.init_vars(vars, alias=true, indent=8, skip=name|skip_init) }}
+        {{ macros.init_vars(vars, alias=true, skip=name|skip_init)|indent(8) }}
         filename=None,
         pname=None,
     ):
         new_package = Modflow{{ title }}(
             self._cpparent,
-            {%- for n, var in vars.items() if n not in name|skip_init %}
+            {% for n, var in vars.items() if n not in name|skip_init %}
             {{ n|safe_name }}={{ n|safe_name }},
-            {%- endfor %}
+            {% endfor %}
             filename=filename,
             pname=pname,
             child_builder_call=True,
