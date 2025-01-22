@@ -20,26 +20,19 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
         with:
-          version: "0.5.18"
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: pyproject.toml
+          pixi-version: v0.40.1
 
       - name: Install Python dependencies
-        run: |
-          uv sync --extra build
-          uv run python -c "import flopy; print(f'{flopy.__version__}')"
+        run: pixi install -e build
 
       - name: Build package
-        run: uv build
+        run: pixi run build
 
       - name: Check package
-        run: uv run twine check --strict dist/*
+        run: pixi run twine check --strict dist/*
 
   lint:
     name: Lint
@@ -48,38 +41,32 @@ jobs:
       run:
         shell: bash
     timeout-minutes: 10
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
         with:
-          version: "0.5.18"
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: pyproject.toml
+          pixi-version: v0.40.1
 
       - name: Install Python dependencies
-        run: uv sync --extra lint
+        run: pixi install -e lint
 
       - name: Lint
-        run: uv run ruff check .
+        run: pixi run -e lint lint
 
       - name: Check format
-        run: uv run ruff format . --check
+        run: pixi run -e lint format
 
       - name: Check spelling
-        run: uv run codespell
+        run: pixi run -e lint codespell
 
       - name: Check CITATION.cff
         run: |
-          uv run cffconvert --validate
-          uv run cffconvert -f apalike
-          uv run cffconvert -f bibtex
+          pixi run -e lint cffconvert --validate
+          pixi run -e lint cffconvert -f apalike
+          pixi run -e lint cffconvert -f bibtex
 
   smoke:
     name: Smoke test
@@ -90,31 +77,24 @@ jobs:
     timeout-minutes: 10
     env:
       PYTHON_VERSION: 3.9
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
         with:
-          version: "0.5.18"
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: pyproject.toml
+          pixi-version: v0.40.1
 
       - name: Install Python dependencies
-        # temp. allow prereleases for vtk on aarch64
-        run: uv sync --all-extras --prerelease=allow
+        run: pixi install -e dev
       
       - name: Install Modflow executables
         uses: modflowpy/install-modflow-action@v1
       
       - name: Smoke test
         working-directory: autotest
-        run: uv run pytest -v -n=auto --smoke --cov=flopy --cov-report=xml --durations=0 --keep-failed=.failed
+        run: pixi run -e dev pytest -v -n=auto --smoke --cov=flopy --cov-report=xml --durations=0 --keep-failed=.failed
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -149,18 +129,13 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
         with:
-          version: "0.5.18"
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: pyproject.toml
+          pixi-version: v0.40.1
 
       - name: Install FloPy
-        run: uv sync --all-extras
+        run: pixi install -e dev
 
       - name: Install Modflow-related executables
         uses: modflowpy/install-modflow-action@v1
@@ -179,18 +154,18 @@ jobs:
           subset: triangle
 
       - name: Update package classes
-        run: uv run python -m flopy.mf6.utils.generate_classes --ref develop --no-backup
+        run: pixi run -e dev python -m flopy.mf6.utils.generate_classes --ref develop --no-backup
 
       - name: Run tests
         working-directory: autotest
         run: |
-          uv run pytest -v -m="not example" -n=auto --cov=flopy --cov-append --cov-report=xml --durations=0 --keep-failed=.failed --dist loadfile
+          pixi run -e dev pytest -v -m="not example" -n=auto --cov=flopy --cov-append --cov-report=xml --durations=0 --keep-failed=.failed --dist loadfile
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Report coverage
         working-directory: autotest
-        run: uv run coverage report
+        run: pixi run -e dev coverage report
 
       - name: Upload failed test outputs
         uses: actions/upload-artifact@v4

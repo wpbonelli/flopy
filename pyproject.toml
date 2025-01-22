@@ -206,3 +206,7 @@ optional = { features = ["optional"], solve-group = "default" }
 test = { features = ["test", "lint"], solve-group = "default" }
 
 [tool.pixi.tasks]
+format = "ruff format"
+lint = "ruff check --fix"
+test = { cwd = "autotest", cmd = "pytest -v -n auto --durations 0 --keep-failed .failed" }
+sync = "python -m flopy.mf6.utils.generate_classes --no-backup"
