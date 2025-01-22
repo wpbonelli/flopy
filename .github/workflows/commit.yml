@@ -49,27 +49,32 @@ jobs:
         shell: bash
     timeout-minutes: 10
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pixi
-        uses: prefix-dev/setup-pixi@v0.8.1
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
         with:
-          pixi-version: v0.40.1
+          version: "0.5.18"
 
-      - name: Install Python dependencies
-        run: pixi install -e lint
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: pyproject.toml
+
+      - name: Install
+        run: uv sync --extra lint
 
       - name: Lint
-        run: pixi run -e lint lint
+        run: uv run ruff check
 
-      - name: Check format
-        run: pixi run -e lint format
+      - name: Format
+        run: uv run ruff format --check
 
-      - name: Check spelling
+      - name: Spelling
         run: pixi run -e lint codespell
 
-      - name: Check CITATION.cff
+      - name: Citations
         run: |
           pixi run -e lint cffconvert --validate
           pixi run -e lint cffconvert -f apalike
@@ -85,7 +90,7 @@ jobs:
     env:
       PYTHON_VERSION: 3.9
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup pixi
@@ -93,19 +98,19 @@ jobs:
         with:
           pixi-version: v0.40.1
 
-      - name: Install Python dependencies
+      - name: Install environment
         run: pixi install -e dev
       
-      - name: Install Modflow executables
+      - name: Install executables
         uses: modflowpy/install-modflow-action@v1
       
-      - name: Smoke test
+      - name: Test
         working-directory: autotest
         run: pixi run -e dev pytest -v -n=auto --smoke --cov=flopy --cov-report=xml --durations=0 --keep-failed=.failed
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload failed test outputs
+      - name: Upload outputs
         uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -133,7 +138,7 @@ jobs:
     timeout-minutes: 60
     steps:
 
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup pixi
@@ -141,18 +146,20 @@ jobs:
         with:
           pixi-version: v0.40.1
 
-      - name: Install FloPy
+      - name: Install environment
         run: pixi install -e dev
 
-      - name: Install Modflow-related executables
+      - name: Install executables
         uses: modflowpy/install-modflow-action@v1
 
-      - name: Install Modflow dev build executables
+      - name: Install nightly build
         uses: modflowpy/install-modflow-action@v1
         with:
           repo: modflow6-nightly-build
 
       - name: Install triangle (macOS workaround)
+        # arm mac triangle hangs, need to fix it
+        # https://github.com/MODFLOW-USGS/executables/issues/33
         if: runner.os == 'macOS'
         uses: modflowpy/install-modflow-action@v1
         with:
@@ -160,17 +167,17 @@ jobs:
           ostag: mac
           subset: triangle
 
-      - name: Update package classes
-        run: pixi run -e dev python -m flopy.mf6.utils.generate_classes --ref develop --no-backup
+      - name: Sync
+        run: pixi run -e dev sync --ref develop
 
-      - name: Run tests
+      - name: Test
         working-directory: autotest
         run: |
-          pixi run -e dev pytest -v -m="not example" -n=auto --cov=flopy --cov-append --cov-report=xml --durations=0 --keep-failed=.failed --dist loadfile
+          pixi run -e dev test -m="not example" --cov=flopy --cov-append --cov-report=xml --dist loadfile
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Report coverage
+      - name: Coverage
         working-directory: autotest
         run: pixi run -e dev coverage report
 
