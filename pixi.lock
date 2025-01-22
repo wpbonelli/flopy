@@ -3809,7 +3809,7 @@ packages:
 - pypi: .
   name: flopy
   version: 3.10.0.dev1
-  sha256: 262d0b2bbdf295dbdd01dd696c5ba76fec496364992105c768dec59425caa37b
+  sha256: 05dd369b018c6ecfa19b0960413b308d35c6cc0506b114b6ec7cd90a409e514f
   requires_dist:
   - numpy>=1.20.3
   - matplotlib>=1.4.0
