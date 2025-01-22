@@ -21,3 +21,5 @@ examples/data/** binary
 *.bas -linguist-detectable
 .docs/** linguist-documentation
 docs/** linguist-documentation
+# SCM syntax highlighting
+pixi.lock linguist-language=YAML linguist-generated=true

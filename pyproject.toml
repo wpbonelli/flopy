@@ -188,3 +188,21 @@ ignore-words-list = [
     "vertx",
     "nd",
 ]
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64", "osx-arm64", "osx-64"]
+
+[tool.pixi.pypi-dependencies]
+flopy = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+build = { features = ["build"], solve-group = "default" }
+dev = { features = ["dev", "build", "lint", "test", "optional", "doc"], solve-group = "default" }
+doc = { features = ["doc", "optional"], solve-group = "default" }
+lint = { features = ["lint"], solve-group = "default" }
+optional = { features = ["optional"], solve-group = "default" }
+test = { features = ["test", "lint"], solve-group = "default" }
+
+[tool.pixi.tasks]
