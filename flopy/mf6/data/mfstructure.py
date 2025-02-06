@@ -12,6 +12,8 @@ from textwrap import TextWrapper
 
 import numpy as np
 
+from flopy.mf6.inspect import get_multi_packages, get_solution_packages, get_sub_packages
+
 from ..mfbase import StructException
 
 numeric_index_text = (
@@ -2129,6 +2131,16 @@ class MFSimulationStructure:
                     package_struct.read_as_arrays = True
 
 
+def _get_solution_packages():
+    pkgs = get_solution_packages()
+
+    def _entry(k):
+        pkg = k.lower().replace("modflow", "")
+        return pkg, [pkg, "*"]
+
+    return {: "*" for k in pkgs.keys()}
+
+
 class MFStructure:
     """
     Singleton class for accessing the contents of the json structure file
@@ -2151,25 +2163,21 @@ class MFStructure:
             cls._instance = super().__new__(cls)
             cls._instance.sim_struct = None
             cls._instance.dimension_dict = {}
-            cls._instance.flopy_dict = {}
-            cls._instance._load_structure()
+            cls._instance.flopy_dict = {
+                "solution_packages": set(get_solution_packages().keys()),
+                "multi_packages": set(get_multi_packages().keys()),
+                "sub_packages": set(get_sub_packages().keys()),
+            }
+
+            # Read metadata from file
+            cls._instance.valid = cls._instance._load_structure()
+
         return cls._instance
 
     def _load_structure(self):
         self.sim_struct = MFSimulationStructure()
-        MFStructure().flopy_dict["solution_packages"] = {}
 
         from ..mfpackage import MFPackage
         for package in MFPackage.__subclasses__():
-            # process header
-            for entry in package.dfn[0][1:]:
-                if (
-                    isinstance(entry, list)
-                    and entry[0] == "solution_package"
-                ):
-                    MFStructure().flopy_dict["solution_packages"][
-                        package.package_abbr
-                    ] = entry[1:]
-            # process each package
             self.sim_struct.process_dfn(DfnPackage(package))
         self.sim_struct.tag_read_as_arrays()
