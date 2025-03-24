@@ -4,28 +4,50 @@ from pathlib import Path
 from flopy.utils.binaryfile import CellBudgetFile, HeadFile
 
 if __name__ == "__main__":
-    """Reverse head or budget files."""
+    """Reverse a TDIS input file or a head or budget output file."""
 
-    parser = argparse.ArgumentParser(description="Reverse head or budget files.")
+    parser = argparse.ArgumentParser(description="Reverse head, budget, or TDIS files.")
     parser.add_argument(
-        "--infile",
-        "-i",
+        "--head",
+        "-h",
         type=str,
-        help="Input file.",
+        help="Head file",
     )
     parser.add_argument(
-        "--outfile",
-        "-o",
+        "--budget",
+        "-b",
         type=str,
-        help="Output file.",
+        help="Budget file",
     )
+    parser.add_argument(
+        "--tdis",
+        "-t",
+        type=str,
+        help="TDIS file",
+    )
+    parser.add_argument(
+        "--head-output",
+        type=str,
+        help="Reversed head file",
+    )
+    parser.add_argument(
+        "--budget-output",
+        type=str,
+        help="Reversed budget file",
+    )
+    parser.add_argument(
+        "--tdis-output",
+        type=str,
+        help="Reversed TDIS file",
+    )
+
     args = parser.parse_args()
-    infile = Path(args.infile)
-    outfile = Path(args.outfile)
-    suffix = infile.suffix.lower()
-    if suffix in [".hds", ".hed"]:
-        HeadFile(infile).reverse(outfile)
-    elif suffix in [".bud", ".cbc"]:
-        CellBudgetFile(infile).reverse(outfile)
-    else:
-        raise ValueError(f"Unrecognized file suffix: {suffix}")
+    head_input = Path(args.head)
+    budget_input = Path(args.budget)
+    tdis_input = Path(args.tdis)
+    head_output = Path(args.head_output)
+    budget_output = Path(args.budget_output)
+    tdis_output = Path(args.tdis_output)
+    HeadFile(head_input).reverse(head_output)
+    CellBudgetFile(budget_input).reverse(budget_output)
+    # TODO load TDIS alone (how?) and reverse it
