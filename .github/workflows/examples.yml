@@ -3,6 +3,9 @@ name: Example script & notebook tests
 on:
   schedule:
     - cron: '0 8 * * *' # run at 8 AM UTC (12 am PST)
+  push:
+    branches:
+      - ci-debug
 
 jobs:
   examples:
@@ -72,6 +75,10 @@ jobs:
 
       - name: Update FloPy packages
         run: python -m flopy.mf6.utils.generate_classes --ref develop --no-backup
+
+      - name: Setup tmate session
+        if: runner.os == 'Windows'
+        uses: mxschmitt/action-tmate@v3
 
       - name: Run example tests
         working-directory: autotest
