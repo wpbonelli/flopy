@@ -22,7 +22,7 @@ class ModelTime:
     perlen: NDArray[np.floating]
     nstp: NDArray[np.integer]
     tsmult: NDArray[np.floating]
-    time_units: str
+    time_units: int | str
     start_datetime: datetime
     steady_state: NDArray[np.bool_] | None = None
 
