@@ -78,6 +78,10 @@ jobs:
         run: pytest -v test_example_notebooks.py -n=auto -s --durations=0 --keep-failed=.failed
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VTK_OPENGL_FORCE_CORE_PROFILE: "0"
+          VTK_SHADER_CACHE_PATH: ""
+          MESA_GL_VERSION_OVERRIDE: "3.0"
+          MESA_GLSL_VERSION_OVERRIDE: "130"
 
       - name: Upload failed test outputs
         uses: actions/upload-artifact@v4
