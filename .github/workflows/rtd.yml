@@ -123,7 +123,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: cmd
         run: |
-          curl.exe -L --output mesa.7z --url https://github.com/pal1000/mesa-dist-win/releases/download/25.1.6/mesa3d-25.1.6-release-msvc.7z
+          curl.exe -L --output mesa.7z --url https://github.com/pal1000/mesa-dist-win/releases/download/24.3.4/mesa3d-24.3.4-release-msvc.7z
           "C:\Program Files\7-Zip\7z.exe" x mesa.7z
           copy x64\opengl32.dll x64\mesa_opengl32.dll
           echo "MESA_GL_VERSION_OVERRIDE=3.3" >> %GITHUB_ENV%
