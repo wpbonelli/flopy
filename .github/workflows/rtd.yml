@@ -145,15 +145,11 @@ jobs:
           echo "$(pwd)/bin" >> $GITHUB_PATH
 
       - name: Run tutorial and example notebooks
-        if: runner.os != 'Windows'
         working-directory: flopy/autotest
-        run: |
-          filters=""
-          if [[ ${{ runner.os }} == "Windows" ]]; then
-            # TODO figure out VTK error: GLSL 1.50 is not supported. Supported versions are: 1.10, 1.20, 1.30, and 1.00 ES
-            filters="not vtk_pathlines"
-          fi
-          pytest -v -n auto test_example_notebooks.py -k "$filters"
+        run: pytest -v -n auto test_example_notebooks.py -k "$filters"
+        env:
+          MESA_GL_VERSION_OVERRIDE: "3.2"
+          MESA_GLSL_VERSION_OVERRIDE: "150"
 
       - name: Upload notebooks artifact for ReadtheDocs
         if: |
