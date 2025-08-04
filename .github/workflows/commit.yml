@@ -160,7 +160,7 @@ jobs:
         working-directory: modflow6
         run: |
           pixi run install
-          pixi run pip install coverage pytest-cov
+          pixi run pip install coverage pytest-cov netcdf4
 
       - name: Install FloPy
         working-directory: flopy
