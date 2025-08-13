@@ -613,7 +613,7 @@ class Mf6Splitter:
         nparts: int
             number of parts to split the model in to
         active_only : bool
-            only consider active cells when building adjancency graph. Default is False
+            only consider active cells when building adjacency graph. Default is False
 
         Returns
         -------
