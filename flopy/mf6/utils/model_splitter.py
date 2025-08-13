@@ -602,7 +602,7 @@ class Mf6Splitter:
         mfs._allow_splitting = False
         return mfs
 
-    def optimize_splitting_mask(self, nparts):
+    def optimize_splitting_mask(self, nparts, active_only=False):
         """
         Method to create a splitting array with a balanced number of active
         cells per model. This method uses the program METIS and pymetis to
@@ -611,11 +611,18 @@ class Mf6Splitter:
         Parameters
         ----------
         nparts: int
+            number of parts to split the model in to
+        active_only : bool
+            only consider active cells when building adjancency graph. Default is False
 
         Returns
         -------
             np.ndarray
         """
+        if active_only:
+            import_optional_dependency("scipy")
+            from scipy.interpolate import griddata
+
         pymetis = import_optional_dependency(
             "pymetis",
             "please install pymetis using: "
@@ -629,6 +636,7 @@ class Mf6Splitter:
             ncpl = self._modelgrid.ncpl
             shape = self._modelgrid.shape[1:]
         else:
+            nlay = 1
             ncpl = self._modelgrid.nnodes
             shape = self._modelgrid.shape
         idomain = self._modelgrid.idomain
@@ -679,16 +687,53 @@ class Mf6Splitter:
                 else:
                     adv_pkg_weights[nodes] += 1
 
-        for nn, neighbors in self._modelgrid.neighbors().items():
+        # filter active cells here to avoid changes in the mapping algorithm
+        neighbors = self._modelgrid.neighbors(reset=True)
+
+        if active_only:
+            node_map = {}
+            iact = np.where(np.sum(idomain, axis=0), 1, 0)
+            inactive = np.where(iact == 0)[0]
+            for k in inactive:
+                neighbors.pop(k)
+            neighbors = {
+                k : [i for i in v if i not in inactive] for k, v in neighbors.items()
+            }
+
+            cnt = 0
+            for ix, isact in enumerate(iact):
+                if isact > 0:
+                    node_map[ix] = cnt
+                    cnt += 1
+
+        for nn, neigh in sorted(neighbors.items()):
             weight = np.count_nonzero(idomain[:, nn])
             adv_weight = adv_pkg_weights[nn]
             weights.append(weight + adv_weight)
-            graph.append(np.array(neighbors, dtype=int))
+            if active_only:
+                neigh = [node_map[n] for n in neigh]
+            graph.append(np.array(neigh, dtype=int))
 
         n_cuts, membership = pymetis.part_graph(
             nparts, adjacency=graph, vweights=weights
         )
         membership = np.array(membership, dtype=int)
+
+        if active_only:
+            if len(inactive) > 0:
+                xc = self._modelgrid.xcellcenters.ravel()
+                yc = self._modelgrid.ycellcenters.ravel()
+                axc = xc[list(node_map.keys())]
+                ayc = yc[list(node_map.keys())]
+                ixc = xc[inactive]
+                iyc = yc[inactive]
+                data = griddata((axc, ayc), membership, (ixc, iyc), method="nearest")
+
+                member_array = np.full((ncpl,), -1)
+                member_array[list(node_map.keys())] = membership[list(node_map.values())]
+                member_array[inactive] = data
+                membership = member_array
+
         if laks:
             for lak in laks:
                 idx = np.asarray(lak_array == lak).nonzero()[0]
@@ -892,7 +937,10 @@ class Mf6Splitter:
             tuple : (nlay, grid_shape)
         """
         if array.size == model.modelgrid.size:
-            nlay = model.modelgrid.nlay
+            if self._modelgrid.grid_type in ("structured", "vertex"):
+                nlay = model.modelgrid.nlay
+            else:
+                nlay = 1
             shape = self._shape
 
         elif array.size == model.modelgrid.ncpl:

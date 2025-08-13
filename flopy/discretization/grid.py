@@ -647,7 +647,7 @@ class Grid:
         ----------
         reset : bool
             flag to recalculate neighbors
-        method: str
+        method : str
             "rook" for shared edges and "queen" for shared vertex
 
         Returns
@@ -721,6 +721,7 @@ class Grid:
         """
         method = kwargs.pop("method", None)
         reset = kwargs.pop("reset", False)
+
         if method is None:
             self._set_neighbors(reset=reset)
         else:
