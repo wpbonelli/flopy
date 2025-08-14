@@ -602,7 +602,7 @@ class Mf6Splitter:
         mfs._allow_splitting = False
         return mfs
 
-    def optimize_splitting_mask(self, nparts, active_only=False):
+    def optimize_splitting_mask(self, nparts, active_only=False, options=None):
         """
         Method to create a splitting array with a balanced number of active
         cells per model. This method uses the program METIS and pymetis to
@@ -614,6 +614,10 @@ class Mf6Splitter:
             number of parts to split the model in to
         active_only : bool
             only consider active cells when building adjacency graph. Default is False
+        options : None or pymetis.Options
+            optional pymetis.Options class that gets passed through to the
+            pymetis.part_graph() function. Example
+            `options=pymetis.Options(seed=42, contig=1)`
 
         Returns
         -------
@@ -715,7 +719,7 @@ class Mf6Splitter:
             graph.append(np.array(neigh, dtype=int))
 
         n_cuts, membership = pymetis.part_graph(
-            nparts, adjacency=graph, vweights=weights
+            nparts, adjacency=graph, vweights=weights, options=options
         )
         membership = np.array(membership, dtype=int)
 
