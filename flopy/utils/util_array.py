@@ -2708,6 +2708,11 @@ class Util2d(DataInterface):
             # then drop the first dimension
             if len(value.shape) == 3 and value.shape[0] == 1:
                 value = value[0]
+
+            if self.model.version == "mfusg":
+                if self.shape != value.shape:
+                    value = np.array([np.squeeze(value)])
+
             if self.shape != value.shape:
                 raise Exception(
                     f"Util2d:self.shape: {self.shape} does not match "
