@@ -700,9 +700,6 @@ class Mf6Splitter:
             inactive = np.where(iact == 0)[0]
             for k in inactive:
                 neighbors.pop(k)
-            neighbors = {
-                k : [i for i in v if i not in inactive] for k, v in neighbors.items()
-            }
 
             cnt = 0
             for ix, isact in enumerate(iact):
@@ -715,7 +712,7 @@ class Mf6Splitter:
             adv_weight = adv_pkg_weights[nn]
             weights.append(weight + adv_weight)
             if active_only:
-                neigh = [node_map[n] for n in neigh]
+                neigh = [node_map[n] for n in neigh if n not in inactive]
             graph.append(np.array(neigh, dtype=int))
 
         n_cuts, membership = pymetis.part_graph(
