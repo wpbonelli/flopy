@@ -272,7 +272,7 @@ class MfList(DataInterface, DataListInterface):
                 if use_free:
                     fmts.append("%15s")
                 else:
-                    fmts.append("%10G")
+                    fmts.append("%9G")
             elif vtype == "o":
                 if use_free:
                     fmts.append("%9s")
