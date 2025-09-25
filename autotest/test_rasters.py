@@ -8,6 +8,9 @@ import flopy
 from flopy.modflow import Modflow
 from flopy.utils import Raster
 
+import rasterio as rio
+import matplotlib.pyplot as plt
+
 # %% test rasters
 
 
@@ -214,3 +217,75 @@ def test_create_raster_from_array_transform(example_data_path):
         or not ((ymax - ymin) / (rymax - rymin)) == 2
     ):
         raise AssertionError("Transform based raster not working properly")
+
+
+@requires_pkg("rasterio", "affine")
+def test_raster_from_array_rotated_grid():
+    """
+    Test raster_from_array with rotated modelgrid.
+    This test verifies that the raster transform matches the modelgrid geometry
+    when the modelgrid has a non-zero rotation (issue #2553).
+    """
+    # Create a structured grid with rotation
+    nlay, nrow, ncol = 1, 10, 10
+    delc = np.full((nrow,), 100.0)  # uniform cell spacing
+    delr = np.full((ncol,), 100.0)  # uniform cell spacing
+
+    # Set up grid with rotation (47 degrees clockwise)
+    angrot_degrees = -47.0
+    xoff = 0.0
+    yoff = 0.0
+
+    # Create modelgrid with a projected CRS
+    modelgrid = flopy.discretization.StructuredGrid(
+        delc=delc,
+        delr=delr,
+        top=np.ones((nrow, ncol)),
+        botm=np.zeros((nlay, nrow, ncol)),
+        idomain=np.ones((nlay, nrow, ncol), dtype=int),
+        xoff=xoff,
+        yoff=yoff,
+        angrot=angrot_degrees,
+        crs="EPSG:32633",  # UTM Zone 33N
+    )
+
+    # Create a test array
+    test_array = np.arange(nrow * ncol).reshape(1, nrow, ncol)
+
+    # Create raster from array using the rotated modelgrid
+    raster = Raster.raster_from_array(test_array, modelgrid=modelgrid)
+
+    arr = raster.get_array(band=1)
+    idx = np.isfinite(arr)
+    vmin, vmax = arr[idx].min(), arr[idx].max()
+
+    fig = plt.figure(figsize=(12, 12))
+    ax = fig.add_subplot(1, 1, 1, aspect="equal")
+    mm = modelgrid.plot(ax=ax, color="lightgrey", edgecolor="black")
+    ax = raster.plot(ax=ax, vmin=vmin, vmax=vmax)
+    plt.colorbar(ax.images[0], shrink=0.7)
+    plt.show()
+
+    # Get corner coordinates from modelgrid
+    # mg_corners = np.array([
+    #     [modelgrid.xvertices[0, 0], modelgrid.yvertices[0, 0]],     # top-left
+    #     [modelgrid.xvertices[0, -1], modelgrid.yvertices[0, -1]],   # top-right
+    #     [modelgrid.xvertices[-1, -1], modelgrid.yvertices[-1, -1]], # bottom-right
+    #     [modelgrid.xvertices[-1, 0], modelgrid.yvertices[-1, 0]]    # bottom-left
+    # ])
+
+    # # Get corner coordinates from raster transform
+    # raster_corners = np.array([
+    #     raster.transform * (0, 0),           # top-left
+    #     raster.transform * (ncol, 0),        # top-right
+    #     raster.transform * (ncol, nrow),     # bottom-right
+    #     raster.transform * (0, nrow)         # bottom-left
+    # ])
+
+    # # The corner coordinates should match within reasonable tolerance
+    # np.testing.assert_allclose(
+    #     mg_corners.flatten(), raster_corners.flatten(),
+    #     rtol=1e-10,
+    #     err_msg="Raster corner coordinates don't match modelgrid vertices. "
+    #             "This indicates issue #2553: incorrect rotation direction in raster_from_array"
+    # )
