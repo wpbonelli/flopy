@@ -15,6 +15,7 @@ import pandas as pd
 
 from ..pakbase import Package
 from ..utils import read_fixed_var, write_fixed_var
+from ..utils.flopy_io import relpath_safe
 from ..utils.recarray_utils import create_empty_recarray
 
 
@@ -344,7 +345,7 @@ class ModflowGage(Package):
                 for key, value in ext_unit_dict.items():
                     if key == abs(iu):
                         model.add_pop_key_list(abs(iu))
-                        relpth = os.path.relpath(value.filename, model.model_ws)
+                        relpth = relpath_safe(value.filename, model.model_ws)
                         files.append(relpth)
                         break
 
@@ -359,8 +360,9 @@ class ModflowGage(Package):
                 if value.filetype == ModflowGage._ftype():
                     unitnumber = key
                     filenames.append(os.path.basename(value.filename))
-        for file in files:
-            filenames.append(os.path.basename(file))
+        if files is not None:
+            for file in files:
+                filenames.append(os.path.basename(file))
 
         return cls(
             model,

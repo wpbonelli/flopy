@@ -1,6 +1,4 @@
 import inspect
-import json
-import warnings
 
 import numpy as np
 
@@ -145,8 +143,12 @@ class Mf6Splitter:
         if self._model_type.endswith("6"):
             self._model_type = self._model_type[:-1]
         self._modelgrid = self._model.modelgrid
+        self._fast_neighbors = False
         if self._modelgrid.grid_type in ("structured", "vertex"):
             self._ncpl = self._modelgrid.ncpl
+            if self._modelgrid.grid_type == "structured":
+                if self._modelgrid.nrow > 2 and self._modelgrid.ncol > 2:
+                    self._fast_neighbors = True
         else:
             self._ncpl = self._modelgrid.nnodes
         self._shape = self._modelgrid.shape
@@ -161,7 +163,6 @@ class Mf6Splitter:
         self._uconnection = None
         self._usg_metadata = None
         self._has_angldegx = False
-        self._connection_ivert = None
         self._model_dict = None
         self._ivert_vert_remap = None
         self._sfr_mover_connections = []
@@ -231,7 +232,6 @@ class Mf6Splitter:
             self._uconnection = None
             self._usg_metadata = None
             self._has_angldegx = False
-            self._connection_ivert = None
             self._ivert_vert_remap = None
             self._sfr_mover_connections = []
             self._mover = False
@@ -604,7 +604,7 @@ class Mf6Splitter:
         mfs._allow_splitting = False
         return mfs
 
-    def optimize_splitting_mask(self, nparts):
+    def optimize_splitting_mask(self, nparts, active_only=False, options=None, verbose=False):
         """
         Method to create a splitting array with a balanced number of active
         cells per model. This method uses the program METIS and pymetis to
@@ -613,24 +613,35 @@ class Mf6Splitter:
         Parameters
         ----------
         nparts: int
-
+            number of parts to split the model in to
+        active_only : bool
+            only consider active cells when building adjacency graph. Default is False
+        options : None or pymetis.Options
+            optional pymetis.Options class that gets passed through to the
+            pymetis.part_graph() function. Example
+            `options=pymetis.Options(seed=42, contig=1)`
+        verbose : bool
+            Default False. Prints progress statements if True
         Returns
         -------
             np.ndarray
         """
+        if active_only:
+            import_optional_dependency("sklearn")
+            from sklearn.neighbors import NearestNeighbors
+
         pymetis = import_optional_dependency(
             "pymetis",
             "please install pymetis using: "
             "conda install -c conda-forge pymetis",
         )
         # create graph of nodes
-        graph = []
-        weights = []
         nlay = self._modelgrid.nlay
         if self._modelgrid.grid_type in ("structured", "vertex"):
             ncpl = self._modelgrid.ncpl
             shape = self._modelgrid.shape[1:]
         else:
+            nlay = 1
             ncpl = self._modelgrid.nnodes
             shape = self._modelgrid.shape
         idomain = self._modelgrid.idomain
@@ -680,17 +691,60 @@ class Mf6Splitter:
                     laks += [i for i in np.unique(lakenos)]
                 else:
                     adv_pkg_weights[nodes] += 1
+        if verbose:
+            print("Mapping neighbors")
+        neighbors = self._modelgrid.neighbors(reset=True, fast=self._fast_neighbors)
 
-        for nn, neighbors in self._modelgrid.neighbors().items():
-            weight = np.count_nonzero(idomain[:, nn])
-            adv_weight = adv_pkg_weights[nn]
-            weights.append(weight + adv_weight)
-            graph.append(np.array(neighbors, dtype=int))
+        if active_only:
+            if verbose:
+                print("Filtering inactive cells")
+            # filter out inactive cells here to avoid messing with neighbor algo.
+            iact = np.where(np.sum(idomain, axis=0), 1, 0)
+            # set this to a dict because key lookup is O(1) vs O(n) for lists
+            inactive = dict.fromkeys([int(i) for i in np.where(iact == 0)[0]])
+            # for k in inactive:
+            [neighbors.pop(k) for k in inactive]
+            node_map = {i: ix for ix, i in enumerate(np.where(iact > 0)[0])}
+            neighbors = {
+                k : [node_map[i] for i in v if i not in inactive] for k, v in neighbors.items()
+            }
 
+        if verbose:
+            print("Creating graph and weights")
+        neighbors = dict(sorted(neighbors.items()))
+        weights = [np.count_nonzero(idomain[:, nn]) + adv_pkg_weights[nn] for nn in neighbors.keys()]
+        graph = [np.array(neigh, dtype=int) for neigh in neighbors.values()]
+
+        if verbose:
+            print("Running Metis")
         n_cuts, membership = pymetis.part_graph(
-            nparts, adjacency=graph, vweights=weights
+            nparts, adjacency=graph, vweights=weights, options=options
         )
         membership = np.array(membership, dtype=int)
+
+        if active_only:
+            # reamp everything to original domain
+            if verbose:
+                print("Remapping inactive to model domains")
+            if len(inactive) > 0:
+                xc = self._modelgrid.xcellcenters.ravel()
+                yc = self._modelgrid.ycellcenters.ravel()
+                axc = xc[list(node_map.keys())]
+                ayc = yc[list(node_map.keys())]
+                fit_points = np.array(list(zip(axc, ayc)))
+                ixc = xc[list(inactive.keys())]
+                iyc = yc[list(inactive.keys())]
+                pred_points = np.array(list(zip(ixc, iyc)))
+
+                nn = NearestNeighbors(n_neighbors=1, algorithm="auto")
+                nn.fit(fit_points)
+                ind = nn.kneighbors(pred_points, return_distance=False).ravel()
+                data = membership[ind]
+                member_array = np.full((ncpl,), -1)
+                member_array[list(node_map.keys())] = membership[list(node_map.values())]
+                member_array[list(inactive.keys())] = data
+                membership = member_array
+
         if laks:
             for lak in laks:
                 idx = np.asarray(lak_array == lak).nonzero()[0]
@@ -894,7 +948,10 @@ class Mf6Splitter:
             tuple : (nlay, grid_shape)
         """
         if array.size == model.modelgrid.size:
-            nlay = model.modelgrid.nlay
+            if self._modelgrid.grid_type in ("structured", "vertex"):
+                nlay = model.modelgrid.nlay
+            else:
+                nlay = 1
             shape = self._shape
 
         elif array.size == model.modelgrid.ncpl:
@@ -941,9 +998,8 @@ class Mf6Splitter:
             self._map_iac_ja_connections()
         else:
             self._connection = self._modelgrid.neighbors(
-                reset=True, method="rook"
+                reset=True, method="rook", fast=self._fast_neighbors
             )
-            self._connection_ivert = self._modelgrid._edge_set
 
         grid_info = {}
         if self._modelgrid.grid_type == "structured":
@@ -970,36 +1026,16 @@ class Mf6Splitter:
                     np.ravel(mapping),
                 ]
         else:
-            try:
-                (
-                    xverts,
-                    yverts,
-                ) = plotutil.UnstructuredPlotUtilities.irregular_shape_patch(
-                    self._modelgrid.xvertices, self._modelgrid.yvertices
-                )
-            except TypeError:
-                xverts, yverts = None, None
-
             for m in mkeys:
                 cells = np.asarray(array == m).nonzero()[0]
                 mapping = np.zeros((len(cells),), dtype=int)
                 mapping[:] = cells
                 grid_info[m] = [(len(cells),), None, None, mapping]
 
-                # calculate grid offsets
-                if xverts is not None:
-                    mxv = xverts[cells]
-                    myv = yverts[cells]
-                    xmidx = np.asarray(mxv == np.nanmin(mxv)).nonzero()[0]
-                    myv = myv[xmidx]
-                    ymidx = np.asarray(myv == np.nanmin(myv)).nonzero()[0]
-
-                    self._offsets[m] = {
-                        "xorigin": np.nanmin(mxv[xmidx[0]]),
-                        "yorigin": np.nanmin(myv[ymidx][0]),
-                    }
-                else:
-                    self._offsets[m] = {"xorigin": None, "yorigin": None}
+                self._offsets[m] = {
+                    "xorigin": self._modelgrid.xoffset,
+                    "yorigin": self._modelgrid.yoffset,
+                }
 
         new_ncpl = {}
         for m in mkeys:
@@ -1081,7 +1117,7 @@ class Mf6Splitter:
                             exchange_meta[mdl][nnode][cnnode] = [
                                 node,
                                 cnode,
-                                self._connection_ivert[node][ix],
+                                self._modelgrid.get_shared_edge(node, cnode)
                             ]
                         else:
                             exchange_meta[mdl][nnode][cnnode] = [
@@ -1100,7 +1136,7 @@ class Mf6Splitter:
                                 cnnode: [
                                     node,
                                     cnode,
-                                    self._connection_ivert[node][ix],
+                                    self._modelgrid.get_shared_edge(node, cnode)
                                 ]
                             }
                         else:
@@ -1983,8 +2019,27 @@ class Mf6Splitter:
             div_mvr_conn = {}
             sfr_mvr_conn = []
             cellids = packagedata.cellid
-            layers, nodes = self._cellid_to_layer_node(cellids)
 
+            # trap for cells that aren't connected to the GWF model and try to put them
+            #  in the model that makes the most sense
+            messy_val = (-1,)
+            if self._modelgrid.grid_type == "vertex":
+                messy_val += (-1,)
+            elif self._modelgrid.grid_type == "structured":
+                messy_val += (-1, -1)
+            messy_idx = [ix for ix, i in enumerate(cellids) if i in (messy_val, "None", None)]
+            if messy_idx:
+                messy_rch = packagedata.ifno[messy_idx] # store these for later
+                rcids = []
+                for rch in messy_rch:
+                    con = np.abs(connectiondata[connectiondata.ifno == rch].ic_0)[0]
+                    cid = packagedata[packagedata.ifno == con].cellid[0]
+                    # use absolute value in case this is connected to cell(s) that are
+                    # also not connected to the model
+                    rcids.append(tuple(np.abs(cid)))
+                cellids[messy_idx] = rcids
+
+            layers, nodes = self._cellid_to_layer_node(cellids)
             new_model, new_node = self._get_new_model_new_node(nodes)
 
             for mkey, model in self._model_dict.items():
@@ -2000,6 +2055,11 @@ class Mf6Splitter:
                         model, new_node, layers, idx
                     )
                     new_recarray["cellid"] = new_cellids
+                    # here we reset the "messy val", cells not connected to model
+                    if messy_idx:
+                        rp_idx = np.where(np.isin(new_recarray.ifno, messy_rch))[0]
+                        for ix in rp_idx:
+                            new_recarray["cellid"][ix] = messy_val
 
                     new_rno = []
                     old_rno = []
@@ -2724,11 +2784,13 @@ class Mf6Splitter:
                             for ix, i in enumerate(recarray.id)
                             if not isinstance(i, str)
                         ]
-                        layers1, node1 = self._cellid_to_layer_node(
-                            recarray.id[idx]
-                        )
-                        new_node1[idx] = [remapper[i][-1] for i in node1]
-                        new_model1[idx] = [remapper[i][0] for i in node1]
+                        if idx:
+                            layers1, node1 = self._cellid_to_layer_node(
+                                recarray.id[idx]
+                            )
+                            new_node1[idx] = [remapper[i][-1] for i in node1]
+                            new_model1[idx] = [remapper[i][0] for i in node1]
+
                         new_node1[bidx] = [i for i in recarray.id[bidx]]
                         new_model1[bidx] = [
                             remapper[i][0] for i in recarray.id[bidx]
@@ -2750,10 +2812,11 @@ class Mf6Splitter:
                                 for ix in idx
                                 if not isinstance(recarray.id[ix], str)
                             ]
-                            tmp_cellid = self._new_node_to_cellid(
-                                model, new_node1, layers1, idx
-                            )
-                            new_cellid1[idx] = tmp_cellid
+                            if idx:
+                                tmp_cellid = self._new_node_to_cellid(
+                                    model, new_node1, layers1, idx
+                                )
+                                new_cellid1[idx] = tmp_cellid
 
                         new_cellid1[bidx] = new_node1[bidx]
 
@@ -2780,7 +2843,7 @@ class Mf6Splitter:
 
                 cellid2 = recarray.id2
                 conv_idx = np.asarray(cellid2 != None).nonzero()[0]  # noqa: E711
-                if len(conv_idx) > 0:  # do stuff
+                if len(conv_idx) > 0:
                     # need to trap layers...
                     if pkg_type is None:
                         if self._modelgrid.grid_type in (
@@ -3377,20 +3440,6 @@ class Mf6Splitter:
                 elif isinstance(value, mfdatascalar.MFScalar):
                     for mkey in self._model_dict.keys():
                         mapped_data[mkey][item] = value.data
-                elif isinstance(value, modflow.mfutlts.UtltsPackages):
-                    if value._filerecord.array is None:
-                        continue
-                    tspkg = value._packages[0]
-                    for mkey in self._model_dict.keys():
-                        new_fname = tspkg.filename.split(".")
-                        new_fname = f"{'.'.join(new_fname[0:-1])}_{mkey :0{self._fdigits}d}.{new_fname[-1]}"
-                        tsdict = {
-                            "filename": new_fname,
-                            "timeseries": tspkg.timeseries.array,
-                            "time_series_namerecord": tspkg.time_series_namerecord.array["time_series_names"][0],
-                            "interpolation_methodrecord": tspkg.interpolation_methodrecord.array["interpolation_method"][0]
-                        }
-                        mapped_data[mkey]["timeseries"] = tsdict
 
                 else:
                     pass
@@ -3401,7 +3450,9 @@ class Mf6Splitter:
                     if "stress_period_data" in mdict:
                         for _, ra in mdict["stress_period_data"].items():
                             if isinstance(ra, dict):
-                                continue
+                                if "data" not in ra:
+                                    continue
+                                ra = ra["data"]
                             obs_map = self._set_boundname_remaps(
                                 ra, obs_map, list(obs_map.keys()), mkey
                             )
@@ -3414,6 +3465,31 @@ class Mf6Splitter:
                     )
 
         observations = mapped_data.pop("observations", None)
+
+        # trap for timeseries files, in both basic and advanced packages
+        if hasattr(package, "tas"):
+            value = package.tas
+        elif hasattr(package, "ts"):
+            value = package.ts
+        else:
+            value = None
+        if value is not None:
+            if value._filerecord.array is not None:
+                tspkg = value._packages[0]
+                for mkey in self._model_dict.keys():
+                    new_fname = tspkg.filename.split(".")
+                    new_fname = f"{'.'.join(new_fname[0:-1])}_{mkey :0{self._fdigits}d}.{new_fname[-1]}"
+                    tsdict = {
+                        "filename": new_fname,
+                        "timeseries": tspkg.timeseries.array,
+                        "time_series_namerecord": [i for i in
+                                                   tspkg.time_series_namerecord.array[
+                                                       0]],
+                        "interpolation_methodrecord": [i for i in
+                                                       tspkg.interpolation_methodrecord.array[
+                                                           0]]
+                    }
+                    mapped_data[mkey]["timeseries"] = tsdict
 
         if "options" in package.blocks:
             for item, value in package.blocks["options"].datasets.items():
@@ -3441,9 +3517,9 @@ class Mf6Splitter:
         paks = {}
         for mdl, data in mapped_data.items():
             _ = mapped_data.pop("maxbound", None)
-            if mapped_data[mdl]:
-                if "stress_period_data" in mapped_data[mdl]:
-                    if not mapped_data[mdl]["stress_period_data"]:
+            if data:
+                if "stress_period_data" in data:
+                    if not data["stress_period_data"]:
                         continue
                 paks[mdl] = pak_cls(
                     self._model_dict[mdl], pname=package.name[0], **data
@@ -3798,12 +3874,11 @@ class Mf6Splitter:
 
         if self._new_sim is None:
             self._new_sim = modflow.MFSimulation(
-                version=self._sim.version, exe_name=self._sim.exe_name
+                version=self._sim.version, exe_name=self._sim.exe_name, sim_ws=self._sim.sim_path
             )
             self._create_sln_tdis()
 
         nam_options = {mkey: {} for mkey in self._new_ncpl.keys()}
-        # todo: change this to model by model options bc nc_filerecord stuff
         for item, value in self._model.name_file.blocks[
             "options"
         ].datasets.items():
@@ -3817,7 +3892,6 @@ class Mf6Splitter:
                 for mkey in self._new_ncpl.keys():
                     nam_options[mkey][item] = value.array
         self._model_dict = {}
-        # todo: trap the nc_mesh2d_filerecord stuff...
         for mkey in self._new_ncpl.keys():
             mdl_cls = PackageContainer.model_factory(self._model_type)
             self._model_dict[mkey] = mdl_cls(

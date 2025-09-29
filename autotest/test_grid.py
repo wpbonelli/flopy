@@ -451,7 +451,7 @@ def test_structured_from_gridspec(example_data_path, spc_file):
 
     nvert = modelgrid.nvert
     iverts = modelgrid.iverts
-    maxvertex = max([max(sublist[1:]) for sublist in iverts])
+    maxvertex = max(max(sublist[1:]) for sublist in iverts)
     assert maxvertex + 1 == nvert, f"nvert ({maxvertex + 1}) does not equal {nvert}"
     verts = modelgrid.verts
     assert nvert == verts.shape[0], (
@@ -554,8 +554,8 @@ def unstructured_from_gridspec_driver(example_data_path, gsf_file):
             assert any(ycc == en[2] for ycc in grid.ycellcenters)
 
         # check elevation
-        assert max(grid.top) == max([xyz[2] for xyz in expected_verts])
-        assert min(grid.botm) == min([xyz[2] for xyz in expected_verts])
+        assert max(grid.top) == max(xyz[2] for xyz in expected_verts)
+        assert min(grid.botm) == min(xyz[2] for xyz in expected_verts)
 
 
 def test_unstructured_from_gridspec(example_data_path):
@@ -926,6 +926,91 @@ def test_tocvfd3():
 
 
 @requires_pkg("shapely")
+def test_tocvfd4():
+    vertdict = {
+        0: [
+            (5950816.752319336, 18880170.417907715),
+            (5954210.671081543, 18884215.132507324),
+            (5958255.385681152, 18880821.213684082),
+            (5954861.467102051, 18876776.499084473),
+            (5950816.752319336, 18880170.417907715),
+        ],
+        1: [
+            (5954210.671081543, 18884215.132507324),
+            (5957604.58972168, 18888259.846923828),
+            (5961649.304077148, 18884865.928527832),
+            (5958255.385681152, 18880821.213684082),
+            (5954210.671081543, 18884215.132507324),
+        ],
+        2: [
+            (5957604.58972168, 18888259.846923828),
+            (5960998.508300781, 18892304.561523438),
+            (5965043.222900391, 18888910.64312744),
+            (5961649.304077148, 18884865.928527832),
+            (5957604.58972168, 18888259.846923828),
+        ],
+        3: [
+            (5954861.467102051, 18876776.499084473),
+            (5958255.385681152, 18880821.213684082),
+            (5962300.100280762, 18877427.29510498),
+            (5958906.18170166, 18873382.580322266),
+            (5954861.467102051, 18876776.499084473),
+        ],
+        4: [
+            (5958255.385681152, 18880821.213684082),
+            (5961649.304077148, 18884865.928527832),
+            (5965694.018920898, 18881472.00970459),
+            (5962300.100280762, 18877427.29510498),
+            (5958255.385681152, 18880821.213684082),
+        ],
+        5: [
+            (5961649.304077148, 18884865.928527832),
+            (5963346.263671875, 18886888.285705566),
+            (5965368.6209106445, 18885191.32647705),
+            (5963671.661682129, 18883168.96887207),
+            (5961649.304077148, 18884865.928527832),
+        ],
+        6: [
+            (5963671.661682129, 18883168.96887207),
+            (5965368.6209106445, 18885191.32647705),
+            (5967390.978271484, 18883494.366882324),
+            (5965694.018920898, 18881472.00970459),
+            (5963671.661682129, 18883168.96887207),
+        ],
+        7: [
+            (5958906.18170166, 18873382.580322266),
+            (5962300.100280762, 18877427.29510498),
+            (5966344.814697266, 18874033.376708984),
+            (5962950.8963012695, 18869988.66192627),
+            (5958906.18170166, 18873382.580322266),
+        ],
+        8: [
+            (5962300.100280762, 18877427.29510498),
+            (5963997.059692383, 18879449.652526855),
+            (5966019.416687012, 18877752.692871094),
+            (5964322.457519531, 18875730.335876465),
+            (5962300.100280762, 18877427.29510498),
+        ],
+        9: [
+            (5963997.059692383, 18879449.652526855),
+            (5965694.018920898, 18881472.00970459),
+            (5967716.376281738, 18879775.050476074),
+            (5966019.416687012, 18877752.692871094),
+            (5963997.059692383, 18879449.652526855),
+        ],
+        10: [
+            (5965694.018920898, 18881472.00970459),
+            (5967390.978271484, 18883494.366882324),
+            (5969413.335510254, 18881797.407714844),
+            (5967716.376281738, 18879775.050476074),
+            (5965694.018920898, 18881472.00970459),
+        ],
+    }
+    verts, iverts = to_cvfd(vertdict)
+    assert iverts[4] == [2, 5, 13, 10, 17, 8, 2]
+
+
+@requires_pkg("shapely")
 def test_area_centroid_polygon():
     pts = [
         (685053.450097303, 6295544.549730939),
@@ -1110,23 +1195,29 @@ def test_voronoi_vertex_grid(function_tmpdir):
 @requires_exe("triangle")
 @requires_pkg("shapely", "scipy")
 @pytest.mark.parametrize(
-    "grid_info",
-    (
-        [
-            GridCases.voronoi_polygon(),
-            GridCases.voronoi_rectangle(),
-            GridCases.voronoi_circle(),
-            GridCases.voronoi_nested_circles(),
-            GridCases.voronoi_polygons(),
-            GridCases.voronoi_many_polygons(),
-        ]
-        if (has_pkg("shapely", True) and has_pkg("scipy", True))
-        else []
-    ),
+    "grid_case",
+    [
+        GridCases.voronoi_polygon,
+        GridCases.voronoi_rectangle,
+        GridCases.voronoi_circle,
+        GridCases.voronoi_nested_circles,
+        GridCases.voronoi_polygons,
+        GridCases.voronoi_many_polygons,
+    ]
+    if (has_pkg("shapely", True) and has_pkg("scipy", True))
+    else [],
+    ids=[
+        "voronoi_polygon",
+        "voronoi_rectangle",
+        "voronoi_circle",
+        "voronoi_nested_circles",
+        "voronoi_polygons",
+        "voronoi_many_polygons",
+    ],
 )
-def test_voronoi_grid(request, function_tmpdir, grid_info):
+def test_voronoi_grid(request, function_tmpdir, grid_case):
     name = request.node.name.replace("/", "_").replace("\\", "_").replace(":", "_")
-    ncpl, vor, gridprops, grid = grid_info
+    ncpl, vor, gridprops, grid = grid_case()
 
     # TODO: debug off-by-3 issue
     #  could be a rounding error as described here:

@@ -18,7 +18,7 @@ from ..mfbase import ExtFileAction, MFDataException, VerbosityLevel
 from ..utils.mfenums import DiscretizationType
 from .mfdatalist import MFList
 from .mfdatastorage import DataStorageType, DataStructureType
-from .mfdatautil import list_to_array, process_open_close_line
+from .mfdatautil import MFComment, list_to_array, process_open_close_line
 from .mffileaccess import MFFileAccessList
 from .mfstructure import DatumType, MFDataStructure
 
@@ -43,6 +43,8 @@ class PandasListStorage:
         whether the data is stored in a binary file
     modified : bool
         whether data in storage has been modified since last write
+    pre_data_comments : string
+        any comments before the start of the data
 
     Methods
     -------
@@ -67,6 +69,7 @@ class PandasListStorage:
         self.binary = False
         self.data_storage_type = None
         self.modified = False
+        self.pre_data_comments = None
 
     def __repr__(self):
         return self.get_data_str(True)
@@ -494,7 +497,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 data_item.type == DatumType.integer
                 and data_item.name.lower() == "cellid"
             ):
-                if isinstance(pdata.iloc[0, data_idx], tuple):
+                if isinstance(pdata.iloc[0, data_idx], (list, tuple)):
                     fields_to_correct.append((data_idx, columns[data_idx]))
                     data_idx += 1
                 else:
@@ -1209,6 +1212,26 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         data_frame = None
         return_val = [False, None]
 
+        # read pre data comments
+        pos = fd_data_file.tell()
+        datautil.PyListUtil.reset_delimiter_used()
+        line_num = 0
+        pre_data_comments = None
+        line = fd_data_file.readline()
+        while MFComment.is_comment(line, True) and line != "":
+            if pre_data_comments is not None:
+                pre_data_comments.add_text("\n")
+                pre_data_comments.add_text(" ".join(line))
+            else:
+                pre_data_comments = MFComment(
+                    line, self._path, self._simulation_data, line_num
+                )
+
+            line = fd_data_file.readline()
+            line = datautil.PyListUtil.split_data_line(line)
+            line_num += 1
+        fd_data_file.seek(pos)
+
         # build header
         self._build_data_header()
         file_data, next_line = self._file_data_to_memory(
@@ -1254,7 +1277,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 return_val = [True, fd_data_file.readline()]
             else:
                 data_frame = None
-        return data_frame, return_val
+        return data_frame, return_val, pre_data_comments
 
     def _save_binary_data(self, fd_data_file, data):
         # write
@@ -1318,9 +1341,10 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             self._decrement_id_fields(pd_data)
         else:
             with open(file_path, "r") as fd_data_file:
-                pd_data, return_val = self._read_text_data(
+                pd_data, return_val, comments = self._read_text_data(
                     fd_data_file, "", True
                 )
+                data_storage.pre_data_comments = comments
         return pd_data
 
     def load(
@@ -1362,12 +1386,12 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         data_storage.modified = False
         # parse first line to determine if this is internal or external data
         datautil.PyListUtil.reset_delimiter_used()
-        arr_line = datautil.PyListUtil.split_data_line(first_line)
-        if arr_line and (
-            len(arr_line[0]) >= 2 and arr_line[0][:3].upper() == "END"
+        line = datautil.PyListUtil.split_data_line(first_line)
+        if line and (
+            len(line[0]) >= 2 and line[0][:3].upper() == "END"
         ):
-            return [False, arr_line]
-        if len(arr_line) >= 2 and arr_line[0].upper() == "OPEN/CLOSE":
+            return [False, line]
+        if len(line) >= 2 and line[0].upper() == "OPEN/CLOSE":
             try:
                 (
                     data,
@@ -1375,11 +1399,11 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                     iprn,
                     binary,
                     data_file,
-                ) = self._process_open_close_line(arr_line)
+                ) = self._process_open_close_line(line)
             except Exception as ex:
                 message = (
                     "An error occurred while processing the following "
-                    "open/close line: {}".format(arr_line)
+                    "open/close line: {}".format(line)
                 )
                 type_, value_, traceback_ = sys.exc_info()
                 raise MFDataException(
@@ -1403,9 +1427,10 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         # else internal
         else:
             # read data into pandas dataframe
-            pd_data, return_val = self._read_text_data(
+            pd_data, return_val, comments = self._read_text_data(
                 file_handle, first_line, False
             )
+            data_storage.pre_data_comments = comments
             # verify this is the end of the block?
 
             # store internal data
@@ -1748,6 +1773,17 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             fd_main.write(f"{indent}{indent}{ext_string}")
         if data_storage is None or data_storage.internal_data is None:
             return ""
+
+        # Write out pre-data comments (including headers) like MFList does
+        mode = "w"
+        if fd_data_file is not None and data_storage.pre_data_comments:
+            if hasattr(fd_data_file, "write"):
+                fd_data_file.write(data_storage.pre_data_comments.get_file_entry())
+            else:
+                mode = "a"
+                with open(fd_data_file, "w") as f:
+                    f.write(data_storage.pre_data_comments.get_file_entry())
+
         # Loop through data pieces
         data = self._remove_cellid_fields(data_storage.internal_data)
         if (
@@ -1796,6 +1832,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                         sep=" ",
                         header=False,
                         index=False,
+                        mode=mode,
                         float_format=float_format,
                         lineterminator="\n",
                     )
