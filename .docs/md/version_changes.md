@@ -1,4 +1,56 @@
 # Changelog
+### Version 3.9.4
+
+#### New features
+
+* [feat(utils)](https://github.com/modflowpy/flopy/commit/caa610038528dc533601f5a628373e7a9c22b363): Add normalization option for to_cvfd to add hanging nodes (#2547). Committed by Joseph Hughes on 2025-07-24.
+* [feat(hfb)](https://github.com/modflowpy/flopy/commit/8041ec0a0f0317dfabbd171ce8bf1ff75951fdfd): Open/close support for HFB package (#2569). Committed by Joseph Hughes on 2025-08-05.
+* [feat(CellBudgetFile)](https://github.com/modflowpy/flopy/commit/b1c8c7a9b7e68cf7869a7ab5fed86e2102d4d6be): Support aux vars in get_ts() method (#2568). Committed by wpbonelli on 2025-09-17.
+* [feat(gridgen)](https://github.com/modflowpy/flopy/commit/01e7eb9d545e6d572ccb15ebb23ae5f61afb1193): Add get_anglex method, include mfusg transport notebooks in docs and tests (#2617). Committed by Martin Vonk on 2025-09-29.
+
+#### Bug fixes
+
+* [fix(MfUsgWel)](https://github.com/modflowpy/flopy/commit/ed3ec1ec49fd8515f5b07f179e898932eebd1db5): Fix well package loading (#2515). Committed by Chris Nicol on 2025-05-19.
+* [fix(mflist_export)](https://github.com/modflowpy/flopy/commit/a7b71474aa5ab58ba069c98c28c30183eb6b1d0a): Patch mf6 list data export (#2532). Committed by wpbonelli on 2025-06-13.
+* [fix](https://github.com/modflowpy/flopy/commit/d4408e986173d283ac514c662a0c52912694d6ea): Throw error on invalid crs type (#2533). Committed by Emmanuel Ferdman on 2025-06-14.
+* [fix(rasters)](https://github.com/modflowpy/flopy/commit/71bcff5de4747e4a945d2a58c80145b66e6bf341): Let rasterio raise error on invalid CRS (#2535). Committed by wpbonelli on 2025-06-16.
+* [fix(Mf6Splitter)](https://github.com/modflowpy/flopy/commit/a9735806527282417e3d77d2d3ec053a0a9402cf): Multiple bug fixes (#2541). Committed by Joshua Larsen on 2025-07-09.
+* [fix](https://github.com/modflowpy/flopy/commit/cd4fa97296b4065d04cc9eeb129921a7af99172d): Avoid error in gage load, skip comments in GMG files (#2544). Committed by whcollab-proj on 2025-07-14.
+* [fix(flopy_io)](https://github.com/modflowpy/flopy/commit/21dd1c19c2937a12a2926290f9425f9bbfcaaaf5): Strip filename quotes in OPEN/CLOSE statements (#2545). Committed by whcollab-proj on 2025-07-15.
+* [fix(codegen)](https://github.com/modflowpy/flopy/commit/3dd7dd970e2cae7139498b6d058cabd63d2bb67b): Accommodate toml dfn file rename in devtools (#2546). Committed by wpbonelli on 2025-07-16.
+* [fix(get-modflow)](https://github.com/modflowpy/flopy/commit/33e2ce0a220c7157d5ef1d5484902dddeaca68a5): Allow run_main bindir to be a path (#2560). Committed by Martin Vonk on 2025-07-28.
+* [fix(usg datafile)](https://github.com/modflowpy/flopy/commit/83e771e1813ce9fdd042d6e6e2fe2d25da085f86): Fix unstructured datafile extraction by layer (#2561). Committed by Chris Nicol on 2025-07-31.
+* [fix(resample_to_grid)](https://github.com/modflowpy/flopy/commit/bc849c67ec943fb436872f12b6293f0471ca82a9): Use rescale=True for scipy.interpolate.griddata (#2565). Committed by wpbonelli on 2025-08-05.
+* [fix(mflist_export)](https://github.com/modflowpy/flopy/commit/520a7abe6bb33ceba99db0608cbb6c7d9bf61f13): Fix sparse spd export on disv and disu grids (#2566). Committed by wpbonelli on 2025-08-07.
+* [fix(examples)](https://github.com/modflowpy/flopy/commit/90601467a98ff620b3282957f721bf4277e02af0): Fix modflow boundaries example name (#2579). Committed by wpbonelli on 2025-08-13.
+* [fix(mf6)](https://github.com/modflowpy/flopy/commit/b4a28c566916dc447634a197174987eb3b729a6c): Accept stress period data cellid as nested list (#2584). Committed by wpbonelli on 2025-08-27.
+* [fix(MfUsgCln)](https://github.com/modflowpy/flopy/commit/a49a7a7484586d10f1e2dbde5cad744554740de7): Issue with default unitnumber; improve docstrings (#2595). Committed by Mike Taves on 2025-09-11.
+* [fix(notebooks)](https://github.com/modflowpy/flopy/commit/d452b783f47cb7f471588e574a79ecf5d682f41d): Fix tutorial notebook sections (#2598). Committed by wpbonelli on 2025-09-15.
+* [fix(mtuzt)](https://github.com/modflowpy/flopy/commit/2c9748aa830d39a50c4d0108ea6ca59dac1ea460): Set attributes None if not provided (#2607). Committed by wpbonelli on 2025-09-25.
+* [fix(mfupw)](https://github.com/modflowpy/flopy/commit/3ccb2902389f93056498abec4bc1cc15fb428e40): Fix chani condition (should be <= 0) (#2606). Committed by wpbonelli on 2025-09-26.
+* [fix(codegen)](https://github.com/modflowpy/flopy/commit/b15fa87740d003255ec4de6ef593048284f7a868): Fix recarray variable docstring rendering (#2614). Committed by wpbonelli on 2025-09-28.
+* [fix(mfdataplist)](https://github.com/modflowpy/flopy/commit/3f10ce5616d5ba7592145fc6a9a492417ffc3b07): Preserve headers in external files (#2609). Committed by wpbonelli on 2025-09-29.
+* [fix(mfdataplist)](https://github.com/modflowpy/flopy/commit/dc3677a52ffcf7a9a1b7814ebb1c89a12f2eb412): Close file handle (#2615). Committed by wpbonelli on 2025-09-29.
+* [fix(get_transmissivities)](https://github.com/modflowpy/flopy/commit/acf575bd86e4778181f7e328e5149393eb4dfb55): Support mf6 models (#2611). Committed by wpbonelli on 2025-09-29.
+
+#### Refactoring
+
+* [refactor(intersect)](https://github.com/modflowpy/flopy/commit/e626aca786d197f2cb5a59a91042584548c22b83): Refactor "forgrive" parameter to "forgive" (#2516). Committed by Joshua Larsen on 2025-05-23.
+* [refactor(codegen)](https://github.com/modflowpy/flopy/commit/4c572f99397c24ead986b60a7bba052455d71cb7): Miscellaneous cleanup, amend tests (#2519). Committed by wpbonelli on 2025-05-27.
+* [refactor(codegen)](https://github.com/modflowpy/flopy/commit/e949a521205013a19778042a85b73e99f2a74c09): Better workaround for legacy dfn format requirement (#2520). Committed by wpbonelli on 2025-05-28.
+* [refactor(mf6/codegen)](https://github.com/modflowpy/flopy/commit/ac733b8c0484ea12722e6dd1f3cebfffb94a7471): Remove definition files from version control (#2521). Committed by wpbonelli on 2025-05-28.
+* [refactor(mf6)](https://github.com/modflowpy/flopy/commit/23959e2a7539304bc440becdcbd786a01e561706): Remove createpackages.py (#2526). Committed by wpbonelli on 2025-06-09.
+* [refactor(codegen)](https://github.com/modflowpy/flopy/commit/38ab40302801e1dc3bad9b940cb53c0336d9afa6): Import dfn utils from devtools (#2538). Committed by wpbonelli on 2025-06-24.
+* [refactor(modeltime)](https://github.com/modflowpy/flopy/commit/08fac5aea3abfc9ccea123a1359b123c62e724ae): Use dataclass, add type hints (#2528). Committed by wpbonelli on 2025-07-14.
+* [refactor(GeoSpatialCollection)](https://github.com/modflowpy/flopy/commit/880a0288f508739ad1b2f175f352332141bcc06d): Add standard __geo_interface__ method (#2550). Committed by Joshua Larsen on 2025-08-05.
+* [refactor(whitespace)](https://github.com/modflowpy/flopy/commit/05c5745234fac29931ca238cdc4ceae4f62a0ebd): Use CR EOLs, trailing whitespace (#2585). Committed by Mike Taves on 2025-09-03.
+* [refactor](https://github.com/modflowpy/flopy/commit/291fa8ea75ae0ece1da35abc2f3e2daf1f1ab85a): Apply a few pylint rules (via ruff) (#2587). Committed by Mike Taves on 2025-09-04.
+* [refactor](https://github.com/modflowpy/flopy/commit/d25a85118f30095fa1638ba32246ba36e965e19d): Use PathLike and curdir concisely and consistently (#2589). Committed by Mike Taves on 2025-09-05.
+* [refactor(codegen)](https://github.com/modflowpy/flopy/commit/3dc89579d6c48195fa9ba5c0bcd554cf90a16574): Mf6 classes and codegen templates (#2593). Committed by Mike Taves on 2025-09-09.
+* [refactor](https://github.com/modflowpy/flopy/commit/81195f809d4f1d0876d1c0ab39ac2e2005acbdd9): Various adjustments for ruff check preview rules (#2597). Committed by Mike Taves on 2025-09-12.
+* [refactor(codegen)](https://github.com/modflowpy/flopy/commit/376ecbff85a7d36e36291bb7c0335742165a83ed): Skip prerelease variables, adjust default verbosity (#2604). Committed by wpbonelli on 2025-09-20.
+* [refactor(optimize_splitting_mask)](https://github.com/modflowpy/flopy/commit/952983d478a84e87b454b56a6e6ab68775482800): Add `active_only` flag (#2600). Committed by Joshua Larsen on 2025-09-26.
+
 ### Version 3.9.3
 
 #### New features
