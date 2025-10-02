@@ -1,4 +1,10 @@
 # Changelog
+### Version 3.9.5
+
+#### Bug fixes
+
+* [fix(mf6)](https://github.com/modflowpy/flopy/commit/74741e4a792c0885945097a1fb80db4ec456efbe): Filter prerelease variables out of mf6 module (#2622). Committed by wpbonelli on 2025-10-01.
+
 ### Version 3.9.4
 
 #### New features
