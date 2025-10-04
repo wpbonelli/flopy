@@ -933,12 +933,11 @@ class MFModel(ModelInterface):
         instance.name_file.load(strict)
 
         # order packages
-        vnum = mfstructure.MFStructure().get_version_string()
         # FIX: Transport - Priority packages maybe should not be hard coded
         priority_packages = {
-            f"dis{vnum}": 1,
-            f"disv{vnum}": 1,
-            f"disu{vnum}": 1,
+            f"dis6": 1,
+            f"disv6": 1,
+            f"disu6": 1,
         }
         packages_ordered = []
         package_recarray = instance.simulation_data.mfdata[
@@ -1350,44 +1349,32 @@ class MFModel(ModelInterface):
         package_recarray = self.name_file.packages
         structure = mfstructure.MFStructure()
         if (
-            package_recarray.search_data(
-                f"dis{structure.get_version_string()}", 0
-            )
+            package_recarray.search_data(f"dis6", 0)
             is not None
         ):
             return DiscretizationType.DIS
         elif (
-            package_recarray.search_data(
-                f"disv{structure.get_version_string()}", 0
-            )
+            package_recarray.search_data(f"disv6", 0)
             is not None
         ):
             return DiscretizationType.DISV
         elif (
-            package_recarray.search_data(
-                f"disu{structure.get_version_string()}", 0
-            )
+            package_recarray.search_data(f"disu6", 0)
             is not None
         ):
             return DiscretizationType.DISU
         elif (
-            package_recarray.search_data(
-                f"disv1d{structure.get_version_string()}", 0
-            )
+            package_recarray.search_data(f"disv1d6", 0)
             is not None
         ):
             return DiscretizationType.DISV1D
         elif (
-            package_recarray.search_data(
-                f"dis2d{structure.get_version_string()}", 0
-            )
+            package_recarray.search_data(f"dis2d6", 0)
             is not None
         ):
             return DiscretizationType.DIS2D
         elif (
-            package_recarray.search_data(
-                f"disv2d{structure.get_version_string()}", 0
-            )
+            package_recarray.search_data(f"disv2d6", 0)
             is not None
         ):
             return DiscretizationType.DISV2D

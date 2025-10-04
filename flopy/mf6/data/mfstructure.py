@@ -2023,7 +2023,7 @@ class MFSimulationStructure:
             or dfn_file.dfn_type == DfnType.mvr_file
             or dfn_file.dfn_type == DfnType.mvt_file
         ):
-            model_ver = f"{dfn_file.model_type}{MFStructure().get_version_string()}"
+            model_ver = f"{dfn_file.model_type}6"
             if model_ver not in self.model_struct_objs:
                 self.add_model(model_ver)
             if dfn_file.dfn_type == DfnType.model_file:
@@ -2137,8 +2137,6 @@ class MFStructure:
 
     Parameters
     ----------
-    mf_version : int
-        version of MODFLOW
     valid : bool
         whether the structure information loaded from the dfn files is valid
     sim_struct : MFSimulationStructure
@@ -2155,7 +2153,6 @@ class MFStructure:
             cls._instance = super().__new__(cls)
 
             # Initialize variables
-            cls._instance.mf_version = 6
             cls._instance.sim_struct = None
             cls._instance.dimension_dict = {}
             cls._instance.flopy_dict = {}
@@ -2164,9 +2161,6 @@ class MFStructure:
             cls._instance.valid = cls._instance._load_structure()
 
         return cls._instance
-
-    def get_version_string(self):
-        return format(str(self.mf_version))
 
     def _load_structure(self):
         # set up structure classes
