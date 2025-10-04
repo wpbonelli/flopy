@@ -858,7 +858,7 @@ class MFSimulationBase:
         instance.name_file.load(strict)
 
         # load TDIS file
-        tdis_pkg = f"tdis{mfstructure.MFStructure().get_version_string()}"
+        tdis_pkg = f"tdis6"
         tdis_attr = getattr(instance.name_file, tdis_pkg)
         instance._tdis_file = mftdis.ModflowTdis(
             instance, filename=tdis_attr.get_data()
@@ -1402,8 +1402,7 @@ class MFSimulationBase:
 
                 # associate any models in the model list to this
                 # simulation file
-                version_string = mfstructure.MFStructure().get_version_string()
-                solution_pkg = f"{solution_file.package_abbr}{version_string}"
+                solution_pkg = f"{solution_file.package_abbr}6"
                 new_record = [solution_pkg, solution_file.filename]
                 for model in model_list:
                     new_record.append(model)
@@ -1509,8 +1508,7 @@ class MFSimulationBase:
                     return
 
     def _set_timing_block(self, file_name):
-        struct_root = mfstructure.MFStructure()
-        tdis_pkg = f"tdis{struct_root.get_version_string()}"
+        tdis_pkg = f"tdis6"
         tdis_attr = getattr(self.name_file, tdis_pkg)
         try:
             tdis_attr.set_data(file_name)
