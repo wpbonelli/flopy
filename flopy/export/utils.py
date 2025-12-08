@@ -1607,12 +1607,13 @@ def export_array(
             filename, modelgrid, array_dict={fieldname: a}, nan_val=nodata, crs=crs
         )
 
-
+# todo: add crs support to this....
 def export_contours(
     filename: Union[str, PathLike],
     contours,
     fieldname="level",
     verbose=False,
+    crs=None,
     **kwargs,
 ):
     """
@@ -1628,7 +1629,13 @@ def export_contours(
         gis attribute table field name
     verbose : bool, optional, default False
         whether to show verbose output
-    **kwargs : key-word arguments to flopy.export.shapefile_utils.recarray2shp
+    crs : pyproj.CRS, int, str, optional if `prjfile` is specified
+        Coordinate reference system (CRS) for the model grid
+        (must be projected; geographic CRS are not supported).
+        The value can be anything accepted by
+        :meth:`pyproj.CRS.from_user_input() <pyproj.crs.CRS.from_user_input>`,
+        such as an authority string (eg "EPSG:26916") or a WKT string.
+    **kwargs :
 
     Returns
     -------
@@ -1640,7 +1647,8 @@ def export_contours(
     from matplotlib.path import Path
 
     from ..utils.geometry import LineString
-    from .shapefile_utils import recarray2shp
+    from ..utils.utl_import import import_optional_dependency
+    gpd = import_optional_dependency("geopandas")
 
     if not isinstance(contours, list):
         contours = [contours]
@@ -1702,12 +1710,15 @@ def export_contours(
     if verbose:
         print(f"Writing {len(level)} contour lines")
 
-    ra = np.array(level, dtype=[(fieldname, float)]).view(np.recarray)
+    gdf = gpd.GeoDataFrame.from_features(geoms)
+    gdf[fieldname] = level
+    if crs is not None:
+        gdf = gdf.set_crs(crs)
+    gdf.to_file(filename)
+    return gdf
 
-    recarray2shp(ra, geoms, filename, **kwargs)
 
-
-def export_contourf(filename, contours, fieldname="level", verbose=False, **kwargs):
+def export_contourf(filename, contours, fieldname="level", verbose=False, crs=None, **kwargs):
     """
     Write matplotlib filled contours to shapefile.
 
@@ -1723,11 +1734,17 @@ def export_contourf(filename, contours, fieldname="level", verbose=False, **kwar
         the range represented by the polygon.  Default is 'level'.
     verbose : bool, optional, default False
         whether to show verbose output
+    crs : pyproj.CRS, int, str, optional if `prjfile` is specified
+        Coordinate reference system (CRS) for the model grid
+        (must be projected; geographic CRS are not supported).
+        The value can be anything accepted by
+        :meth:`pyproj.CRS.from_user_input() <pyproj.crs.CRS.from_user_input>`,
+        such as an authority string (eg "EPSG:26916") or a WKT string.
     **kwargs : keyword arguments to flopy.export.shapefile_utils.recarray2shp
 
     Returns
     -------
-    None
+    gdf : GeoDataFrame of matplotlib contours
 
     Examples
     --------
@@ -1744,7 +1761,8 @@ def export_contourf(filename, contours, fieldname="level", verbose=False, **kwar
     from matplotlib.path import Path
 
     from ..utils.geometry import Polygon, is_clockwise
-    from .shapefile_utils import recarray2shp
+    from ..utils.utl_import import import_optional_dependency
+    gpd = import_optional_dependency("geopandas")
 
     if not isinstance(contours, list):
         contours = [contours]
@@ -1829,9 +1847,12 @@ def export_contourf(filename, contours, fieldname="level", verbose=False, **kwar
     if verbose:
         print(f"Writing {len(level)} polygons")
 
-    ra = np.array(level, dtype=[(fieldname, float)]).view(np.recarray)
-
-    recarray2shp(ra, geoms, filename, **kwargs)
+    gdf = gpd.GeoDataFrame.from_features(geoms)
+    gdf[fieldname] = level
+    if crs is not None:
+        gdf = gdf.set_crs(crs)
+    gdf.to_file(filename)
+    return gdf
 
 
 def export_array_contours(
@@ -1842,6 +1863,7 @@ def export_array_contours(
     interval=None,
     levels=None,
     maxlevels=1000,
+    crs=None,
     **kwargs,
 ):
     """
@@ -1863,7 +1885,13 @@ def export_array_contours(
         list of contour levels
     maxlevels : int
         maximum number of contour levels
-    **kwargs : keyword arguments to flopy.export.shapefile_utils.recarray2shp
+    crs : pyproj.CRS, int, str, optional if `prjfile` is specified
+        Coordinate reference system (CRS) for the model grid
+        (must be projected; geographic CRS are not supported).
+        The value can be anything accepted by
+        :meth:`pyproj.CRS.from_user_input() <pyproj.crs.CRS.from_user_input>`,
+        such as an authority string (eg "EPSG:26916") or a WKT string.
+    **kwargs :
 
     """
     import matplotlib.pyplot as plt
@@ -1880,7 +1908,7 @@ def export_array_contours(
     ctr = contour_array(modelgrid, ax, a, layer, levels=levels)
 
     kwargs["mg"] = modelgrid
-    export_contours(filename, ctr, fieldname, **kwargs)
+    export_contours(filename, ctr, fieldname, crs=crs, **kwargs)
     plt.close()
 
 
