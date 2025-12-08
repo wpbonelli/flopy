@@ -674,6 +674,54 @@ class Package(PackageInterface):
 
         return export.utils.package_export(f, self, **kwargs)
 
+    def to_geodataframe(self, gdf=None, kper=0, sparse=False, **kwargs):
+        """
+        Method to create a GeoDataFrame from a modflow package
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional geopandas geodataframe object to add data to. Default is None
+        kper : int
+            stress period to get transient data from
+
+        Returns
+        -------
+            gdf : GeoDataFrame
+        """
+        from .mbase import BaseModel
+
+        if gdf is None:
+            if isinstance(self.parent, BaseModel):
+                modelgrid = self.parent.modelgrid
+                if modelgrid is not None:
+                    gdf = modelgrid.to_geodataframe()
+                else:
+                    raise AttributeError(
+                        "model does not have a grid instance, "
+                        "please supply a geodataframe"
+                    )
+            else:
+                raise AssertionError(
+                    "Package does not have a model instance, "
+                    "please supply a geodataframe"
+                )
+
+        for attr, value in self.__dict__.items():
+            if callable(getattr(value, "to_geodataframe", None)):
+                if isinstance(value, (BaseModel, PackageInterface)):
+                    continue
+                # do not pass sparse in here, make sparse after all data has been
+                #  added to geodataframe
+                gdf = value.to_geodataframe(gdf, forgive=True, kper=kper, sparse=False)
+
+        if sparse:
+            col_names = [i for i in gdf if i not in ("geometry", "node", "row", "col")]
+            gdf = gdf.dropna(subset=col_names, how="all")
+            gdf = gdf.dropna(axis="columns", how="all")
+
+        return gdf
+
     def _generate_heading(self):
         """Generate heading."""
         from . import __version__

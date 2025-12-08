@@ -453,7 +453,7 @@ class GeoSpatialCollection:
         return self._shapely
 
     @property
-    def geo_dataframe(self):
+    def geodataframe(self):
         """
         Property that returns a geopandas DataFrame
 

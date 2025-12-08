@@ -759,6 +759,20 @@ class StructuredGrid(Grid):
 
         return self._polygons
 
+    def to_geodataframe(self):
+        """
+        Returns a geopandas GeoDataFrame of the model grid
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        polys = [[list(zip(*i))] for i in zip(*self.cross_section_vertices)]
+        gdf = super().to_geodataframe(polys)
+        gdf["row"] = sorted(list(range(1, self.nrow + 1)) * self.ncol)
+        gdf["col"] = list(range(1, self.ncol + 1)) * self.nrow
+        return gdf
+
     @property
     def geo_dataframe(self):
         """
@@ -768,11 +782,12 @@ class StructuredGrid(Grid):
         -------
             GeoDataFrame
         """
-        polys = [[list(zip(*i))] for i in zip(*self.cross_section_vertices)]
-        gdf = super().geo_dataframe(polys)
-        gdf["row"] = sorted(list(range(1, self.nrow + 1)) * self.ncol)
-        gdf["col"] = list(range(1, self.ncol + 1)) * self.nrow
-        return gdf
+        import warnings
+        warnings.warn(
+            "geo_dataframe has been deprecated, use to_geodataframe() instead",
+            DeprecationWarning
+        )
+        return self.to_geodataframe()
 
     def convert_grid(self, factor):
         """

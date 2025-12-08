@@ -634,6 +634,45 @@ class Util3d(DataInterface):
     def plottable(self):
         return True
 
+    def to_geodataframe(self, gdf=None, forgive=False, name=None, **kwargs):
+        """
+        Method to add data to a GeoDataFrame for exporting as a geospatial file
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional GeoDataFrame instance. If GeoDataFrame is None, one will be
+            constructed from modelgrid information
+        forgive : bool
+            optional flag to continue running and pass data that is not compatible
+            with the geodataframe shape
+        name : str
+            optional array name base. If None, method uses the .name attribute
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        if self.model is None:
+            return gdf
+        else:
+            modelgrid = self.model.modelgrid
+            if modelgrid is None:
+                return gdf
+
+            if gdf is None:
+                gdf = modelgrid.to_geodataframe()
+
+            if name is not None:
+                names = [name for _ in range(len(self.util_2ds))]
+            else:
+                names = self.name
+            for lay, u2d in enumerate(self.util_2ds):
+                name = f"{names[lay]}_{lay}"
+                gdf = u2d.to_geodataframe(gdf=gdf, name=name, forgive=forgive)
+
+            return gdf
+
     def export(self, f, **kwargs):
         from .. import export
 
@@ -1059,6 +1098,31 @@ class Transient3d(DataInterface):
     def plottable(self):
         return False
 
+    def to_geodataframe(self, gdf=None, kper=0, forgive=False, **kwargs):
+        """
+        Method to add data to a GeoDataFrame for exporting as a geospatial file
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional GeoDataFrame instance. If GeoDataFrame is None, one will be
+            constructed from modelgrid information
+        kper : int
+            stress period to export
+        forgive : bool
+            boolean flag for sparse dataframe construction. Default is False
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        u3d = self.transient_3ds[kper]
+        # note: may need to provide a pass through name for u3d to avoid s.p.
+        # number being tacked on. Test this on a model with the LAK package...
+        name = self.name_base[:-1].lower()
+        gdf = u3d.to_geodataframe(gdf=gdf, forgive=forgive, name=name, **kwargs)
+        return gdf
+
     def get_zero_3d(self, kper):
         name = f"{self.name_base}{kper + 1}(filled zero)"
         return Util3d(
@@ -1398,6 +1462,29 @@ class Transient2d(DataInterface):
             dtype=m4d.dtype.type,
             name=name,
         )
+
+    def to_geodataframe(self, gdf=None, kper=0, forgive=False, **kwargs):
+        """
+        Method to add data to a GeoDataFrame for exporting as a geospatial file
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional GeoDataFrame instance. If GeoDataFrame is None, one will be
+            constructed from modelgrid information
+        kper : int
+            stress period to export
+        forgive : bool
+            boolean flag for sparse dataframe construction. Default is False
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        u2d = self.transient_2ds[kper]
+        name = self.name_base[:-1]
+        gdf = u2d.to_geodataframe(gdf=gdf, name=name, forgive=forgive, **kwargs)
+        return gdf
 
     def __setattr__(self, key, value):
         if hasattr(self, "transient_2ds") and key == "cnstnt":
@@ -1875,6 +1962,56 @@ class Util2d(DataInterface):
                 self._how = "external"
         else:
             self._how = "internal"
+
+    def to_geodataframe(self, gdf=None, name=None, forgive=False, **kwargs):
+        """
+        Method to add an input array to a geopandas GeoDataFrame
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional GeoDataFrame object
+        name : str
+            optional attribute name, default uses util2d name
+        forgive : bool
+            optional flag to continue if data shape not compatible with GeoDataFrame
+
+        Returns
+        -------
+            geopandas GeoDataFrame
+        """
+        if self.model is None:
+            return gdf
+        else:
+            modelgrid = self.model.modelgrid
+            if gdf is None:
+                if modelgrid is None:
+                    return gdf
+                gdf = modelgrid.to_geodataframe()
+
+            if modelgrid is not None:
+                if modelgrid.grid_type != "unstructured":
+                    ncpl = modelgrid.ncpl
+                else:
+                    ncpl = modelgrid.nnodes
+            else:
+                ncpl = len(gdf)
+
+            if name is None:
+                name = self.name
+
+            data = self.array
+
+            if data.size == ncpl:
+                gdf[name] = data.ravel()
+            elif forgive:
+                return gdf
+            else:
+                raise AssertionError(
+                    f"Data size {data.size} not compatible with dataframe length {ncpl}"
+                )
+
+            return gdf
 
     def plot(
         self,

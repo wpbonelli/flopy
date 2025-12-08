@@ -580,6 +580,18 @@ class UnstructuredGrid(Grid):
 
         return copy.copy(self._polygons)
 
+    def to_geodataframe(self):
+        """
+        Returns a geopandas GeoDataFrame of the model grid
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        polys = [[self.get_cell_vertices(nn)] for nn in range(self.nnodes)]
+        gdf = super().to_geodataframe(polys)
+        return gdf
+
     @property
     def geo_dataframe(self):
         """
@@ -589,9 +601,12 @@ class UnstructuredGrid(Grid):
         -------
             GeoDataFrame
         """
-        polys = [[self.get_cell_vertices(nn)] for nn in range(self.nnodes)]
-        gdf = super().geo_dataframe(polys)
-        return gdf
+        import warnings
+        warnings.warn(
+            "geo_dataframe has been deprecated, use to_geodataframe() instead",
+            DeprecationWarning
+        )
+        return self.to_geodataframe()
 
     def neighbors(self, node=None, **kwargs):
         """

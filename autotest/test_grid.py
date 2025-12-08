@@ -1585,14 +1585,14 @@ def test_unstructured_convert(unstructured_grid):
 
 
 @requires_pkg("geopandas")
-def test_geo_dataframe(structured_grid, vertex_grid, unstructured_grid):
+def test_geodataframe(structured_grid, vertex_grid, unstructured_grid):
     geopandas = import_optional_dependency("geopandas")
     grids = (structured_grid, vertex_grid, unstructured_grid)
 
     for grid in grids:
-        gdf = grid.geo_dataframe
+        gdf = grid.to_geodataframe()
         if not isinstance(gdf, geopandas.GeoDataFrame):
-            raise TypeError("geo_dataframe not returning GeoDataFrame object")
+            raise TypeError("geodataframe not returning GeoDataFrame object")
 
         geoms = gdf.geometry.values
         for node, geom in enumerate(geoms):

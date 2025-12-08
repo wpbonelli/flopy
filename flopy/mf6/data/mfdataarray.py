@@ -323,6 +323,64 @@ class MFArray(MFMultiDimVar):
         """Returns array data.  Calls get_data with default parameters."""
         return self._get_data()
 
+    def to_geodataframe(self, gdf=None, name=None, forgive=False, **kwargs):
+        """
+        Method to add an input array to a geopandas GeoDataFrame
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional GeoDataFrame object
+        name : str
+            optional attribute name, default uses util2d name
+        forgive : bool
+            optional flag to continue if data shape not compatible with GeoDataFrame
+
+        Returns
+        -------
+            geopandas GeoDataFrame
+        """
+        if self.model is None:
+            return gdf
+        else:
+            modelgrid = self.model.modelgrid
+            if gdf is None:
+                if modelgrid is None:
+                    return gdf
+                gdf = modelgrid.to_geodataframe()
+
+            if modelgrid is not None:
+                if modelgrid.grid_type != "unstructured":
+                    ncpl = modelgrid.ncpl
+                else:
+                    ncpl = modelgrid.nnodes
+            else:
+                ncpl = len(gdf)
+
+            if name is None:
+                name = self.name
+
+            data = self.array
+            if data is None:
+                return gdf
+
+            if data.size == ncpl:
+                gdf[name] = data.ravel()
+
+            elif data.size % ncpl == 0:
+                data = data.reshape((-1, ncpl))
+                for ix, arr in enumerate(data):
+                    aname = f"{name}_{ix}"
+                    gdf[aname] = arr
+            elif forgive:
+                return gdf
+            else:
+                raise ValueError(
+                    f"Data size {data.size} not compatible with dataframe length {ncpl}"
+                )
+
+            return gdf
+
     def new_simulation(self, sim_data):
         """Initialize MFArray object for a new simulation
 
@@ -1889,6 +1947,50 @@ class MFTransientArray(MFArray, MFTransient):
                 else:
                     output[sp] = data
         return output
+
+    def to_geodataframe(self, gdf=None, kper=0, forgive=False, **kwargs):
+        """
+
+        """
+        if self.model is None:
+            return gdf
+        else:
+            modelgrid = self.model.modelgrid
+            if gdf is None:
+                if modelgrid is None:
+                    return gdf
+                gdf = modelgrid.to_geodataframe()
+
+            if modelgrid is not None:
+                if modelgrid.grid_type != "unstructured":
+                    ncpl = modelgrid.ncpl
+                else:
+                    ncpl = modelgrid.nnodes
+            else:
+                ncpl = len(gdf)
+
+            if self.array is None:
+                return gdf
+
+            name = f"{self.path[1]}_{self.name}"
+
+            data = self.get_data(key=kper, apply_mult=True)
+            if data.size == ncpl:
+                gdf[name] = data.ravel()
+
+            elif data.size % ncpl == 0:
+                data = data.reshape((-1, ncpl))
+                for ix, arr in enumerate(data):
+                    aname = f"{name}_{ix}"
+                    gdf[aname] = arr
+            elif forgive:
+                return gdf
+            else:
+                raise ValueError(
+                    f"Data size {data.size} not compatible with dataframe length {ncpl}"
+                )
+
+            return gdf
 
     def set_record(self, data_record):
         """Sets data and metadata at layer `layer` and time `key` to

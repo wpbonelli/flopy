@@ -13,6 +13,7 @@ from ..mbase import ModelInterface
 from ..pakbase import PackageInterface
 from ..utils import datautil
 from ..utils.check import mf6check
+from ..utils.utl_import import import_optional_dependency
 from ..version import __version__
 from .coordinates import modeldimensions
 from .data import (
@@ -2087,6 +2088,77 @@ class MFPackage(PackageInterface):
             category=DeprecationWarning,
         )
         return self._package_container.package_filename_dict
+
+    def to_geodataframe(self, gdf=None, kper=0, sparse=False, **kwargs):
+        """
+        Method to create a GeoDataFrame from a modflow package
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional geopandas geodataframe object to add data to. Default is None
+        kper : int
+            stress period to get transient data from
+
+        Returns
+        -------
+            gdf : GeoDataFrame
+        """
+        if gdf is None:
+            if isinstance(self.parent, ModelInterface):
+                modelgrid = self.parent.modelgrid
+                if modelgrid is not None:
+                    if self.package_type == "hfb":
+                        gpd = import_optional_dependency("geopandas")
+                        from ..plot.plotutil import hfb_data_to_linework
+
+                        recarray = self.stress_period_data.data[kper]
+                        lines = hfb_data_to_linework(recarray, modelgrid)
+                        geo_interface = {"type": "FeatureCollection"}
+                        features = [
+                            {
+                                "id": f"{ix}",
+                                "geometry": {"coordinates": line, "type": "LineString"},
+                                "properties": {}
+                            }
+                            for ix, line in enumerate(lines)
+                        ]
+                        geo_interface["features"] = features
+                        gdf = gpd.GeoDataFrame.from_features(geo_interface)
+
+                        for name in recarray.dtype.names:
+                            gdf[name] = recarray[name]
+
+                        return gdf
+
+                    else:
+                        gdf = modelgrid.to_geodataframe()
+                else:
+                    raise AttributeError(
+                        "model does not have a grid instance, "
+                        "please supply a geodataframe"
+                    )
+            else:
+                raise AssertionError(
+                    "Package does not have a model instance, "
+                    "please supply a geodataframe"
+                )
+
+        for attr, value in self.__dict__.items():
+            if callable(getattr(value, "to_geodataframe", None)):
+                if isinstance(value, (ModelInterface, PackageInterface)):
+                    continue
+                # do not pass sparse in here, "sparsify" after all data has been
+                #  added to geodataframe
+                gdf = value.to_geodataframe(gdf, forgive=True, kper=kper, sparse=False)
+
+        if sparse:
+            col_names = [i for i in gdf if i not in ("geometry", "node", "row", "col")]
+            gdf = gdf.dropna(subset=col_names, how="all")
+            gdf = gdf.dropna(axis="columns", how="all")
+
+        return gdf
+
 
     def get_package(self, name=None, type_only=False, name_only=False):
         """
