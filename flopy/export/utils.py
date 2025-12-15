@@ -893,8 +893,8 @@ def mflist_export(f: Union[str, PathLike, NetCdf], mfl, **kwargs):
                         array_dict[aname] = array[k]
             shapefile_utils.write_grid_shapefile(f, modelgrid, array_dict)
         else:
-            from ..export.shapefile_utils import recarray2shp
             from ..utils.geometry import Polygon
+            gpd = import_optional_dependency("geopandas")
 
             df = (
                 mfl.get_dataframe(squeeze=squeeze)
@@ -947,9 +947,14 @@ def mflist_export(f: Union[str, PathLike, NetCdf], mfl, **kwargs):
             crs = kwargs.get("crs", None)
             prjfile = kwargs.get("prjfile", None)
             polys = np.array([Polygon(v) for v in verts])
-            recarray2shp(
-                ra, geoms=polys, shpname=f, mg=modelgrid, crs=crs, prjfile=prjfile
-            )
+            gdf = gpd.GeoDataFrame.from_features(polys)
+            for name in ra.dtype.names:
+                gdf[name] = ra[name]
+
+            if crs is not None:
+                gdf = gdf.set_crs(crs=crs)
+
+            gdf.to_file(f)
 
     elif isinstance(f, NetCdf) or isinstance(f, dict):
         base_name = mfl.package.name[0].lower()
@@ -1607,7 +1612,7 @@ def export_array(
             filename, modelgrid, array_dict={fieldname: a}, nan_val=nodata, crs=crs
         )
 
-# todo: add crs support to this....
+
 def export_contours(
     filename: Union[str, PathLike],
     contours,
