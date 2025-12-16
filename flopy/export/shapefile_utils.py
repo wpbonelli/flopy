@@ -55,7 +55,7 @@ def write_gridlines_shapefile(filename: Union[str, PathLike], modelgrid):
 
 
 def write_grid_shapefile(
-    path: Union[str, PathLike],
+    filename: Union[str, PathLike],
     modelgrid,
     array_dict,
     nan_val=np.nan,
@@ -69,7 +69,7 @@ def write_grid_shapefile(
 
     Parameters
     ----------
-    path : str or PathLike
+    filename : str or PathLike
         shapefile file path
     modelgrid : flopy.discretization.grid.Grid object
         flopy model grid
@@ -132,21 +132,21 @@ def write_grid_shapefile(
         else:
             gdf = gdf.to_crs(crs)
 
-    gdf.to_file(path)
+    gdf.to_file(filename)
 
     if verbose:
-        print(f"wrote {flopy_io.relpath_safe(os.getcwd(), shpname)}")
+        print(f"wrote {flopy_io.relpath_safe(os.getcwd(), filename)}")
 
     if "prj" in kwargs or "prjfile" in kwargs or "wkt_string" in kwargs:
         try:
-            write_prj(shpname, modelgrid, crs=crs, prjfile=prjfile, **write_prj_args)
+            write_prj(filename, modelgrid, crs=crs, prjfile=prjfile, **write_prj_args)
         except ImportError:
             if verbose:
                 print("projection file not written")
 
 
 def model_attributes_to_shapefile(
-    path: Union[str, PathLike],
+    filename: Union[str, PathLike],
     ml,
     package_names=None,
     array_dict=None,
@@ -160,7 +160,7 @@ def model_attributes_to_shapefile(
 
     Parameters
     ----------
-    path : str or PathLike
+    filename : str or PathLike
         path to write the shapefile to
     ml : flopy.mbase
         model instance
@@ -197,6 +197,11 @@ def model_attributes_to_shapefile(
     >>> flopy.utils.model_attributes_to_shapefile('model.shp', m)
 
     """
+    warnings.warn(
+        "model_attributes_to_shapefile is deprecated, please use the built in "
+        "to_geodataframe() method on the model object",
+        DeprecationWarning
+    )
 
     if array_dict is None:
         array_dict = {}
@@ -207,153 +212,41 @@ def model_attributes_to_shapefile(
     else:
         package_names = [pak.name[0] for pak in ml.packagelist]
 
-    if "modelgrid" in kwargs:
-        modelgrid = kwargs.pop("modelgrid")
-    else:
+    gdf = ml.to_geodataframe(package_names=package_names, truncate_attrs=True)
+
+    if array_dict:
         modelgrid = ml.modelgrid
+        for name, array in array_dict.items():
+            if modelgrid.grid_type() == "unstructured":
+                gdf[name] = array.ravel()
+            else:
+                if array.size == modelgrid.ncpl:
+                    gdf[name] = array.ravel()
+                elif array.size % modelgrid.ncpl == 0:
+                    array = array.reshape((-1, modelgrid.ncpl))
+                    for ix, lay in enumerate(array):
+                        gdf[f"{name}_{ix}"] = lay
+                else:
+                    raise ValueError(
+                        f"{name} array size is not a multiple of ncpl {modelgrid.ncpl}"
+                    )
 
-    gdf = modelgrid.to_geodataframe()
-    for pname in package_names:
-        pak = ml.get_package(pname)
-
-
-
-
-    # horz_shape = modelgrid.get_plottable_layer_shape()
-    for pname in package_names:
-        pak = ml.get_package(pname)
-        attrs = dir(pak)
-        if pak is not None:
-            if "start_datetime" in attrs:
-                attrs.remove("start_datetime")
-            for attr in attrs:
-                a = getattr(pak, attr)
-                if a is None or not hasattr(a, "data_type") or a.name == "thickness":
-                    continue
-                if a.data_type == DataType.array2d:
-                    if a.array is None or a.array.shape != horz_shape:
-                        warn(
-                            "Failed to get data for "
-                            f"{a.name} array, {pak.name[0]} package"
-                        )
-                        continue
-                    name = shape_attr_name(a.name, keep_layer=True)
-                    array_dict[name] = a.array
-                elif a.data_type == DataType.array3d:
-                    # Not sure how best to check if an object has array data
-                    if a.array is None:
-                        warn(
-                            "Failed to get data for "
-                            f"{a.name} array, {pak.name[0]} package"
-                        )
-                        continue
-                    if isinstance(a.name, list) and a.name[0] == "thickness":
-                        continue
-                    if a.array.shape == horz_shape:
-                        if hasattr(a, "shape"):
-                            if a.shape[1] is None:  # usg unstructured Util3d
-                                # return a flattened array,
-                                # with a.name[0] (a per-layer list)
-                                array_dict[a.name[0]] = a.array
-                            else:
-                                array_dict[a.name] = a.array
-                        else:
-                            array_dict[a.name] = a.array
-                    else:
-                        # array is not the same shape as the layer shape
-                        for ilay in range(a.array.shape[0]):
-                            try:
-                                arr = a.array[ilay]
-                            except:
-                                arr = a[ilay]
-
-                            if isinstance(a, Util3d):
-                                aname = shape_attr_name(a[ilay].name)
-                            else:
-                                aname = a.name
-
-                            if arr.shape == (1,) + horz_shape:
-                                # fix for mf6 case
-                                arr = arr[0]
-                            assert arr.shape == horz_shape
-                            name = f"{aname}_{ilay + 1}"
-                            array_dict[name] = arr
-                elif a.data_type == DataType.transient2d:
-                    # Not sure how best to check if an object has array data
-                    try:
-                        assert a.array is not None
-                    except:
-                        warn(
-                            "Failed to get data for "
-                            f"{a.name} array, {pak.name[0]} package"
-                        )
-                        continue
-                    for kper in range(a.array.shape[0]):
-                        name = f"{shape_attr_name(a.name)}{kper + 1}"
-                        arr = a.array[kper][0]
-                        assert arr.shape == horz_shape
-                        array_dict[name] = arr
-                elif a.data_type == DataType.transientlist:
-                    # Skip empty transientlist
-                    if not a.data:
-                        continue
-
-                    # Use first recarray kper to check transientlist
-                    for kper in a.data.keys():
-                        if isinstance(a.data[kper], np.recarray):
-                            break
-                    # Skip transientlist if all elements are of object type
-                    if all(
-                        dtype == np.object_
-                        for dtype, _ in a.data[kper].dtype.fields.values()
-                    ):
-                        continue
-
-                    for name, array in a.masked_4D_arrays_itr():
-                        n = shape_attr_name(name, length=4)
-                        for kper in range(array.shape[0]):
-                            # guard clause for disu case
-                            # array is (kper, node) only
-                            if len(array.shape) == 2:
-                                aname = f"{n}{kper + 1}"
-                                arr = array[kper]
-                                assert arr.shape == horz_shape
-                                if np.all(np.isnan(arr)):
-                                    continue
-                                array_dict[aname] = arr
-                                continue
-                            # non-disu case
-                            for k in range(array.shape[1]):
-                                aname = f"{n}{k + 1}{kper + 1}"
-                                arr = array[kper][k]
-                                assert arr.shape == horz_shape
-                                if np.all(np.isnan(arr)):
-                                    continue
-                                array_dict[aname] = arr
-                elif isinstance(a, list):
-                    for v in a:
-                        if (
-                            isinstance(a, DataInterface)
-                            and v.data_type == DataType.array3d
-                        ):
-                            for ilay in range(a.model.modelgrid.nlay):
-                                u2d = a[ilay]
-                                name = f"{shape_attr_name(u2d.name)}_{ilay + 1}"
-                                arr = u2d.array
-                                assert arr.shape == horz_shape
-                                array_dict[name] = arr
-
-    # write data arrays to a shapefile
-    write_grid_shapefile(path, modelgrid, array_dict)
     crs = kwargs.get("crs", None)
+    if crs is not None:
+        if gdf.crs is None:
+            gdf = gdf.set_crs(crs)
+        else:
+            gdf = gdf.to_crs(crs)
 
+    gdf.to_file(filename)
 
 
     prjfile = kwargs.get("prjfile", None)
-    try:
-        write_prj(path, grid, crs=crs, prjfile=prjfile)
-    except ImportError:
-        pass
+    if prjfile is not None:
+        try:
+            write_prj(filename, ml.modelgrid, crs=crs, prjfile=prjfile)
+        except ImportError:
+            pass
 
 
 def shape_attr_name(name, length=6, keep_layer=False):
@@ -437,12 +330,12 @@ def enforce_10ch_limit(names: list[str], warnings: bool = True) -> list[str]:
     return names
 
 
-def shp2recarray(shpname: Union[str, PathLike]):
+def shp2recarray(filename: Union[str, PathLike]):
     """Read a shapefile into a numpy recarray.
 
     Parameters
     ----------
-    shpname : str or PathLike
+    filename : str or PathLike
         ESRI Shapefile path
 
     Returns
@@ -458,12 +351,12 @@ def shp2recarray(shpname: Union[str, PathLike]):
 
     from ..utils.geospatial_utils import GeoSpatialCollection
     gpd = import_optional_dependency("geopandas")
-    gdf = gpd.read_file(shpname)
+    gdf = gpd.read_file(filename)
     recarray = gdf.to_records()
     return recarray
 
     """
-    sfobj = sf.Reader(str(shpname))
+    sfobj = sf.Reader(str(filename))
     dtype = [(str(f[0]), get_pyshp_field_dtypes(f[1])) for f in sfobj.fields[1:]]
 
     geoms = GeoSpatialCollection(sfobj).flopy_geometry
@@ -479,7 +372,7 @@ def shp2recarray(shpname: Union[str, PathLike]):
 def recarray2shp(
     recarray,
     geoms,
-    shpname: Union[str, PathLike] = "recarray.shp",
+    filename: Union[str, PathLike] = "recarray.shp",
     modelgrid=None,
     crs=None,
     prjfile: Union[str, PathLike, None] = None,
@@ -502,7 +395,7 @@ def recarray2shp(
             list of shapefile.Shape objects, or geojson geometry collection
         The number of geometries in geoms must equal the number of records in
         recarray.
-    shpname : str or PathLike, default "recarray.shp"
+    filename : str or PathLike, default "recarray.shp"
         Path for the output shapefile
     modelgrid : flopy.discretization.Grid object
         flopy model grid
@@ -551,14 +444,14 @@ def recarray2shp(
     if crs is not None:
         gdf = gdf.set_crs(epsg)
 
-    gdf.to_file(shpname)
+    gdf.to_file(filename)
 
     if verbose:
-        print(f"wrote {flopy_io.relpath_safe(os.getcwd(), shpname)}")
+        print(f"wrote {flopy_io.relpath_safe(os.getcwd(), filename)}")
 
     if "prj" in kwargs or "prjfile" in kwargs or "wkt_string" in kwargs:
         try:
-            write_prj(shpname, modelgrid, crs=crs, prjfile=prjfile, **write_prj_args)
+            write_prj(filename, modelgrid, crs=crs, prjfile=prjfile, **write_prj_args)
         except ImportError:
             if verbose:
                 print("projection file not written")
@@ -567,14 +460,14 @@ def recarray2shp(
 
 
 def write_prj(
-    shpname,
+    filename,
     modelgrid=None,
     crs=None,
     prjfile=None,
     **kwargs,
 ):
     # projection file name
-    output_projection_file = Path(shpname).with_suffix(".prj")
+    output_projection_file = Path(filename).with_suffix(".prj")
 
     # handle deprecated projection kwargs; warnings are raised in crs.py
     get_crs_args = {}

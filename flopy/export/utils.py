@@ -692,9 +692,23 @@ def package_export(
         f = NetCdf(f, pak.parent, **kwargs)
 
     if isinstance(f, (str, PathLike)) and Path(f).suffix.lower() == ".shp":
-        shapefile_utils.model_attributes_to_shapefile(
-            f, pak.parent, package_names=pak.name, verbose=verbose, **kwargs
-        )
+        gdf = pak.to_geodataframe()
+
+        crs = kwargs.get("crs", None)
+        if crs is not None:
+            if gdf.crs is None:
+                gdf = gdf.set_crs(crs)
+            else:
+                gdf = gdf.to_crs(crs)
+
+        gdf.to_file(f)
+
+        prjfile = kwargs.get("prjfile", None)
+        if prjfile is not None:
+            try:
+                write_prj(path, ml.modelgrid, crs=crs, prjfile=prjfile)
+            except ImportError:
+                pass
 
     elif isinstance(f, NetCdf) or isinstance(f, dict):
         for a in pak.data_list:
