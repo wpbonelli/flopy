@@ -17,7 +17,6 @@ from warnings import warn
 import numpy as np
 
 from ..datbase import DataInterface, DataType
-from ..discretization.grid import Grid
 from ..utils import Util3d, flopy_io, import_optional_dependency
 from ..utils.crs import get_crs
 
@@ -45,6 +44,7 @@ def write_gridlines_shapefile(filename: Union[str, PathLike], modelgrid):
         DeprecationWarning
     )
 
+    from ..discretization.grid import Grid
     if not isinstance(modelgrid, Grid):
         raise ValueError(
             f"'modelgrid' must be a flopy Grid subclass instance; found '{type(modelgrid)}'"
@@ -106,7 +106,7 @@ def write_grid_shapefile(
         DeprecationWarning
     )
 
-    gpd = import_optional_dependency("geopandas")
+    from ..discretization.grid import Grid
 
     if not isinstance(modelgrid, Grid):
         raise ValueError(
