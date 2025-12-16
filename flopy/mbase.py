@@ -760,7 +760,9 @@ class BaseModel(ModelInterface):
             f"{txt2} the output list."
         )
 
-    def to_geodataframe(self, gdf=None, kper=0, package_names=None, truncate_attrs=False):
+    def to_geodataframe(
+        self, gdf=None, kper=0, package_names=None, truncate_attrs=False
+    ):
         """
         Method to build a Geodataframe from model inputs. Note: transient data
         will only be exported for a single stress period.
@@ -790,8 +792,8 @@ class BaseModel(ModelInterface):
                     "model does not have a grid instance, please supply a geodataframe"
                 )
 
-        #todo: needs testing
-        print('break')
+        # todo: needs testing
+        print("break")
         if package_names is None:
             package_names = [pak.name[0] for pak in self.packagelist]
         else:

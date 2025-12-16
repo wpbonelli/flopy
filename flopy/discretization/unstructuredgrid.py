@@ -602,9 +602,10 @@ class UnstructuredGrid(Grid):
             GeoDataFrame
         """
         import warnings
+
         warnings.warn(
             "geo_dataframe has been deprecated, use to_geodataframe() instead",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return self.to_geodataframe()
 

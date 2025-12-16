@@ -125,7 +125,9 @@ class MfList(DataInterface, DataListInterface):
         d = create_empty_recarray(ncell, self.dtype, default_value=-1.0e10)
         return d
 
-    def to_geodataframe(self, gdf=None, kper=0, sparse=False, truncate_attrs=False, **kwargs):
+    def to_geodataframe(
+        self, gdf=None, kper=0, sparse=False, truncate_attrs=False, **kwargs
+    ):
         """
         Method to add data to a GeoDataFrame for exporting as a geospatial file
 

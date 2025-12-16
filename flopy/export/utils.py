@@ -908,6 +908,7 @@ def mflist_export(f: Union[str, PathLike, NetCdf], mfl, **kwargs):
             shapefile_utils.write_grid_shapefile(f, modelgrid, array_dict)
         else:
             from ..utils.geometry import Polygon
+
             gpd = import_optional_dependency("geopandas")
 
             df = (
@@ -1668,6 +1669,7 @@ def export_contours(
 
     from ..utils.geometry import LineString
     from ..utils.utl_import import import_optional_dependency
+
     gpd = import_optional_dependency("geopandas")
 
     if not isinstance(contours, list):
@@ -1738,7 +1740,9 @@ def export_contours(
     return gdf
 
 
-def export_contourf(filename, contours, fieldname="level", verbose=False, crs=None, **kwargs):
+def export_contourf(
+    filename, contours, fieldname="level", verbose=False, crs=None, **kwargs
+):
     """
     Write matplotlib filled contours to shapefile.
 
@@ -1782,6 +1786,7 @@ def export_contourf(filename, contours, fieldname="level", verbose=False, crs=No
 
     from ..utils.geometry import Polygon, is_clockwise
     from ..utils.utl_import import import_optional_dependency
+
     gpd = import_optional_dependency("geopandas")
 
     if not isinstance(contours, list):

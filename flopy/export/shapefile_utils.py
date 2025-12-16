@@ -41,10 +41,11 @@ def write_gridlines_shapefile(filename: Union[str, PathLike], modelgrid):
     warnings.warn(
         "the write_gridlines_shapefile() utility will be deprecated and is "
         "replaced by modelgrid.to_geodataframe()",
-        DeprecationWarning
+        DeprecationWarning,
     )
 
     from ..discretization.grid import Grid
+
     if not isinstance(modelgrid, Grid):
         raise ValueError(
             f"'modelgrid' must be a flopy Grid subclass instance; found '{type(modelgrid)}'"
@@ -103,7 +104,7 @@ def write_grid_shapefile(
     warnings.warn(
         "the write_grid_shapefile() utility will be deprecated and is "
         "replaced by modelgrid.to_geodataframe()",
-        DeprecationWarning
+        DeprecationWarning,
     )
 
     from ..discretization.grid import Grid
@@ -124,7 +125,7 @@ def write_grid_shapefile(
 
     if "epsg" in kwargs:
         epsg = kwargs.pop("epsg")
-        crs = (f"EPSG:{epsg}")
+        crs = f"EPSG:{epsg}"
 
     if crs is not None:
         if gdf.crs in None:
@@ -200,7 +201,7 @@ def model_attributes_to_shapefile(
     warnings.warn(
         "model_attributes_to_shapefile is deprecated, please use the built in "
         "to_geodataframe() method on the model object",
-        DeprecationWarning
+        DeprecationWarning,
     )
 
     if array_dict is None:
@@ -239,7 +240,6 @@ def model_attributes_to_shapefile(
             gdf = gdf.to_crs(crs)
 
     gdf.to_file(filename)
-
 
     prjfile = kwargs.get("prjfile", None)
     if prjfile is not None:
@@ -346,10 +346,11 @@ def shp2recarray(filename: Union[str, PathLike]):
     warnings.warn(
         "shp2recarray will be deprecated, shapefiles can be read in using "
         "geopandas standard methods. e.g., gpd.read_file(filename)",
-        DeprecationWarning
+        DeprecationWarning,
     )
 
     from ..utils.geospatial_utils import GeoSpatialCollection
+
     gpd = import_optional_dependency("geopandas")
     gdf = gpd.read_file(filename)
     recarray = gdf.to_records()
@@ -368,6 +369,7 @@ def shp2recarray(filename: Union[str, PathLike]):
     recarray = np.array(records, dtype=dtype).view(np.recarray)
     return recarray
     """
+
 
 def recarray2shp(
     recarray,
@@ -439,7 +441,7 @@ def recarray2shp(
 
     if "epsg" in kwargs:
         epsg = kwargs.pop("epsg")
-        crs = (f"EPSG:{epsg}")
+        crs = f"EPSG:{epsg}"
 
     if crs is not None:
         gdf = gdf.set_crs(epsg)
@@ -455,8 +457,6 @@ def recarray2shp(
         except ImportError:
             if verbose:
                 print("projection file not written")
-
-
 
 
 def write_prj(
