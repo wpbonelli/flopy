@@ -949,6 +949,7 @@ def mflist_export(f: Union[str, PathLike, NetCdf], mfl, **kwargs):
             polys = np.array([Polygon(v) for v in verts])
             gdf = gpd.GeoDataFrame.from_features(polys)
             for name in ra.dtype.names:
+                # todo: shape_attr_name correction????
                 gdf[name] = ra[name]
 
             if crs is not None:

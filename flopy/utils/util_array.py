@@ -634,7 +634,7 @@ class Util3d(DataInterface):
     def plottable(self):
         return True
 
-    def to_geodataframe(self, gdf=None, forgive=False, name=None, **kwargs):
+    def to_geodataframe(self, gdf=None, forgive=False, name=None, truncate_attrs=False, **kwargs):
         """
         Method to add data to a GeoDataFrame for exporting as a geospatial file
 
@@ -648,6 +648,8 @@ class Util3d(DataInterface):
             with the geodataframe shape
         name : str
             optional array name base. If None, method uses the .name attribute
+        truncate_attrs : bool
+            method to truncate attribute names for shapefile restrictions
 
         Returns
         -------
@@ -669,7 +671,9 @@ class Util3d(DataInterface):
                 names = self.name
             for lay, u2d in enumerate(self.util_2ds):
                 name = f"{names[lay]}_{lay}"
-                gdf = u2d.to_geodataframe(gdf=gdf, name=name, forgive=forgive)
+                gdf = u2d.to_geodataframe(
+                    gdf=gdf, name=name, forgive=forgive, truncate_attrs=truncate_attrs, **kwargs
+                )
 
             return gdf
 
@@ -1098,7 +1102,7 @@ class Transient3d(DataInterface):
     def plottable(self):
         return False
 
-    def to_geodataframe(self, gdf=None, kper=0, forgive=False, **kwargs):
+    def to_geodataframe(self, gdf=None, kper=0, forgive=False, truncate_attrs=False, **kwargs):
         """
         Method to add data to a GeoDataFrame for exporting as a geospatial file
 
@@ -1111,6 +1115,8 @@ class Transient3d(DataInterface):
             stress period to export
         forgive : bool
             boolean flag for sparse dataframe construction. Default is False
+        truncate_attrs : bool
+            method to truncate attribute names for shapefile restrictions
 
         Returns
         -------
@@ -1120,7 +1126,9 @@ class Transient3d(DataInterface):
         # note: may need to provide a pass through name for u3d to avoid s.p.
         # number being tacked on. Test this on a model with the LAK package...
         name = self.name_base[:-1].lower()
-        gdf = u3d.to_geodataframe(gdf=gdf, forgive=forgive, name=name, **kwargs)
+        gdf = u3d.to_geodataframe(
+            gdf=gdf, forgive=forgive, name=name, truncate_attrs=truncate_attrs, **kwargs
+        )
         return gdf
 
     def get_zero_3d(self, kper):
@@ -1463,7 +1471,7 @@ class Transient2d(DataInterface):
             name=name,
         )
 
-    def to_geodataframe(self, gdf=None, kper=0, forgive=False, **kwargs):
+    def to_geodataframe(self, gdf=None, kper=0, forgive=False, truncate_attrs=False, **kwargs):
         """
         Method to add data to a GeoDataFrame for exporting as a geospatial file
 
@@ -1476,6 +1484,8 @@ class Transient2d(DataInterface):
             stress period to export
         forgive : bool
             boolean flag for sparse dataframe construction. Default is False
+        truncate_attrs : bool
+            method to truncate attribute names for shapefile restrictions
 
         Returns
         -------
@@ -1483,7 +1493,9 @@ class Transient2d(DataInterface):
         """
         u2d = self.transient_2ds[kper]
         name = self.name_base[:-1]
-        gdf = u2d.to_geodataframe(gdf=gdf, name=name, forgive=forgive, **kwargs)
+        gdf = u2d.to_geodataframe(
+            gdf=gdf, name=name, forgive=forgive, truncate_attrs=truncate_attrs, **kwargs
+        )
         return gdf
 
     def __setattr__(self, key, value):
@@ -1963,7 +1975,7 @@ class Util2d(DataInterface):
         else:
             self._how = "internal"
 
-    def to_geodataframe(self, gdf=None, name=None, forgive=False, **kwargs):
+    def to_geodataframe(self, gdf=None, name=None, forgive=False, truncate_attrs=False, **kwargs):
         """
         Method to add an input array to a geopandas GeoDataFrame
 
@@ -1975,11 +1987,14 @@ class Util2d(DataInterface):
             optional attribute name, default uses util2d name
         forgive : bool
             optional flag to continue if data shape not compatible with GeoDataFrame
+        truncate_attrs : bool
+            method to truncate attribute names for shapefile restrictions
 
         Returns
         -------
             geopandas GeoDataFrame
         """
+        from ..export.shapefile_utils import shape_attr_name
         if self.model is None:
             return gdf
         else:
@@ -1999,6 +2014,9 @@ class Util2d(DataInterface):
 
             if name is None:
                 name = self.name
+
+            if truncate_attrs:
+                name = shape_attr_name(name, keep_layer=Ture)
 
             data = self.array
 

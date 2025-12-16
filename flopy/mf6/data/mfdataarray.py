@@ -323,7 +323,7 @@ class MFArray(MFMultiDimVar):
         """Returns array data.  Calls get_data with default parameters."""
         return self._get_data()
 
-    def to_geodataframe(self, gdf=None, name=None, forgive=False, **kwargs):
+    def to_geodataframe(self, gdf=None, name=None, forgive=False, truncate_attrs=False, **kwargs):
         """
         Method to add an input array to a geopandas GeoDataFrame
 
@@ -335,11 +335,15 @@ class MFArray(MFMultiDimVar):
             optional attribute name, default uses util2d name
         forgive : bool
             optional flag to continue if data shape not compatible with GeoDataFrame
+        truncate_attrs : bool
+            method to truncate attribute names for shapefile restrictions
 
         Returns
         -------
             geopandas GeoDataFrame
         """
+        from ...export.shapefile_utils import shape_attr_name
+
         if self.model is None:
             return gdf
         else:
@@ -363,6 +367,9 @@ class MFArray(MFMultiDimVar):
             data = self.array
             if data is None:
                 return gdf
+
+            if truncate_attrs:
+                name = shape_attr_name(name=name)
 
             if data.size == ncpl:
                 gdf[name] = data.ravel()
@@ -1948,10 +1955,29 @@ class MFTransientArray(MFArray, MFTransient):
                     output[sp] = data
         return output
 
-    def to_geodataframe(self, gdf=None, kper=0, forgive=False, **kwargs):
+    def to_geodataframe(self, gdf=None, kper=0, forgive=False, truncate_attrs=False, **kwargs):
         """
+        Method to add an input array to a geopandas GeoDataFrame
 
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional GeoDataFrame object
+        name : str
+            optional attribute name, default uses util2d name
+        kper : int
+            stress period number
+        forgive : bool
+            optional flag to continue if data shape not compatible with GeoDataFrame
+        truncate_attrs : bool
+            method to truncate attribute names for shapefile restrictions
+
+        Returns
+        -------
+            geopandas GeoDataFrame
         """
+        from ...export.shapefile_utils import shape_attr_name
+
         if self.model is None:
             return gdf
         else:
@@ -1972,16 +1998,23 @@ class MFTransientArray(MFArray, MFTransient):
             if self.array is None:
                 return gdf
 
-            name = f"{self.path[1]}_{self.name}"
+            if truncate_attrs:
+                name = shape_attr_name(self.name, length=4)
+            else:
+                name = f"{self.path[1]}_{self.name}"
 
             data = self.get_data(key=kper, apply_mult=True)
             if data.size == ncpl:
+                name = f"{name}_{kper}"
                 gdf[name] = data.ravel()
 
             elif data.size % ncpl == 0:
                 data = data.reshape((-1, ncpl))
                 for ix, arr in enumerate(data):
-                    aname = f"{name}_{ix}"
+                    if truncate_attrs:
+                        aname = f"{name}{ix}{kper}"
+                    else:
+                        aname = f"{name}_{ix}_{kper}"
                     gdf[aname] = arr
             elif forgive:
                 return gdf

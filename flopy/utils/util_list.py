@@ -14,6 +14,7 @@ from os import PathLike
 
 import numpy as np
 import pandas as pd
+from flopy.export.shapefile_utils import shape_attr_name
 
 from ..datbase import DataInterface, DataListInterface, DataType
 from ..utils.recarray_utils import create_empty_recarray
@@ -124,7 +125,7 @@ class MfList(DataInterface, DataListInterface):
         d = create_empty_recarray(ncell, self.dtype, default_value=-1.0e10)
         return d
 
-    def to_geodataframe(self, gdf=None, kper=0, sparse=False, **kwargs):
+    def to_geodataframe(self, gdf=None, kper=0, sparse=False, truncate_attrs=False, **kwargs):
         """
         Method to add data to a GeoDataFrame for exporting as a geospatial file
 
@@ -137,6 +138,8 @@ class MfList(DataInterface, DataListInterface):
             stress period to export
         sparse : bool
             boolean flag for sparse dataframe construction. Default is False
+        truncate_attrs : bool
+            method to truncate attribute names for shapefile restrictions
 
         Returns
         -------
@@ -156,17 +159,26 @@ class MfList(DataInterface, DataListInterface):
 
             col_names = []
             for name, array4d in data.items():
-                aname = f"{self.name[0].lower()}_{name}"
+                if truncate_attrs:
+                    name = shape_attr_name(name, length=4)
+                else:
+                    name = f"{self.name[0].lower()}_{name}"
                 array = array4d[kper]
                 if modelgrid.grid_type == "unstructured":
                     array = array.ravel()
+                    if truncate_attrs:
+                        aname = f"{name}{kper}"
                     gdf[aname] = array
                     col_names.append(aname)
                 else:
                     for lay in range(modelgrid.nlay):
                         arr = array[lay].ravel()
-                        gdf[f"{aname}_{lay}"] = arr.ravel()
-                        col_names.append(f"{aname}_{lay}")
+                        if truncate_attrs:
+                            aname = f"{name}{lay}{kper}"
+                        else:
+                            aname = f"{name}_{lay}_{kper}"
+                        gdf[aname] = arr.ravel()
+                        col_names.append(aname)
 
             if sparse:
                 gdf = gdf.dropna(subset=col_names, how="all")

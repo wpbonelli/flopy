@@ -2089,7 +2089,7 @@ class MFPackage(PackageInterface):
         )
         return self._package_container.package_filename_dict
 
-    def to_geodataframe(self, gdf=None, kper=0, sparse=False, **kwargs):
+    def to_geodataframe(self, gdf=None, kper=0, sparse=False, truncate_attrs=False, **kwargs):
         """
         Method to create a GeoDataFrame from a modflow package
 
@@ -2099,6 +2099,11 @@ class MFPackage(PackageInterface):
             optional geopandas geodataframe object to add data to. Default is None
         kper : int
             stress period to get transient data from
+        sparse : bool
+            optional parameter to create a sparse geodataframe
+        truncate_attrs : bool
+            method to truncate attribute names for shapefile attribute name length
+            restrictions
 
         Returns
         -------
@@ -2150,7 +2155,9 @@ class MFPackage(PackageInterface):
                     continue
                 # do not pass sparse in here, "sparsify" after all data has been
                 #  added to geodataframe
-                gdf = value.to_geodataframe(gdf, forgive=True, kper=kper, sparse=False)
+                gdf = value.to_geodataframe(
+                    gdf, forgive=True, kper=kper, sparse=False, truncate_attrs=truncate_attrs
+                )
 
         if sparse:
             col_names = [i for i in gdf if i not in ("geometry", "node", "row", "col")]

@@ -39,24 +39,19 @@ def write_gridlines_shapefile(filename: Union[str, PathLike], modelgrid):
     None
 
     """
-    shapefile = import_optional_dependency("shapefile")
+    warnings.warn(
+        "the write_gridlines_shapefile() utility will be deprecated and is "
+        "replaced by modelgrid.to_geodataframe()",
+        DeprecationWarning
+    )
+
     if not isinstance(modelgrid, Grid):
         raise ValueError(
             f"'modelgrid' must be a flopy Grid subclass instance; found '{type(modelgrid)}'"
         )
-    wr = shapefile.Writer(str(filename), shapeType=shapefile.POLYLINE)
-    wr.field("number", "N", 18, 0)
-    grid_lines = modelgrid.grid_lines
-    for i, line in enumerate(grid_lines):
-        wr.line([line])
-        wr.record(i)
 
-    wr.close()
-    try:
-        write_prj(filename, modelgrid=modelgrid)
-    except ImportError:
-        pass
-    return
+    gdf = modelgrid.grid_line_geodataframe()
+    gdf.write_file(filename)
 
 
 def write_grid_shapefile(
@@ -105,124 +100,49 @@ def write_grid_shapefile(
     None
 
     """
+    warnings.warn(
+        "the write_grid_shapefile() utility will be deprecated and is "
+        "replaced by modelgrid.to_geodataframe()",
+        DeprecationWarning
+    )
+
     gpd = import_optional_dependency("geopandas")
-    # shapefile = import_optional_dependency("shapefile")
-    # w = shapefile.Writer(str(path), shapeType=shapefile.POLYGON)
-    # w.autoBalance = 1
 
     if not isinstance(modelgrid, Grid):
         raise ValueError(
             f"'modelgrid' must be a flopy Grid subclass instance; found '{type(modelgrid)}'"
         )
-    elif modelgrid.grid_type == "structured":
-        verts = [
-            modelgrid.get_cell_vertices(i, j) for i in range(modelgrid.nrow) for j in range(modelgrid.ncol)
-        ]
-    elif modelgrid.grid_type == "vertex":
-        verts = [modelgrid.get_cell_vertices(cellid) for cellid in range(modelgrid.ncpl)]
-    elif modelgrid.grid_type == "unstructured":
-        verts = [modelgrid.get_cell_vertices(cellid) for cellid in range(modelgrid.nnodes)]
-    else:
-        raise NotImplementedError(f"Grid type {modelgrid.grid_type} not supported.")
+    gdf = modelgrid.to_geodataframe()
+    names = list(array_dict.keys())
+    at = np.vstack([array_dict[name].ravel() for name in names])
+    names = enforce_10ch_limit(names)
 
-    # set up the attribute fields and arrays of attributes
-    if modelgrid.grid_type == "structured":
-        names = ["node", "row", "column"] + list(array_dict.keys())
-        dtypes = [
-            ("node", np.dtype("int")),
-            ("row", np.dtype("int")),
-            ("column", np.dtype("int")),
-        ] + [
-            (enforce_10ch_limit([name])[0], array_dict[name].dtype)
-            for name in names[3:]
-        ]
-        node = list(range(1, modelgrid.ncol * modelgrid.nrow + 1))
-        col = list(range(1, modelgrid.ncol + 1)) * modelgrid.nrow
-        row = sorted(list(range(1, modelgrid.nrow + 1)) * modelgrid.ncol)
-        at = np.vstack(
-            [node, row, col] + [array_dict[name].ravel() for name in names[3:]]
-        ).transpose()
+    for ix, name in enumerate(names):
+        gdf[name] = at[ix]
 
-        names = enforce_10ch_limit(names)
+    gdf = gdf.fillna(nan_val)
 
-    elif modelgrid.grid_type == "vertex":
-        names = ["node"] + list(array_dict.keys())
-        dtypes = [("node", np.dtype("int"))] + [
-            (enforce_10ch_limit([name])[0], array_dict[name].dtype)
-            for name in names[1:]
-        ]
-        node = list(range(1, modelgrid.ncpl + 1))
-        at = np.vstack(
-            [node] + [array_dict[name].ravel() for name in names[1:]]
-        ).transpose()
-
-        names = enforce_10ch_limit(names)
-
-    elif modelgrid.grid_type == "unstructured":
-        if modelgrid.nlay is None:
-            names = ["node"] + list(array_dict.keys())
-            dtypes = [("node", np.dtype("int"))] + [
-                (enforce_10ch_limit([name])[0], array_dict[name].dtype)
-                for name in names[1:]
-            ]
-            node = list(range(1, modelgrid.nnodes + 1))
-            at = np.vstack(
-                [node] + [array_dict[name].ravel() for name in names[1:]]
-            ).transpose()
-        else:
-            names = ["node", "layer"] + list(array_dict.keys())
-            dtypes = [("node", np.dtype("int")), ("layer", np.dtype("int"))] + [
-                (enforce_10ch_limit([name])[0], array_dict[name].dtype)
-                for name in names[2:]
-            ]
-            node = list(range(1, modelgrid.nnodes + 1))
-            layer = np.zeros(modelgrid.nnodes)
-            for ilay in range(modelgrid.nlay):
-                istart, istop = modelgrid.get_layer_node_range(ilay)
-                layer[istart:istop] = ilay + 1
-            at = np.vstack(
-                [node] + [layer] + [array_dict[name].ravel() for name in names[2:]]
-            ).transpose()
-
-        names = enforce_10ch_limit(names)
-
-    # flag nan values and explicitly set the dtypes
-    if at.dtype in [float, np.float32, np.float64]:
-        at[np.isnan(at)] = nan_val
-    at = np.array([tuple(i) for i in at], dtype=dtypes)
-
-    # write field information
-    fieldinfo = {name: get_pyshp_field_info(dtype.name) for name, dtype in dtypes}
-    for n in names:
-        w.field(n, *fieldinfo[n])
-
-    for i, r in enumerate(at):
-        # check if polygon is closed, if not close polygon for QGIS
-        if verts[i][-1] != verts[i][0]:
-            verts[i] = verts[i] + [verts[i][0]]
-        w.poly([verts[i]])
-        w.record(*r)
-
-    # close
-    w.close()
-    if verbose:
-        print(f"wrote {flopy_io.relpath_safe(path)}")
-
-    # handle deprecated projection kwargs; warnings are raised in crs.py
-    write_prj_args = {}
     if "epsg" in kwargs:
-        write_prj_args["epsg"] = kwargs.pop("epsg")
-    if "prj" in kwargs:
-        write_prj_args["prj"] = kwargs.pop("prj")
-    if kwargs:
-        raise TypeError(f"unhandled keywords: {kwargs}")
-    # write the projection file
-    try:
-        write_prj(path, modelgrid, crs=crs, prjfile=prjfile, **write_prj_args)
-    except ImportError:
-        if verbose:
-            print("projection file not written")
-    return
+        epsg = kwargs.pop("epsg")
+        crs = (f"EPSG:{epsg}")
+
+    if crs is not None:
+        if gdf.crs in None:
+            gdf = gdf.set_crs(crs)
+        else:
+            gdf = gdf.to_crs(crs)
+
+    gdf.to_file(path)
+
+    if verbose:
+        print(f"wrote {flopy_io.relpath_safe(os.getcwd(), shpname)}")
+
+    if "prj" in kwargs or "prjfile" in kwargs or "wkt_string" in kwargs:
+        try:
+            write_prj(shpname, modelgrid, crs=crs, prjfile=prjfile, **write_prj_args)
+        except ImportError:
+            if verbose:
+                print("projection file not written")
 
 
 def model_attributes_to_shapefile(
@@ -288,11 +208,18 @@ def model_attributes_to_shapefile(
         package_names = [pak.name[0] for pak in ml.packagelist]
 
     if "modelgrid" in kwargs:
-        grid = kwargs.pop("modelgrid")
+        modelgrid = kwargs.pop("modelgrid")
     else:
-        grid = ml.modelgrid
+        modelgrid = ml.modelgrid
 
-    horz_shape = grid.get_plottable_layer_shape()
+    gdf = modelgrid.to_geodataframe()
+    for pname in package_names:
+        pak = ml.get_package(pname)
+
+
+
+
+    # horz_shape = modelgrid.get_plottable_layer_shape()
     for pname in package_names:
         pak = ml.get_package(pname)
         attrs = dir(pak)
@@ -417,8 +344,11 @@ def model_attributes_to_shapefile(
                                 array_dict[name] = arr
 
     # write data arrays to a shapefile
-    write_grid_shapefile(path, grid, array_dict)
+    write_grid_shapefile(path, modelgrid, array_dict)
     crs = kwargs.get("crs", None)
+
+
+
     prjfile = kwargs.get("prjfile", None)
     try:
         write_prj(path, grid, crs=crs, prjfile=prjfile)
@@ -507,36 +437,6 @@ def enforce_10ch_limit(names: list[str], warnings: bool = True) -> list[str]:
     return names
 
 
-def get_pyshp_field_info(dtypename):
-    """Get pyshp dtype information for a given numpy dtype."""
-    fields = {
-        "int": ("N", 18, 0),
-        "<i": ("N", 18, 0),
-        "float": ("F", 20, 12),
-        "<f": ("F", 20, 12),
-        "bool": ("L", 1),
-        "b1": ("L", 1),
-        "str": ("C", 50),
-        "object": ("C", 50),
-    }
-    k = [k for k in fields.keys() if k in dtypename.lower()]
-    if len(k) == 1:
-        return fields[k[0]]
-    else:
-        return fields["str"]
-
-
-def get_pyshp_field_dtypes(code):
-    """Returns a numpy dtype for a pyshp field type."""
-    dtypes = {
-        "N": int,
-        "F": float,
-        "L": bool,
-        "C": object,
-    }
-    return dtypes.get(code, object)
-
-
 def shp2recarray(shpname: Union[str, PathLike]):
     """Read a shapefile into a numpy recarray.
 
@@ -550,10 +450,19 @@ def shp2recarray(shpname: Union[str, PathLike]):
     np.recarray
 
     """
+    warnings.warn(
+        "shp2recarray will be deprecated, shapefiles can be read in using "
+        "geopandas standard methods. e.g., gpd.read_file(filename)",
+        DeprecationWarning
+    )
+
     from ..utils.geospatial_utils import GeoSpatialCollection
+    gpd = import_optional_dependency("geopandas")
+    gdf = gpd.read_file(shpname)
+    recarray = gdf.to_records()
+    return recarray
 
-    sf = import_optional_dependency("shapefile")
-
+    """
     sfobj = sf.Reader(str(shpname))
     dtype = [(str(f[0]), get_pyshp_field_dtypes(f[1])) for f in sfobj.fields[1:]]
 
@@ -561,9 +470,11 @@ def shp2recarray(shpname: Union[str, PathLike]):
     records = [tuple(r) + (geoms[i],) for i, r in enumerate(sfobj.iterRecords())]
     dtype += [("geometry", object)]
 
+
+
     recarray = np.array(records, dtype=dtype).view(np.recarray)
     return recarray
-
+    """
 
 def recarray2shp(
     recarray,
@@ -652,21 +563,7 @@ def recarray2shp(
             if verbose:
                 print("projection file not written")
 
-    # handle deprecated projection kwargs; warnings are raised in crs.py
-    write_prj_args = {}
-    if "epsg" in kwargs:
-        write_prj_args["epsg"] = kwargs.pop("epsg")
-    if "prj" in kwargs:
-        write_prj_args["prj"] = kwargs.pop("prj")
-    if kwargs:
-        raise TypeError(f"unhandled keywords: {kwargs}")
-    # write the projection file
-    try:
-        write_prj(shpname, modelgrid, crs=crs, prjfile=prjfile, **write_prj_args)
-    except ImportError:
-        if verbose:
-            print("projection file not written")
-    return
+
 
 
 def write_prj(

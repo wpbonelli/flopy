@@ -842,7 +842,7 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         model_grid = self.data_dimensions.get_model_grid()
         return list_to_array(sarr, model_grid, kper, mask)
 
-    def to_geodataframe(self, gdf=None, sparse=False, **kwargs):
+    def to_geodataframe(self, gdf=None, sparse=False, truncate_attrs=False, **kwargs):
         """
         Method to add data to a GeoDataFrame for exporting as a geospatial file
 
@@ -853,11 +853,15 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             constructed from modelgrid information
         sparse : bool
             boolean flag for sparse dataframe construction. Default is False
+        truncate_attrs : bool
+            method to truncate attribute names for shapefile restrictions
 
         Returns
         -------
             GeoDataFrame
         """
+        from ...export.shapefile_utils import shape_attr_name
+
         if self.model is None:
             return gdf
         else:
@@ -874,7 +878,11 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
 
             col_names = []
             for name, array3d in data.items():
-                aname = f"{self.path[1].lower()}_{name}"
+                if truncate_attrs:
+                    aname = shape_attr_name(name)
+                else:
+                    aname = f"{self.path[1].lower()}_{name}"
+
                 if modelgrid.grid_type == "unstructured":
                     array = array3d.ravel()
                     gdf[aname] = array
@@ -2068,7 +2076,7 @@ class MFPandasTransientList(
         self.repeating = True
         self.empty_keys = {}
 
-    def to_geodataframe(self, gdf=None, kper=0, sparse=False, **kwargs):
+    def to_geodataframe(self, gdf=None, kper=0, sparse=False, truncate_attrs=False, **kwargs):
         """
         Method to add data to a GeoDataFrame for exporting as a geospatial file
 
@@ -2081,11 +2089,15 @@ class MFPandasTransientList(
             stress period to export
         sparse : bool
             boolean flag for sparse dataframe construction. Default is False
+        truncate_attrs : bool
+            method to truncate attribute names for shapefile restrictions
 
         Returns
         -------
             GeoDataFrame
         """
+        from ...export.shapefile_utils import shape_attr_name
+
         if self.model is None:
             return gdf
         else:
@@ -2100,16 +2112,24 @@ class MFPandasTransientList(
 
             col_names = []
             for name, array3d in data.items():
-                aname = f"{self.path[1].lower()}_{name}"
+                if truncate_attrs:
+                    name = shape_attr_name(name, length=4)
+                else:
+                    name = f"{self.path[1].lower()}_{name}"
                 if modelgrid.grid_type == "unstructured":
                     array = array3d.ravel()
+                    aname = f"{name}_{kper}"
                     gdf[aname] = array
                     col_names.append(aname)
                 else:
                     for lay in range(modelgrid.nlay):
                         arr = array3d[lay].ravel()
-                        gdf[f"{aname}_{lay}"] = arr.ravel()
-                        col_names.append(f"{aname}_{lay}")
+                        if truncate_attrs:
+                            aname = f"{name}{lay}{kper}"
+                        else:
+                            aname = f"{name}_{lay}_{kper}"
+                        gdf[aname] = arr.ravel()
+                        col_names.append(aname)
 
             if sparse:
                 gdf = gdf.dropna(subset=col_names, how="all")

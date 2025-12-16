@@ -760,7 +760,7 @@ class BaseModel(ModelInterface):
             f"{txt2} the output list."
         )
 
-    def to_geodataframe(self, gdf=None, kper=None):
+    def to_geodataframe(self, gdf=None, kper=0, package_names=None, truncate_attrs=False):
         """
         Method to build a Geodataframe from model inputs. Note: transient data
         will only be exported for a single stress period.
@@ -771,6 +771,11 @@ class BaseModel(ModelInterface):
             optional geopandas geodataframe object to add data to. Default is None
         kper : int
             stress period to get transient data from
+        package_names : list
+            optional list of package names
+        truncate_attrs : bool
+            method to truncate attribute names for shapefile attribute name length
+            restrictions
 
         Returns
         -------
@@ -785,11 +790,23 @@ class BaseModel(ModelInterface):
                     "model does not have a grid instance, please supply a geodataframe"
                 )
 
+        #todo: needs testing
+        print('break')
+        if package_names is None:
+            package_names = [pak.name[0] for pak in self.packagelist]
+        else:
+            pass
+
         for package in self.packagelist:
             if package.package_type in ("hfb6",):
                 continue
+            if package.name[0] not in package_names:
+                # todo: this needs testing
+                continue
             if callable(getattr(package, "to_geodataframe", None)):
-                gdf = package.to_geodataframe(gdf, kper=kper, sparse=False)
+                gdf = package.to_geodataframe(
+                    gdf, kper=kper, sparse=False, truncate_attrs=truncate_attrs
+                )
 
         return gdf
 

@@ -613,7 +613,6 @@ class Grid:
 
         return gdf
 
-    @property
     def grid_line_geodataframe(self):
         """
         Method to get a GeoDataFrame of grid lines
