@@ -2029,7 +2029,7 @@ class Util2d(DataInterface):
                 name = self.name
 
             if truncate_attrs:
-                name = shape_attr_name(name, keep_layer=Ture)
+                name = shape_attr_name(name, keep_layer=True)
 
             data = self.array
 
