@@ -613,18 +613,6 @@ class Grid:
 
         return gdf
 
-    def grid_line_geodataframe(self):
-        """
-        Method to get a GeoDataFrame of grid lines
-
-        Returns
-        -------
-            GeoDataFrame
-        """
-        gdf = self.to_geodataframe(self.grid_lines, featuretype="LineString")
-        gdf = gdf.rename(columns={"node": "number"})
-        return gdf
-
     def convert_grid(self, factor):
         """
         Method to scale the model grid based on user supplied scale factors

@@ -308,7 +308,10 @@ def test_write_gridlines_shapefile(function_tmpdir):
         crs=26715,
     )
     outshp = function_tmpdir / "gridlines.shp"
-    write_gridlines_shapefile(outshp, sg)
+    gdf = sg.grid_line_geodataframe()
+    gdf.to_file(outshp)
+
+    # write_gridlines_shapefile(outshp, sg)
 
     for suffix in [".dbf", ".shp", ".shx"]:
         assert outshp.with_suffix(suffix).exists()

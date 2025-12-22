@@ -773,6 +773,18 @@ class StructuredGrid(Grid):
         gdf["col"] = list(range(1, self.ncol + 1)) * self.nrow
         return gdf
 
+    def grid_line_geodataframe(self):
+        """
+        Method to get a GeoDataFrame of grid lines
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        gdf = super().to_geodataframe(self.grid_lines, featuretype="LineString")
+        gdf = gdf.rename(columns={"node": "number"})
+        return gdf
+
     @property
     def geo_dataframe(self):
         """
