@@ -350,7 +350,9 @@ def test_export_shapefile_polygon_closed(function_tmpdir):
     shp.close()
 
 
-@requires_pkg("rasterio", "pyshp", "scipy", "geopandas", name_map={"pyshp": "shapefile"})
+@requires_pkg(
+    "rasterio", "pyshp", "scipy", "geopandas", name_map={"pyshp": "shapefile"}
+)
 def test_export_array(function_tmpdir, example_data_path):
     import rasterio
     from scipy.ndimage import rotate
@@ -903,7 +905,9 @@ def test_export_mf6_shp(function_tmpdir):
     # fields
     different_fields = list(set(ra.dtype.names).difference(ra6.dtype.names))
     different_fields = [
-        f for f in different_fields if "thick" not in f and "rech" not in f and "model" not in f
+        f
+        for f in different_fields
+        if "thick" not in f and "rech" not in f and "model" not in f
     ]
     assert len(different_fields) == 0
 
