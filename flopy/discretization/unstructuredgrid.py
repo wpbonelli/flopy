@@ -594,7 +594,7 @@ class UnstructuredGrid(Grid):
             lays = []
             for ix, ncpl in enumerate(self.ncpl):
                 lays.extend([ix + 1] * ncpl)
-        gdf["layer"] = lays
+            gdf["layer"] = lays
         return gdf
 
     @property
