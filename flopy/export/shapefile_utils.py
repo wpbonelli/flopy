@@ -140,7 +140,7 @@ def write_grid_shapefile(
 
     if "prj" in kwargs or "prjfile" in kwargs or "wkt_string" in kwargs:
         try:
-            write_prj(filename, modelgrid, crs=crs, prjfile=prjfile, **write_prj_args)
+            write_prj(filename, modelgrid, crs=crs, prjfile=prjfile, **kwargs)
         except ImportError:
             if verbose:
                 print("projection file not written")

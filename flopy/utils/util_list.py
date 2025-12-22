@@ -174,7 +174,11 @@ class MfList(DataInterface, DataListInterface):
                     gdf[aname] = array
                     col_names.append(aname)
                 else:
-                    for lay in range(modelgrid.nlay):
+                    if modelgrid.nlay is None:
+                        nlay = 1
+                    else:
+                        nlay = modelgrid.nlay
+                    for lay in range(nlay):
                         arr = array[lay].ravel()
                         if truncate_attrs:
                             aname = f"{name}{lay}{kper}"

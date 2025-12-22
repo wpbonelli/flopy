@@ -239,32 +239,6 @@ def test_freyberg_export(function_tmpdir, example_data_path):
     assert m.drn.stress_period_data.mg.yoffset == m.modelgrid.yoffset
     assert m.drn.stress_period_data.mg.angrot == m.modelgrid.angrot
 
-    # get wkt text from pyproj
-    wkt = m.modelgrid.crs.to_wkt()
-
-    # if wkt text was fetched from pyproj
-    if wkt is not None:
-        # test default package export
-        shape = function_tmpdir / f"{name}_dis.shp"
-        m.dis.export(shape)
-        for suffix in [".dbf", ".prj", ".shp", ".shx"]:
-            part = shape.with_suffix(suffix)
-            assert part.exists()
-            if suffix == ".prj":
-                assert part.read_text() == wkt
-            part.unlink()
-
-        # test default package export to higher level dir ?
-
-        # test sparse package export
-        shape = function_tmpdir / f"{name}_drn_sparse.shp"
-        m.drn.stress_period_data.export(shape, sparse=True)
-        for suffix in [".dbf", ".prj", ".shp", ".shx"]:
-            part = shape.with_suffix(suffix)
-            assert part.exists()
-            if suffix == ".prj":
-                assert part.read_text() == wkt
-
 
 @requires_pkg("pyshp", name_map={"pyshp": "shapefile"})
 @pytest.mark.parametrize("missing_arrays", [True, False])

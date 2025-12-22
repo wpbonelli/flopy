@@ -554,7 +554,15 @@ def output_helper(
                             attrib_dict[name] = plotarray[per][k]
 
         if attrib_dict:
-            shapefile_utils.write_grid_shapefile(f, ml.modelgrid, attrib_dict)
+            gdf = ml.modelgrid.to_geodataframe()
+            names = list(attrib_dict.keys())
+            at = np.vstack([attrib_dict[name].ravel() for name in names])
+            names = shapefile_utils.enforce_10ch_limit(names)
+
+            for ix, name in enumerate(names):
+                gdf[name] = at[ix]
+
+            gdf.to_file(f)
 
     else:
         msg = f"unrecognized export argument:{f}"
@@ -603,9 +611,8 @@ def model_export(f: Union[str, PathLike, NetCdf, dict], ml, fmt=None, **kwargs):
         f = NetCdf(f, ml, **kwargs)
 
     if isinstance(f, (str, PathLike)) and Path(f).suffix.lower() == ".shp":
-        shapefile_utils.model_attributes_to_shapefile(
-            f, ml, package_names=package_names, **kwargs
-        )
+        gdf = ml.to_geodataframe(package_names=package_names, **kwargs)
+        gdf.to_file(f)
 
     elif isinstance(f, NetCdf):
         for pak in ml.packagelist:
@@ -883,94 +890,15 @@ def mflist_export(f: Union[str, PathLike, NetCdf], mfl, **kwargs):
         kper = kwargs.get("kper", 0)
         squeeze = kwargs.get("squeeze", True)
 
-        if modelgrid is None:
-            raise Exception("MfList.to_shapefile: modelgrid is not set")
-        elif modelgrid.grid_type == "USG-Unstructured":
-            raise Exception(
-                "Flopy does not support exporting to shapefile "
-                "from a MODFLOW-USG unstructured grid."
-            )
-
-        if kper is None:
-            keys = mfl.data.keys()
-            keys.sort()
+        if modelgrid is not None:
+            gdf = modelgrid.to_geodataframe()
         else:
-            keys = [kper]
-        if not sparse:
-            array_dict = {}
-            for kk in keys:
-                arrays = mfl.to_array(kk)
-                for name, array in arrays.items():
-                    for k in range(array.shape[0]):
-                        n = shapefile_utils.shape_attr_name(name, length=4)
-                        aname = f"{n}{k + 1}{int(kk) + 1}"
-                        array_dict[aname] = array[k]
-            shapefile_utils.write_grid_shapefile(f, modelgrid, array_dict)
-        else:
-            from ..utils.geometry import Polygon
+            gdf = None
 
-            gpd = import_optional_dependency("geopandas")
-
-            df = (
-                mfl.get_dataframe(squeeze=squeeze)
-                if isinstance(mfl, MfList)
-                else mfl.get_dataframe()
-            )
-            if isinstance(df, dict):
-                df = df[kper]
-            if "kper" in kwargs or df is None:
-                ra = mfl[kper]
-                verts = np.array(modelgrid.get_cell_vertices(ra.i, ra.j))
-            elif df is not None:
-                if modelgrid.grid_type == "unstructured":
-                    node_index_name = (
-                        "cellid_node" if "cellid_node" in df.columns else "node"
-                    )
-                    verts = np.array(
-                        [
-                            modelgrid.get_cell_vertices(node)
-                            for node in df[node_index_name].values
-                        ]
-                    )
-                elif modelgrid.grid_type == "vertex":
-                    layer_index_name = (
-                        "cellid_layer" if "cellid_layer" in df.columns else "layer"
-                    )
-                    cell_index_name = (
-                        "cellid_cell" if "cellid_cell" in df.columns else "cell"
-                    )
-                    verts = np.array(
-                        [
-                            modelgrid.get_cell_vertices(layer * modelgrid.ncpl + cell)
-                            for layer, cell in zip(
-                                df[layer_index_name].values, df[cell_index_name].values
-                            )
-                        ]
-                    )
-                else:
-                    row_index_name = "i" if "i" in df.columns else "cellid_row"
-                    col_index_name = "j" if "j" in df.columns else "cellid_column"
-                    verts = np.array(
-                        [
-                            modelgrid.get_cell_vertices(
-                                i, df[col_index_name].values[ix]
-                            )
-                            for ix, i in enumerate(df[row_index_name].values)
-                        ]
-                    )
-                ra = df.to_records(index=False)
-            crs = kwargs.get("crs", None)
-            prjfile = kwargs.get("prjfile", None)
-            polys = np.array([Polygon(v) for v in verts])
-            gdf = gpd.GeoDataFrame.from_features(polys)
-            for name in ra.dtype.names:
-                # todo: shape_attr_name correction????
-                gdf[name] = ra[name]
-
-            if crs is not None:
-                gdf = gdf.set_crs(crs=crs)
-
-            gdf.to_file(f)
+        gdf = mfl.to_geodataframe(
+            gdf=gdf, kper=kper, sparse=sparse, truncate_attrs=True
+        )
+        gdf.to_file(f)
 
     elif isinstance(f, NetCdf) or isinstance(f, dict):
         base_name = mfl.package.name[0].lower()
@@ -1206,24 +1134,13 @@ def array3d_export(f: Union[str, PathLike], u3d, fmt=None, **kwargs):
         f = NetCdf(f, u3d.model, **kwargs)
 
     if isinstance(f, (str, PathLike)) and Path(f).suffix.lower() == ".shp":
-        array_dict = {}
-        array_shape = u3d.array.shape
-
-        if len(array_shape) == 1:
-            name = shapefile_utils.shape_attr_name(u3d.name)
-            array_dict[name] = u3d.array
+        if modelgrid is not None:
+            gdf = modelgrid.to_geodataframe()
         else:
-            for ilay in range(array_shape[0]):
-                u2d = u3d[ilay]
-                if isinstance(u2d, np.ndarray):
-                    dname = u3d.name
-                    array = u2d
-                else:
-                    dname = u2d.name
-                    array = u2d.array
-                name = f"{shapefile_utils.shape_attr_name(dname)}_{ilay + 1}"
-                array_dict[name] = array
-        shapefile_utils.write_grid_shapefile(f, modelgrid, array_dict)
+            gdf = None
+
+        gdf = u3d.to_geodataframe(gdf=gdf, truncate_attrs=True)
+        gdf.to_file(f)
 
     elif isinstance(f, NetCdf) or isinstance(f, dict):
         var_name = u3d.name
