@@ -14,7 +14,6 @@ from os import PathLike
 
 import numpy as np
 import pandas as pd
-from flopy.export.shapefile_utils import shape_attr_name
 
 from ..datbase import DataInterface, DataListInterface, DataType
 from ..utils.recarray_utils import create_empty_recarray
@@ -147,6 +146,8 @@ class MfList(DataInterface, DataListInterface):
         -------
             GeoDataFrame
         """
+        from ..export.shapefile_utils import shape_attr_name
+
         if self.model is None:
             return gdf
         else:
