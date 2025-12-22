@@ -590,6 +590,11 @@ class UnstructuredGrid(Grid):
         """
         polys = [[self.get_cell_vertices(nn)] for nn in range(self.nnodes)]
         gdf = super().to_geodataframe(polys)
+        if self.nlay > 1:
+            lays = []
+            for ix, ncpl in enumerate(self.ncpl):
+                lays.extend([ix + 1] * ncpl)
+        gdf["layer"] = lays
         return gdf
 
     @property

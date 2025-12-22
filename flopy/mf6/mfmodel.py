@@ -824,8 +824,6 @@ class MFModel(ModelInterface):
                     "please supply a geodataframe"
                 )
 
-        print('break')
-        # todo: need to check this one
         if package_names is None:
             package_names = [pak.name[0] for pak in self.packagelist]
         else:
@@ -834,8 +832,7 @@ class MFModel(ModelInterface):
         for package in self.packagelist:
             if package.package_type in ("hfb",):
                 continue
-            if package.name not in package_names and package.package_type not in package_names:
-                # todo: this needs testing
+            if package.name[0] not in package_names and package.package_type not in package_names:
                 continue
             if callable(getattr(package, "to_geodataframe", None)):
                 gdf = package.to_geodataframe(

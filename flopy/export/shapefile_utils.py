@@ -128,7 +128,7 @@ def write_grid_shapefile(
         crs = f"EPSG:{epsg}"
 
     if crs is not None:
-        if gdf.crs in None:
+        if gdf.crs is None:
             gdf = gdf.set_crs(crs)
         else:
             gdf = gdf.to_crs(crs)
@@ -444,7 +444,7 @@ def recarray2shp(
         crs = f"EPSG:{epsg}"
 
     if crs is not None:
-        gdf = gdf.set_crs(epsg)
+        gdf = gdf.set_crs(crs)
 
     gdf.to_file(filename)
 

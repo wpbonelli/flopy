@@ -611,7 +611,12 @@ def model_export(f: Union[str, PathLike, NetCdf, dict], ml, fmt=None, **kwargs):
         f = NetCdf(f, ml, **kwargs)
 
     if isinstance(f, (str, PathLike)) and Path(f).suffix.lower() == ".shp":
-        gdf = ml.to_geodataframe(package_names=package_names, **kwargs)
+        modelgrid = kwargs.pop("modelgrid", None)
+        if modelgrid is None:
+            gdf = None
+        else:
+            gdf = modelgrid.to_geodataframe()
+        gdf = ml.to_geodataframe(gdf=gdf, package_names=package_names, **kwargs)
         gdf.to_file(f)
 
     elif isinstance(f, NetCdf):
@@ -1585,6 +1590,7 @@ def export_contours(
     from matplotlib.path import Path
 
     from ..utils.geometry import LineString
+    from ..utils.geospatial_utils import GeoSpatialCollection
     from ..utils.utl_import import import_optional_dependency
 
     gpd = import_optional_dependency("geopandas")
@@ -1649,6 +1655,7 @@ def export_contours(
     if verbose:
         print(f"Writing {len(level)} contour lines")
 
+    geoms = GeoSpatialCollection(geoms, "LineString")
     gdf = gpd.GeoDataFrame.from_features(geoms)
     gdf[fieldname] = level
     if crs is not None:
@@ -1702,6 +1709,7 @@ def export_contourf(
     from matplotlib.path import Path
 
     from ..utils.geometry import Polygon, is_clockwise
+    from ..utils.geospatial_utils import GeoSpatialCollection
     from ..utils.utl_import import import_optional_dependency
 
     gpd = import_optional_dependency("geopandas")
@@ -1789,6 +1797,7 @@ def export_contourf(
     if verbose:
         print(f"Writing {len(level)} polygons")
 
+    geoms = GeoSpatialCollection(geoms, "Polygon")
     gdf = gpd.GeoDataFrame.from_features(geoms)
     gdf[fieldname] = level
     if crs is not None:
