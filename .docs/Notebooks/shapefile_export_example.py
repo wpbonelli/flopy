@@ -41,12 +41,12 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import geopandas as gpd
 import git
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 import pooch
 
 import flopy

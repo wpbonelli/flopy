@@ -48,7 +48,8 @@ def write_gridlines_shapefile(filename: Union[str, PathLike], modelgrid):
 
     if not isinstance(modelgrid, Grid):
         raise ValueError(
-            f"'modelgrid' must be a flopy Grid subclass instance; found '{type(modelgrid)}'"
+            f"'modelgrid' must be a flopy Grid subclass instance; "
+            f"found '{type(modelgrid)}'"
         )
 
     gdf = modelgrid.grid_line_geodataframe()
@@ -111,7 +112,8 @@ def write_grid_shapefile(
 
     if not isinstance(modelgrid, Grid):
         raise ValueError(
-            f"'modelgrid' must be a flopy Grid subclass instance; found '{type(modelgrid)}'"
+            f"'modelgrid' must be a flopy Grid subclass instance; "
+            f"found '{type(modelgrid)}'"
         )
     gdf = modelgrid.to_geodataframe()
     names = list(array_dict.keys())

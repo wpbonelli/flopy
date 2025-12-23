@@ -172,53 +172,35 @@ def test_get_destination_data(function_tmpdir, mp6_test_path):
     assert np.all(np.isin(starting_locs, pathline_locs))
 
     gdf = epd.to_geodataframe(
-        modelgrid=m.modelgrid,
-        data=well_epd,
-        direction="starting"
+        modelgrid=m.modelgrid, data=well_epd, direction="starting"
     )
     gdf.to_file(function_tmpdir / "starting_locs.shp")
 
     # test writing shapefile of pathlines
     gdf = pthld.to_geodataframe(
-        m.modelgrid,
-        data=well_pthld,
-        one_per_particle=True,
-        direction="starting"
+        m.modelgrid, data=well_pthld, one_per_particle=True, direction="starting"
     )
     gdf.to_file(function_tmpdir / "pathlines_1per.shp")
 
     gdf = pthld.to_geodataframe(
-        m.modelgrid,
-        data=well_pthld,
-        one_per_particle=True,
-        direction="ending"
+        m.modelgrid, data=well_pthld, one_per_particle=True, direction="ending"
     )
     gdf.to_file(function_tmpdir / "pathlines_1per_end.shp")
 
     # test writing shapefile of pathlines
     gdf = pthld.to_geodataframe(
-        mg,
-        data=well_pthld,
-        one_per_particle=True,
-        direction="starting"
+        mg, data=well_pthld, one_per_particle=True, direction="starting"
     )
     gdf.to_file(function_tmpdir / "pathlines_1per2.shp")
 
     # test writing shapefile of pathlines
     gdf = pthld.to_geodataframe(
-        mg,
-        data=well_pthld,
-        one_per_particle=True,
-        direction="starting"
+        mg, data=well_pthld, one_per_particle=True, direction="starting"
     )
     gdf.to_file(function_tmpdir / "pathlines_1per2_ll.shp")
 
     # test shapefile construction with one_per_particle=False
-    gdf = pthld.to_geodataframe(
-        m.modelgrid,
-        data=well_pthld,
-        one_per_particle=False
-    )
+    gdf = pthld.to_geodataframe(m.modelgrid, data=well_pthld, one_per_particle=False)
     gdf.to_file(function_tmpdir / "pathlines.shp")
 
     # test that endpoints were rotated and written correctly
@@ -254,7 +236,12 @@ def test_get_destination_data(function_tmpdir, mp6_test_path):
     p3_2 = ra[ra.particleid == 4]
     p3_2 = p3_2.geometry.values[0]
     assert (
-        np.abs(p3_2.xy[0][0] - mg1.xcellcenters[3, 4] + p3_2.xy[1][0] - mg1.ycellcenters[3, 4])
+        np.abs(
+            p3_2.xy[0][0]
+            - mg1.xcellcenters[3, 4]
+            + p3_2.xy[1][0]
+            - mg1.ycellcenters[3, 4]
+        )
         < 1e-4
     )
 
@@ -264,7 +251,12 @@ def test_get_destination_data(function_tmpdir, mp6_test_path):
     p3_2 = p3_2.geometry.values[0]
     mg.set_coord_info(xoff=mg.xoffset, yoff=mg.yoffset, angrot=30.0)
     assert (
-        np.abs(p3_2.xy[0][0] - mg.xcellcenters[3, 4] + p3_2.xy[1][0] - mg.ycellcenters[3, 4])
+        np.abs(
+            p3_2.xy[0][0]
+            - mg.xcellcenters[3, 4]
+            + p3_2.xy[1][0]
+            - mg.ycellcenters[3, 4]
+        )
         < 1e-4
     )
 

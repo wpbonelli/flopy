@@ -255,7 +255,7 @@ class ParticleTrackFile(ABC):
 
             for p in particles:
                 ra = data[data.particleid == p]
-                for k in dfdata.keys():
+                for k, _ in dfdata.items():
                     if k == "time":
                         dfdata[k].append(np.max(ra[k]))
                     else:
