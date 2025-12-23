@@ -173,8 +173,26 @@ See "Key Design Decisions > Vertical Connectivity Strategy" above for full imple
 **Changes:**
 ```python
 @classmethod
-def from_gridspec(cls, file_path, compute_connections=True):
+def from_gridspec(cls, file_path, compute_connections=True,
+                  top=None, bot=None, top_bot_method='minmax'):
     # ... existing code to read GSF ...
+
+    # Derive or use provided top/bot
+    if top is None or bot is None:
+        # Derive from vertex z-coordinates using specified method
+        if top_bot_method == 'minmax':
+            top_derived = [max(cell_vertex_z) for cell in cells]
+            bot_derived = [min(cell_vertex_z) for cell in cells]
+        elif top_bot_method == 'mean':
+            top_derived = [np.mean(cell_vertex_z) for cell in cells]
+            bot_derived = [np.mean(cell_vertex_z) for cell in cells]
+        else:
+            raise ValueError(f"Unknown top_bot_method: {top_bot_method}")
+
+        if top is None:
+            top = top_derived
+        if bot is None:
+            bot = bot_derived
 
     if compute_connections:
         # Create temporary grid instance
@@ -552,7 +570,9 @@ def _find_reverse_connection(n, m, ja, ia):
 
 ```python
 @classmethod
-def from_gridspec(cls, file_path, compute_connections=True, hwva_method='average'):
+def from_gridspec(cls, file_path, compute_connections=True,
+                  top=None, bot=None, top_bot_method='minmax',
+                  hwva_method='average'):
     """
     Create an UnstructuredGrid from a grid specification file.
 
@@ -564,6 +584,17 @@ def from_gridspec(cls, file_path, compute_connections=True, hwva_method='average
         If True, compute DISU connection properties (iac, ja, ihc, cl12, hwva)
         If False, only read geometry (vertices, iverts, centers, top, bot)
         Default is True.
+    top : array-like, optional
+        Cell top elevations. If None, derived from vertex z-coordinates
+        using top_bot_method.
+    bot : array-like, optional
+        Cell bottom elevations. If None, derived from vertex z-coordinates
+        using top_bot_method.
+    top_bot_method : str, optional
+        Method for deriving top/bot from vertex z-coordinates if not provided:
+        - 'minmax' (default): top=max(vertex_z), bot=min(vertex_z)
+        - 'mean': top=mean(vertex_z), bot=mean(vertex_z)
+        Ignored if top and bot are both provided.
     hwva_method : str, optional
         Method for computing hwva (horizontal flow widths/vertical flow areas):
         - 'average': Use average cell thickness (matches gridgen, default)
@@ -574,9 +605,34 @@ def from_gridspec(cls, file_path, compute_connections=True, hwva_method='average
     -------
     UnstructuredGrid
         Grid with full DISU connection properties (if compute_connections=True)
+
+    Notes
+    -----
+    **Limitations:**
+    - Connectivity assumes cells sharing vertices/edges are connected
+      (works for gridgen, quadtree, Voronoi; may not work for arbitrary DISU)
+    - Cell top/bot cannot be deterministically inferred from vertices alone
+      (provide explicit arrays if default derivation is incorrect)
     """
 
     # ... existing GSF reading code ...
+
+    # Derive or use provided top/bot
+    if top is None or bot is None:
+        # Derive from vertex z-coordinates using specified method
+        if top_bot_method == 'minmax':
+            top_derived = [max(cell_zverts) for cell_zverts in zverts_per_cell]
+            bot_derived = [min(cell_zverts) for cell_zverts in zverts_per_cell]
+        elif top_bot_method == 'mean':
+            top_derived = [np.mean(cell_zverts) for cell_zverts in zverts_per_cell]
+            bot_derived = [np.mean(cell_zverts) for cell_zverts in zverts_per_cell]
+        else:
+            raise ValueError(f"Unknown top_bot_method: {top_bot_method}")
+
+        if top is None:
+            top = np.array(top_derived)
+        if bot is None:
+            bot = np.array(bot_derived)
 
     if compute_connections:
         # Create temporary grid to compute neighbors
@@ -873,7 +929,19 @@ Add section to "Working with Unstructured Grids" covering:
 
 ## Decisions Made
 
-✅ **Vertical connectivity:** Hybrid approach (uniform layering fast path + GeoPandas spatial join)
+✅ **Connectivity approach:** Geometric (shared vertices/edges) for compatible grids
+   - **Limitation:** Only works for grids where connected cells share vertices
+   - **Rationale:** Supports common gridgen/quadtree/Voronoi workflows
+   - **Future:** Allow explicit iac/ja input for grids with non-geometric connectivity
+   - Hybrid approach: uniform layering fast path + GeoPandas spatial join
+
+✅ **Cell top/bottom derivation:** User-selectable via parameters
+   - **Limitation:** No deterministic way to infer from vertex z-coordinates
+   - **Options:**
+     1. `top_bot_method='minmax'` (default): top=max(vertex_z), bot=min(vertex_z)
+     2. `top_bot_method='mean'`: Use mean of vertex z-coords
+     3. `top=array, bot=array`: Pass explicit arrays (most flexible)
+   - **Rationale:** Cell top/bot are model properties, not purely geometric
 
 ✅ **hwva calculation:** User-selectable via `hwva_method` parameter ('average' default, 'geometric' future)
 
@@ -897,6 +965,20 @@ Add section to "Working with Unstructured Grids" covering:
 ✅ **Repository:** FloPy (https://github.com/modflowpy/flopy)
 
 ✅ **Test data:** User will provide sample GSF files
+
+## Important Limitations
+
+⚠️ **Geometric connectivity assumption:**
+   - This implementation assumes connected cells share vertices or edges
+   - **Works for:** gridgen quadtree, Voronoi, DISV-style layered grids
+   - **May not work for:** arbitrary DISU grids with non-geometric connectivity
+   - Users with non-geometric connectivity should use gridgen output files or provide iac/ja explicitly
+
+⚠️ **Cell top/bottom inference:**
+   - Vertex z-coordinates don't uniquely determine cell top/bottom
+   - Default (min/max) is reasonable for many cases but not guaranteed correct
+   - Users should verify top/bot values or provide them explicitly
+   - MODFLOW 6 DISU uses 2D vertices (x,y only) + separate top/bot arrays
 
 ---
 
