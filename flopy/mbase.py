@@ -792,8 +792,6 @@ class BaseModel(ModelInterface):
                     "model does not have a grid instance, please supply a geodataframe"
                 )
 
-        # todo: needs testing
-        print("break")
         if package_names is None:
             package_names = [pak.name[0] for pak in self.packagelist]
         else:
