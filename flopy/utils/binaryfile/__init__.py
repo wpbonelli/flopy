@@ -456,7 +456,7 @@ class BinaryLayerFile(LayerFile):
         result = self._init_result(nstation)
 
         # Determine grid type
-        grid_type = "structured" if self.mg is None else self.mg.grid_type
+        grid_type = "structured" if self.modelgrid is None else self.modelgrid.grid_type
 
         istat = 1
         for item in kijlist:

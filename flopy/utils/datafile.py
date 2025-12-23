@@ -682,7 +682,7 @@ class LayerFile:
         - DISU: list of integers (node)
         """
         # Determine grid type
-        grid_type = "structured" if self.mg is None else self.mg.grid_type
+        grid_type = "structured" if self.modelgrid is None else self.modelgrid.grid_type
 
         # Normalize idx to a list
         if isinstance(idx, int):
@@ -732,9 +732,9 @@ class LayerFile:
                     )
                 if k < 0 or k >= self.nlay:
                     raise ValueError(f"Layer index {k} out of range [0, {self.nlay})")
-                if cell < 0 or cell >= self.mg.ncpl:
+                if cell < 0 or cell >= self.modelgrid.ncpl:
                     raise ValueError(
-                        f"Cell index {cell} out of range [0, {self.mg.ncpl})"
+                        f"Cell index {cell} out of range [0, {self.modelgrid.ncpl})"
                     )
                 # Store as 2-tuple for DISV
                 kijlist.append((k, cell))
@@ -759,9 +759,9 @@ class LayerFile:
                         f"DISU unstructured grid requires integer node index "
                         f"or 3-tuple (dummy, dummy, node), got: {item}"
                     )
-                if node < 0 or node >= self.mg.nnodes:
+                if node < 0 or node >= self.modelgrid.nnodes:
                     raise ValueError(
-                        f"Node index {node} out of range [0, {self.mg.nnodes})"
+                        f"Node index {node} out of range [0, {self.modelgrid.nnodes})"
                     )
                 # Store as integer for DISU
                 kijlist.append(node)
