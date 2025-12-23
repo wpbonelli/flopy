@@ -1172,8 +1172,128 @@ class UnstructuredGrid(Grid):
                 "does not include vertex data"
             )
 
+    @staticmethod
+    def _neighbors_to_iac_ja(neighbors_dict, nnodes):
+        """
+        Convert neighbor dictionary to iac and ja arrays for DISU.
+
+        Parameters
+        ----------
+        neighbors_dict : dict
+            Dictionary mapping {cell_id: [neighbor_cell_ids]}
+        nnodes : int
+            Total number of nodes
+
+        Returns
+        -------
+        iac : ndarray of int, shape (nnodes,)
+            Number of connections for each cell (including self)
+        ja : ndarray of int, shape (nja,)
+            Flattened connectivity list (MODFLOW-USG format: 1-indexed, self first)
+        """
+        # Build iac array (number of connections including self)
+        iac = np.zeros(nnodes, dtype=int)
+        for cell_id in range(nnodes):
+            neighbors = neighbors_dict.get(cell_id, [])
+            iac[cell_id] = 1 + len(neighbors)  # self + neighbors
+
+        # Build ja array (MODFLOW-USG format: 1-indexed, self first, then neighbors)
+        ja = []
+        for cell_id in range(nnodes):
+            # First entry is always the cell itself (1-indexed)
+            ja.append(cell_id + 1)
+            # Then add neighbors in sorted order, converted to 1-indexed
+            neighbors = sorted(neighbors_dict.get(cell_id, []))
+            ja.extend([n + 1 for n in neighbors])
+
+        ja = np.array(ja, dtype=int)
+
+        # Validation
+        if len(ja) != iac.sum():
+            raise ValueError(
+                f"iac sum ({iac.sum()}) does not match ja length ({len(ja)})"
+            )
+
+        return iac, ja
+
+    @staticmethod
+    def _find_vertical_neighbors(grid):
+        """
+        Find vertical connections using 2D spatial overlap.
+
+        Parameters
+        ----------
+        grid : UnstructuredGrid
+            Grid instance with vertices, iverts, and ncpl defined
+
+        Returns
+        -------
+        vertical_neighbors : dict
+            Dictionary mapping {cell_id: [vertically_connected_cells]}
+        """
+        from ..utils import import_optional_dependency
+
+        vertical_neighbors = {i: [] for i in range(grid.nnodes)}
+
+        # Single-layer grid - no vertical connections
+        if len(grid.ncpl) == 1:
+            return vertical_neighbors
+
+        # Fast path for uniform layering (constant ncpl)
+        if np.all(np.diff(grid.ncpl) == 0):
+            ncpl = grid.ncpl[0]
+            nlay = len(grid.ncpl)
+            for layer in range(nlay - 1):
+                for i in range(ncpl):
+                    cell_top = layer * ncpl + i
+                    cell_bot = (layer + 1) * ncpl + i
+                    vertical_neighbors[cell_top].append(cell_bot)
+                    vertical_neighbors[cell_bot].append(cell_top)
+            return vertical_neighbors
+
+        # General case: spatial join with GeoPandas
+        gpd = import_optional_dependency("geopandas")
+        Polygon = import_optional_dependency("shapely.geometry", module="Polygon")
+
+        # Helper to get cell IDs for a layer
+        def get_layer_cell_ids(layer_idx):
+            start = sum(grid.ncpl[:layer_idx])
+            end = start + grid.ncpl[layer_idx]
+            return list(range(start, end))
+
+        # Helper to get 2D polygon for a cell
+        def get_cell_polygon(cell_id):
+            verts_2d = [(grid._vertices[v, 1], grid._vertices[v, 2])
+                        for v in grid.iverts[cell_id]]
+            return Polygon(verts_2d)
+
+        # Process each layer pair
+        for layer_idx in range(len(grid.ncpl) - 1):
+            cells_top = get_layer_cell_ids(layer_idx)
+            cells_bot = get_layer_cell_ids(layer_idx + 1)
+
+            # Create polygons for both layers
+            polys_top = [get_cell_polygon(c) for c in cells_top]
+            polys_bot = [get_cell_polygon(c) for c in cells_bot]
+
+            # Create GeoDataFrames
+            gdf_top = gpd.GeoDataFrame({'cell': cells_top}, geometry=polys_top)
+            gdf_bot = gpd.GeoDataFrame({'cell': cells_bot}, geometry=polys_bot)
+
+            # Spatial join uses R-tree index automatically
+            overlaps = gpd.sjoin(gdf_top, gdf_bot, predicate='intersects')
+
+            # Add connections
+            for _, row in overlaps.iterrows():
+                top_cell = row['cell_left']
+                bot_cell = row['cell_right']
+                vertical_neighbors[top_cell].append(bot_cell)
+                vertical_neighbors[bot_cell].append(top_cell)
+
+        return vertical_neighbors
+
     @classmethod
-    def from_gridspec(cls, file_path: Union[str, PathLike]):
+    def from_gridspec(cls, file_path: Union[str, PathLike], compute_connections=True):
         """
         Create an UnstructuredGrid from a grid specification file.
 
@@ -1181,10 +1301,14 @@ class UnstructuredGrid(Grid):
         ----------
         file_path : str or PathLike
             Path to the grid specification file
+        compute_connections : bool, optional
+            If True, compute DISU connection properties (iac, ja).
+            If False, only read geometry (vertices, iverts, centers, top, bot).
+            Default is True.
 
         Returns
         -------
-            An UnstructuredGrid
+            An UnstructuredGrid with connection properties if compute_connections=True
         """
 
         with open(file_path) as file:
@@ -1246,6 +1370,71 @@ class UnstructuredGrid(Grid):
 
             _, ncpl = np.unique(layers, return_counts=True)
 
+            # Compute connectivity if requested
+            iac = None
+            ja = None
+            if compute_connections:
+                # Create temporary grid instance to compute neighbors
+                temp_grid = cls(
+                    vertices=vertices,
+                    iverts=iverts,
+                    xcenters=np.array(xcenters),
+                    ycenters=np.array(ycenters),
+                    ncpl=ncpl,
+                    top=np.array(top),
+                    botm=np.array(bot),
+                )
+
+                # Compute HORIZONTAL neighbors WITHIN each layer
+                # (not across layers, which _set_neighbors would do)
+                horizontal_neighbors = {i: [] for i in range(nnodes)}
+
+                # Process each layer separately to avoid cross-layer connections
+                for layer_idx in range(len(ncpl)):
+                    # Get cell range for this layer
+                    layer_start = sum(ncpl[:layer_idx])
+                    layer_end = layer_start + ncpl[layer_idx]
+
+                    # Create a temporary grid for just this layer
+                    layer_iverts = iverts[layer_start:layer_end]
+                    layer_xc = xcenters[layer_start:layer_end]
+                    layer_yc = ycenters[layer_start:layer_end]
+                    layer_top = top[layer_start:layer_end]
+                    layer_bot = bot[layer_start:layer_end]
+
+                    layer_grid = cls(
+                        vertices=vertices,
+                        iverts=layer_iverts,
+                        xcenters=np.array(layer_xc),
+                        ycenters=np.array(layer_yc),
+                        ncpl=np.array([len(layer_iverts)]),
+                        top=np.array(layer_top),
+                        botm=np.array(layer_bot),
+                    )
+
+                    # Compute neighbors within this layer (queen = shares vertices OR edges)
+                    layer_grid._set_neighbors(method="queen")
+
+                    # Map back to global cell IDs
+                    for local_id, local_neighbors in layer_grid._neighbors.items():
+                        global_id = layer_start + local_id
+                        global_neighbors = [layer_start + n for n in local_neighbors]
+                        horizontal_neighbors[global_id] = global_neighbors
+
+                # Compute VERTICAL neighbors using spatial overlap
+                vertical_neighbors = cls._find_vertical_neighbors(temp_grid)
+
+                # Merge horizontal and vertical neighbors
+                all_neighbors = {i: [] for i in range(nnodes)}
+                for cell_id in range(nnodes):
+                    all_neighbors[cell_id] = (
+                        horizontal_neighbors.get(cell_id, []) +
+                        vertical_neighbors.get(cell_id, [])
+                    )
+
+                # Convert to iac/ja format
+                iac, ja = cls._neighbors_to_iac_ja(all_neighbors, nnodes)
+
             return cls(
                 vertices=vertices,
                 iverts=iverts,
@@ -1254,4 +1443,6 @@ class UnstructuredGrid(Grid):
                 ncpl=ncpl,
                 top=np.array(top),
                 botm=np.array(bot),
+                iac=iac,
+                ja=ja,
             )
