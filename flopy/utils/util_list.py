@@ -169,6 +169,7 @@ class MfList(DataInterface, DataListInterface):
                 array = array4d[kper]
                 if modelgrid.grid_type == "unstructured":
                     array = array.ravel()
+                    aname = name
                     if truncate_attrs:
                         aname = f"{name}{kper}"
                     gdf[aname] = array
