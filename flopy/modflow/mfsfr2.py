@@ -1934,6 +1934,7 @@ class ModflowSfr2(Package):
         """
         from ..utils.geometry import LineString
         from ..utils.utl_import import import_optional_dependency
+
         gpd = import_optional_dependency("geopandas")
 
         rd = self.reach_data.copy()
@@ -1979,6 +1980,7 @@ class ModflowSfr2(Package):
         """
         from ..utils.geometry import Point
         from ..utils.utl_import import import_optional_dependency
+
         gpd = import_optional_dependency("geopandas")
 
         rd = self.reach_data
@@ -2022,6 +2024,7 @@ class ModflowSfr2(Package):
         """
         from ..utils.geometry import Point
         from ..utils.utl_import import import_optional_dependency
+
         gpd = import_optional_dependency("geopandas")
 
         rd = self.reach_data

@@ -53,7 +53,6 @@ def test_model_attributes_to_shapefile(example_data_path, function_tmpdir):
 def test_create_geodataframe(
     minimal_unstructured_grid_info, minimal_vertex_grid_info, function_tmpdir
 ):
-
     d = minimal_unstructured_grid_info
     delr = np.ones(10)
     delc = np.ones(10)

@@ -326,5 +326,3 @@ try:
     temp_dir.cleanup()
 except:
     pass
-
-

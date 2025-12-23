@@ -705,6 +705,7 @@ def package_export(
 
     if isinstance(f, (str, PathLike)) and Path(f).suffix.lower() == ".shp":
         from .shapefile_utils import write_prj
+
         gdf = pak.to_geodataframe()
 
         crs = kwargs.get("crs", None)
