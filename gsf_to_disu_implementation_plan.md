@@ -179,20 +179,17 @@ def from_gridspec(cls, file_path, compute_connections=True,
 
     # Derive or use provided top/bot
     if top is None or bot is None:
-        # Derive from vertex z-coordinates using specified method
+        # Derive from vertex z-coordinates
         if top_bot_method == 'minmax':
             top_derived = [max(cell_vertex_z) for cell in cells]
             bot_derived = [min(cell_vertex_z) for cell in cells]
-        elif top_bot_method == 'mean':
-            top_derived = [np.mean(cell_vertex_z) for cell in cells]
-            bot_derived = [np.mean(cell_vertex_z) for cell in cells]
         else:
             raise ValueError(f"Unknown top_bot_method: {top_bot_method}")
 
         if top is None:
-            top = top_derived
+            top = np.array(top_derived)
         if bot is None:
-            bot = bot_derived
+            bot = np.array(bot_derived)
 
     if compute_connections:
         # Create temporary grid instance
@@ -593,7 +590,6 @@ def from_gridspec(cls, file_path, compute_connections=True,
     top_bot_method : str, optional
         Method for deriving top/bot from vertex z-coordinates if not provided:
         - 'minmax' (default): top=max(vertex_z), bot=min(vertex_z)
-        - 'mean': top=mean(vertex_z), bot=mean(vertex_z)
         Ignored if top and bot are both provided.
     hwva_method : str, optional
         Method for computing hwva (horizontal flow widths/vertical flow areas):
@@ -619,13 +615,10 @@ def from_gridspec(cls, file_path, compute_connections=True,
 
     # Derive or use provided top/bot
     if top is None or bot is None:
-        # Derive from vertex z-coordinates using specified method
+        # Derive from vertex z-coordinates
         if top_bot_method == 'minmax':
             top_derived = [max(cell_zverts) for cell_zverts in zverts_per_cell]
             bot_derived = [min(cell_zverts) for cell_zverts in zverts_per_cell]
-        elif top_bot_method == 'mean':
-            top_derived = [np.mean(cell_zverts) for cell_zverts in zverts_per_cell]
-            bot_derived = [np.mean(cell_zverts) for cell_zverts in zverts_per_cell]
         else:
             raise ValueError(f"Unknown top_bot_method: {top_bot_method}")
 
@@ -924,6 +917,216 @@ Add section to "Working with Unstructured Grids" covering:
 - Performance optimization
 - Comprehensive documentation and examples
 - Additional grid type testing
+- **GSF export capability** (see Phase 7 below)
+
+---
+
+## Phase 7: GSF Export Capability (Future Enhancement)
+
+**Objective:** Add ability to export FloPy grids to GSF format for round-trip testing and MODFLOW-USG compatibility
+
+### 7.1: Add `to_gridspec()` Method
+
+**Target classes:**
+- `UnstructuredGrid` (DISU-like)
+- `VertexGrid` (DISV)
+- `VoronoiGrid`
+- (Optional) `StructuredGrid` (DIS) - requires conversion to unstructured
+
+**Signature:**
+```python
+def to_gridspec(self, filename, vertex_z=None, vertex_z_method='top'):
+    """
+    Export grid to GSF (Grid Specification File) format.
+
+    Parameters
+    ----------
+    filename : str or PathLike
+        Output GSF file path
+    vertex_z : array-like, optional
+        Z-coordinates for vertices. If None, derived from cell top/bot
+        using vertex_z_method. Shape: (nvert,)
+    vertex_z_method : str, optional
+        Method for deriving vertex z-coordinates if not provided:
+        - 'top': Use cell top elevations for vertices (default)
+        - 'bot': Use cell bottom elevations for vertices
+        - 'interp': Interpolate from surrounding cell top/bot
+        Ignored if vertex_z is provided.
+
+    Notes
+    -----
+    MODFLOW 6 DISU grids don't store vertex z-coordinates, so they
+    must be inferred or provided explicitly for GSF export.
+    """
+```
+
+**Algorithm:**
+```python
+def to_gridspec(self, filename, vertex_z=None, vertex_z_method='top'):
+    # Derive vertex z if not provided
+    if vertex_z is None:
+        if vertex_z_method == 'top':
+            vertex_z = self._derive_vertex_z_from_top()
+        elif vertex_z_method == 'bot':
+            vertex_z = self._derive_vertex_z_from_bot()
+        elif vertex_z_method == 'interp':
+            vertex_z = self._interpolate_vertex_z()
+        else:
+            raise ValueError(f"Unknown vertex_z_method: {vertex_z_method}")
+
+    with open(filename, 'w') as f:
+        # Write header
+        f.write("UNSTRUCTURED\n")
+
+        # Write dimensions
+        f.write(f"{self.nnodes}\n")
+        f.write(f"{len(self.vertices)}\n")
+
+        # Write vertices with z-coordinates
+        for iv, (idx, x, y) in enumerate(self.vertices):
+            f.write(f"{x:.10f} {y:.10f} {vertex_z[iv]:.10f}\n")
+
+        # Write cell definitions
+        for icell in range(self.nnodes):
+            xc = self.xcellcenters[icell]
+            yc = self.ycellcenters[icell]
+            layer = self._get_cell_layer(icell)
+            iverts = self.iverts[icell]
+
+            # GSF uses 1-based indexing
+            f.write(f"{icell+1} {xc:.10f} {yc:.10f} {layer} {len(iverts)}")
+            for iv in iverts:
+                f.write(f" {iv+1}")
+            f.write("\n")
+```
+
+**Helper methods:**
+```python
+def _derive_vertex_z_from_top(self):
+    """Assign each vertex the top elevation of its containing cell(s)."""
+    vertex_z = np.zeros(len(self.vertices))
+    vertex_cell_map = self._build_vertex_to_cells_map()
+
+    for iv in range(len(self.vertices)):
+        cells = vertex_cell_map[iv]
+        # Use average top of all cells sharing this vertex
+        vertex_z[iv] = np.mean([self.top[cell] for cell in cells])
+
+    return vertex_z
+
+def _derive_vertex_z_from_bot(self):
+    """Assign each vertex the bottom elevation of its containing cell(s)."""
+    vertex_z = np.zeros(len(self.vertices))
+    vertex_cell_map = self._build_vertex_to_cells_map()
+
+    for iv in range(len(self.vertices)):
+        cells = vertex_cell_map[iv]
+        vertex_z[iv] = np.mean([self.botm[cell] for cell in cells])
+
+    return vertex_z
+
+def _interpolate_vertex_z(self):
+    """
+    Interpolate vertex z from surrounding cells.
+    For vertices on layer interfaces, use interpolation.
+    """
+    # More complex: consider layer structure, interpolate between top/bot
+    # This could use geometric interpolation based on vertex position
+    pass
+
+def _build_vertex_to_cells_map(self):
+    """Build mapping of vertex index to cells that use it."""
+    vertex_to_cells = {i: [] for i in range(len(self.vertices))}
+    for icell, cell_verts in enumerate(self.iverts):
+        for iv in cell_verts:
+            vertex_to_cells[iv].append(icell)
+    return vertex_to_cells
+```
+
+### 7.2: Round-Trip Testing
+
+**Benefits:**
+```python
+# Create test data by exporting then re-importing
+def test_round_trip():
+    # Start with a Voronoi grid
+    vg = VoronoiGrid(points)
+
+    # Export to GSF
+    vg.to_gridspec("test.gsf", vertex_z_method='top')
+
+    # Re-import using from_gridspec
+    imported = UnstructuredGrid.from_gridspec("test.gsf")
+
+    # Verify geometry preserved
+    assert np.allclose(vg.xcellcenters, imported.xcellcenters)
+    assert np.allclose(vg.ycellcenters, imported.ycellcenters)
+    assert len(vg.iverts) == len(imported.iverts)
+```
+
+### 7.3: Test Data Generation
+
+**Use for testing `from_gridspec()`:**
+```python
+# Generate various test grids
+def generate_test_gsf_files():
+    # Test 1: Simple Voronoi
+    vg = create_simple_voronoi(npoints=20)
+    vg.to_gridspec("test_voronoi_simple.gsf")
+
+    # Test 2: Complex Voronoi with varying sizes
+    vg2 = create_complex_voronoi(npoints=100)
+    vg2.to_gridspec("test_voronoi_complex.gsf")
+
+    # Test 3: DISV-style layered grid
+    disv = create_disv_grid()
+    disv.to_gridspec("test_disv.gsf")
+```
+
+### 7.4: Documentation
+
+**Example usage:**
+```python
+from flopy.utils.voronoi import VoronoiGrid
+import numpy as np
+
+# Create Voronoi grid
+points = np.random.random((50, 2)) * 1000
+vg = VoronoiGrid(points, ncpl=50, nlay=3)
+
+# Export to GSF (automatic vertex z from top)
+vg.to_gridspec("my_grid.gsf")
+
+# Or with explicit vertex z
+vertex_z = np.linspace(100, 0, len(vg.vertices))
+vg.to_gridspec("my_grid.gsf", vertex_z=vertex_z)
+
+# Or from bottom elevations
+vg.to_gridspec("my_grid.gsf", vertex_z_method='bot')
+```
+
+### 7.5: Integration with Gridgen Testing
+
+**Use both Gridgen and to_gridspec() for comprehensive testing:**
+```python
+# Gridgen-generated grids (known-good connectivity)
+gridgen_files = [
+    "test_uniform.gsf",
+    "test_quadtree.gsf",
+    "test_octree.gsf"
+]
+
+# FloPy-generated grids (known geometry)
+flopy_files = [
+    "test_voronoi.gsf",
+    "test_disv.gsf"
+]
+
+# Test from_gridspec() on both sets
+for gsf_file in gridgen_files + flopy_files:
+    grid = UnstructuredGrid.from_gridspec(gsf_file)
+    validate_grid(grid)
+```
 
 ---
 
@@ -939,8 +1142,7 @@ Add section to "Working with Unstructured Grids" covering:
    - **Limitation:** No deterministic way to infer from vertex z-coordinates
    - **Options:**
      1. `top_bot_method='minmax'` (default): top=max(vertex_z), bot=min(vertex_z)
-     2. `top_bot_method='mean'`: Use mean of vertex z-coords
-     3. `top=array, bot=array`: Pass explicit arrays (most flexible)
+     2. `top=array, bot=array`: Pass explicit arrays (recommended when known)
    - **Rationale:** Cell top/bot are model properties, not purely geometric
 
 ✅ **hwva calculation:** User-selectable via `hwva_method` parameter ('average' default, 'geometric' future)
@@ -964,7 +1166,15 @@ Add section to "Working with Unstructured Grids" covering:
 
 ✅ **Repository:** FloPy (https://github.com/modflowpy/flopy)
 
-✅ **Test data:** User will provide sample GSF files
+✅ **Test data:**
+   - Primary: Use Gridgen to create quadtree/octree test grids
+   - Future: Add `to_gridspec()` export for Voronoi/DISV grids (Phase 7)
+   - Enables round-trip testing and comprehensive test suite
+
+✅ **GSF export (Phase 7):** Mirror approach to import
+   - `vertex_z` parameter: explicit array or inferred from top/bot
+   - `vertex_z_method='top'/'bot'`: Choose derivation method
+   - Same flexibility philosophy as `from_gridspec()`
 
 ## Important Limitations
 
