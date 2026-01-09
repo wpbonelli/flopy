@@ -10,7 +10,12 @@ from numpy.lib.recfunctions import stack_arrays
 
 from ..utils import geometry
 from . import plotutil
-from .plotutil import to_mp7_endpoints, to_mp7_pathlines
+from .plotutil import (
+    get_shared_face,
+    get_shared_face_3d,
+    is_vertical_barrier,
+    to_mp7_pathlines,
+)
 
 warnings.simplefilter("always", PendingDeprecationWarning)
 
@@ -439,6 +444,120 @@ class PlotMapView:
         ax = self._set_axes_limits(ax)
         return collection
 
+    def _plot_barrier_bc(self, barrier_data, color=None, name=None, **kwargs):
+        """
+        Plot barrier-type boundary conditions (e.g., HFB) as lines or patches.
+
+        Horizontal barriers (between horizontally adjacent cells) are plotted as
+        lines on shared faces. Vertical barriers (between vertically stacked cells)
+        are plotted as full cell patches.
+
+        Parameters
+        ----------
+        barrier_data : list of tuples
+            List of (cellid1, cellid2) tuples representing barriers between cells
+        color : string
+            matplotlib color string
+        name : string
+            Package name for color lookup
+        **kwargs : dictionary
+            keyword arguments passed to LineCollection or PatchCollection
+
+        Returns
+        -------
+        matplotlib.collections.LineCollection or PatchCollection
+        """
+        ax = kwargs.pop("ax", self.ax)
+
+        # Separate horizontal and vertical barriers
+        horizontal_line_segments = []
+        vertical_cell_indices = []
+
+        for cellid1, cellid2 in barrier_data:
+            # Only plot barriers on the current layer (for layered grids)
+            # For DISU (len==1), plot all barriers since there's no layer filtering
+            if len(cellid1) >= 2:  # DIS or DISV (has layer info)
+                if cellid1[0] != self.layer and cellid2[0] != self.layer:
+                    continue
+
+            # Check if this is a vertical barrier
+            if is_vertical_barrier(self.mg, cellid1, cellid2):
+                # For vertical barriers, plot the cells on the current layer
+                if len(cellid1) >= 2:
+                    if cellid1[0] == self.layer:
+                        if len(cellid1) == 3:
+                            vertical_cell_indices.append(
+                                [self.layer, cellid1[1], cellid1[2]]
+                            )
+                        else:
+                            vertical_cell_indices.append([self.layer, cellid1[1]])
+                    if cellid2[0] == self.layer:
+                        if len(cellid2) == 3:
+                            vertical_cell_indices.append(
+                                [self.layer, cellid2[1], cellid2[2]]
+                            )
+                        else:
+                            vertical_cell_indices.append([self.layer, cellid2[1]])
+            else:
+                # Horizontal barrier - plot as line on shared face
+                shared_face = get_shared_face(self.mg, cellid1, cellid2)
+                if shared_face is not None:
+                    horizontal_line_segments.append(shared_face)
+
+        # Determine color
+        if color is None:
+            key = name[:3].upper() if name else "HFB"
+            c = plotutil.bc_color_dict.get(key, None)
+            if c is None:
+                c = plotutil.bc_color_dict["default"]
+        else:
+            c = color
+
+        collections = []
+
+        # Plot horizontal barriers as lines
+        if horizontal_line_segments:
+            lc_kwargs = dict(kwargs.items())
+            if "linewidth" not in lc_kwargs and "lw" not in lc_kwargs:
+                lc_kwargs["linewidth"] = 2
+
+            lc = LineCollection(horizontal_line_segments, colors=c, **lc_kwargs)
+            ax.add_collection(lc)
+            collections.append(lc)
+
+        # Plot vertical barriers as patches
+        if vertical_cell_indices:
+            idx = np.array(vertical_cell_indices, dtype=int).T
+            pc_kwargs = {
+                k: v for k, v in kwargs.items() if k not in ["linewidth", "lw"]
+            }
+
+            # Create a plot array with 1s for cells to plot
+            plotarray = np.zeros(self.mg.shape, dtype=int)
+            if len(self.mg.shape) > 1:
+                plotarray[tuple(idx)] = 1
+            else:
+                plotarray[idx] = 1
+
+            # Mask the plot array
+            plotarray = np.ma.masked_equal(plotarray, 0)
+
+            # Set the colormap
+            cmap = matplotlib.colors.ListedColormap(["none", c])
+            bounds = [0, 1, 2]
+            norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
+
+            # Plot using plot_array
+            pc = self.plot_array(plotarray, cmap=cmap, norm=norm, **pc_kwargs)
+            if pc is not None:
+                collections.append(pc)
+
+        if not collections:
+            return None
+
+        ax = self._set_axes_limits(ax)
+        return collections if len(collections) > 1 else collections[0]
+
     def plot_bc(
         self,
         name=None,
@@ -496,6 +615,9 @@ class PlotMapView:
                 p = [p]
 
             idx = np.array([])
+            is_barrier_package = False
+            barrier_faces = []
+
             for pp in p:
                 if pp.package_type in {"lak", "sfr", "maw", "uzf"}:
                     t = plotutil.advanced_package_bc_helper(pp, self.mg, kper)
@@ -508,12 +630,36 @@ class PlotMapView:
                         return
                     if boundname is not None:
                         mflist = mflist[mflist["boundname"] == boundname]
-                    t = np.array([list(i) for i in mflist["cellid"]], dtype=int).T
+
+                    if "cellid" in mflist.dtype.names:
+                        t = np.array([list(i) for i in mflist["cellid"]], dtype=int).T
+                    elif (
+                        "cellid1" in mflist.dtype.names
+                        and "cellid2" in mflist.dtype.names
+                    ):
+                        # if this is a barrier-type package (e.g. HFB),
+                        # it has cellid1, cellid2 instead of cellid.
+                        # collect the shared faces for plotting.
+                        is_barrier_package = True
+                        for entry in mflist:
+                            barrier_faces.append(
+                                (tuple(entry["cellid1"]), tuple(entry["cellid2"]))
+                            )
+                        continue
+                    else:
+                        raise ValueError(
+                            f"Package {pp.package_type} has unexpected cellid fields. "
+                            f"Available fields: {mflist.dtype.names}"
+                        )
 
                 if len(idx) == 0:
                     idx = np.copy(t)
                 else:
                     idx = np.append(idx, t, axis=1)
+
+            # Handle barrier packages differently
+            if is_barrier_package:
+                return self._plot_barrier_bc(barrier_faces, color, name, **kwargs)
 
         else:
             # modflow-2005 structured and unstructured grid
