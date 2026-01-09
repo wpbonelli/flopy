@@ -89,8 +89,11 @@ class ArrayFormat:
         self._decimal = None
         if array_free_format is not None:
             self._freeformat_model = bool(array_free_format)
-        else:
+        elif u2d.model is not None:
             self._freeformat_model = bool(u2d.model.array_free_format)
+        else:
+            # Default to free format when no model is available
+            self._freeformat_model = True
 
         self.default_float_width = 15
         self.default_int_width = 10
@@ -1868,7 +1871,7 @@ class Util2d(DataInterface):
         if self.vtype in [np.int32, np.float32]:
             self._how = "constant"
         # if a filename was passed in or external path was set
-        elif self._model.external_path is not None or self.vtype == str:
+        elif (self._model is not None and self._model.external_path is not None) or self.vtype == str:
             if self.format.array_free_format:
                 self._how = "openclose"
             else:
