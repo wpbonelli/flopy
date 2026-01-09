@@ -1871,7 +1871,9 @@ class Util2d(DataInterface):
         if self.vtype in [np.int32, np.float32]:
             self._how = "constant"
         # if a filename was passed in or external path was set
-        elif (self._model is not None and self._model.external_path is not None) or self.vtype == str:
+        elif (
+            self._model is not None and self._model.external_path is not None
+        ) or self.vtype == str:
             if self.format.array_free_format:
                 self._how = "openclose"
             else:

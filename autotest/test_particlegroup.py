@@ -88,7 +88,8 @@ def test_pgroup_write_with_release_timing():
             releasedata=[nripg2, 0.0, ripg2],
         )
 
-        # Test releaseoption 3 (explicit list of times) - this triggers Util2d with None model
+        # Test releaseoption 3 (explicit list of times).
+        # this triggers Util2d with None model
         nripg3 = 7
         pgrd3 = ParticleGroup(
             particlegroupname="PG3",
