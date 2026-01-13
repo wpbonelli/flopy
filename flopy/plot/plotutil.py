@@ -31,6 +31,7 @@ bc_color_dict = {
     "SFR": "teal",
     "UZF": "peru",
     "LAK": "royalblue",
+    "HFB": "orange",
 }
 
 
@@ -3015,3 +3016,157 @@ def hfb_data_to_linework(recarray, modelgrid):
         lines.append((tuple(verts[edge[0]]), tuple(verts[edge[1]])))
 
     return lines
+  
+def get_shared_face(mg, cellid1, cellid2) -> list | None:
+    """
+    Get the coordinates of the shared face between two cells.
+
+    Parameters
+    ----------
+    mg : Grid
+        Model grid
+    cellid1 : tuple
+        First cell ID
+    cellid2 : tuple
+        Second cell ID
+
+    Returns
+    -------
+    list or None
+        List of two (x, y) tuples representing the shared face endpoints,
+        or None if cells don't share a face
+    """
+    if cellid1 == cellid2:
+        raise ValueError("cellid1 and cellid2 must be different")
+
+    try:
+        if len(cellid1) == 3:
+            # Structured grid: (layer, row, col)
+            verts1 = mg.get_cell_vertices(cellid1[1], cellid1[2])
+            verts2 = mg.get_cell_vertices(cellid2[1], cellid2[2])
+        elif len(cellid1) == 2:
+            # Vertex grid: (layer, cell2d_id)
+            verts1 = mg.get_cell_vertices(cellid1[1])
+            verts2 = mg.get_cell_vertices(cellid2[1])
+        else:
+            # Unstructured grid: (node,)
+            verts1 = mg.get_cell_vertices(cellid1[0])
+            verts2 = mg.get_cell_vertices(cellid2[0])
+    except Exception:
+        return None
+
+    tol = 1e-5
+    shared_verts = []
+    for v1 in verts1:
+        for v2 in verts2:
+            if np.allclose(v1, v2, rtol=tol):  # reasonable tolerance?
+                if not any(np.allclose(v1, sv, rtol=tol) for sv in shared_verts):
+                    shared_verts.append(v1)
+                break
+
+    return shared_verts if len(shared_verts) >= 2 else None
+
+
+def get_shared_face_3d(mg, cellid1, cellid2) -> list | None:
+    """
+    Get the 3D coordinates of the shared face between two cells.
+
+    Parameters
+    ----------
+    mg : Grid
+        Model grid
+    cellid1 : tuple
+        First cell ID (DISU node)
+    cellid2 : tuple
+        Second cell ID (DISU node)
+
+    Returns
+    -------
+    list or None
+        List of (x, y, z) tuples representing the shared face vertices,
+        or None if cells don't share a face
+    """
+    if cellid1 == cellid2:
+        raise ValueError("cellid1 and cellid2 must be different")
+
+    # This method is specifically for unstructured grids
+    if not hasattr(mg, "vertices"):
+        return None
+
+    try:
+        # Get 3D vertices for each cell
+        # For DISU, vertices are stored as (node_number, x, y, z)
+        node1 = cellid1[0]
+        node2 = cellid2[0]
+
+        # Get cell vertex indices
+        if hasattr(mg, "iverts"):
+            # iverts is a jagged array of vertex indices for each cell
+            verts_idx1 = mg.iverts[node1]
+            verts_idx2 = mg.iverts[node2]
+        else:
+            return None
+
+        # Get 3D coordinates for vertices
+        verts1 = [mg.vertices[idx] for idx in verts_idx1]
+        verts2 = [mg.vertices[idx] for idx in verts_idx2]
+
+        # Find shared vertices in 3D
+        tol = 1e-5
+        shared_verts = []
+        for v1 in verts1:
+            for v2 in verts2:
+                if np.allclose(v1, v2, rtol=tol):
+                    if not any(np.allclose(v1, sv, rtol=tol) for sv in shared_verts):
+                        shared_verts.append(v1)
+                    break
+
+        return shared_verts if len(shared_verts) >= 2 else None
+
+    except Exception:
+        return None
+
+
+def is_vertical_barrier(mg, cellid1, cellid2) -> bool:
+    """
+    Determine if a barrier is vertical (between vertically stacked cells).
+
+    Parameters
+    ----------
+    mg : Grid
+        Model grid
+    cellid1 : tuple
+        First cell ID
+    cellid2 : tuple
+        Second cell ID
+
+    Returns
+    -------
+    bool
+        True if barrier is vertical (cells differ only in layer), False otherwise
+    """
+    if len(cellid1) == 3:
+        # Structured grid: (layer, row, col)
+        # Vertical if layers differ but row and col are the same
+        return (
+            cellid1[0] != cellid2[0]
+            and cellid1[1] == cellid2[1]
+            and cellid1[2] == cellid2[2]
+        )
+    elif len(cellid1) == 2:
+        # Vertex grid: (layer, cell2d)
+        # Vertical if layers differ but cell2d is the same
+        return cellid1[0] != cellid2[0] and cellid1[1] == cellid2[1]
+    else:
+        # Unstructured grid: (node,)
+        # Infer from geometry: check the orientation of the shared face
+        # If the face is horizontal (all z-coords equal), it's a vertical barrier
+        # If the face is vertical (z-coords differ), it's a horizontal barrier
+        shared_face_3d = get_shared_face_3d(mg, cellid1, cellid2)
+        if shared_face_3d is None:
+            # No shared face found, can't determine orientation
+            return False
+
+        # Check if all z-coordinates are the same (horizontal face)
+        z_coords = [v[2] for v in shared_face_3d]
+        return np.allclose(z_coords, z_coords[0], rtol=1e-5)

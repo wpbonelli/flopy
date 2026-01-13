@@ -2025,7 +2025,7 @@ class MFTransientArray(MFArray, MFTransient):
 
             return gdf
 
-    def set_record(self, data_record):
+    def set_record(self, data_record, replace=False):
         """Sets data and metadata at layer `layer` and time `key` to
         `data_record`.  For unlayered data do not pass in `layer`.
 
@@ -2037,10 +2037,15 @@ class MFTransientArray(MFArray, MFTransient):
                 and metadata (factor, iprn, filename, binary, data) for a given
                 stress period.  How to define the dictionary of data and
                 metadata is described in the MFData class's set_record method.
+            replace : bool
+                Perform the operation with replacement semantics: all existing
+                stress period keys not present in the new dictionary will be
+                removed. If False, existing keys not in the new dictionary
+                will be preserved. Defaults False for backwards compatibility.
         """
-        self._set_data_record(data_record, is_record=True)
+        self._set_data_record(data_record, is_record=True, replace=replace)
 
-    def set_data(self, data, multiplier=None, layer=None, key=None):
+    def set_data(self, data, multiplier=None, layer=None, key=None, replace=False):
         """Sets the contents of the data at layer `layer` and time `key` to
         `data` with multiplier `multiplier`. For unlayered data do not pass
         in `layer`.
@@ -2061,15 +2066,30 @@ class MFTransientArray(MFArray, MFTransient):
             key : int
                 Zero based stress period to assign data too.  Does not apply
                 if `data` is a dictionary.
+            replace : bool
+                If True and `data` is a dictionary, perform the operation
+                with replacement semantics: all existing stress period keys
+                not present in the new dictionary will be removed. If False,
+                existing keys not in the new dictionary will be preserved.
+                Defaults False for backwards compatibility.
         """
-        self._set_data_record(data, multiplier, layer, key)
+        self._set_data_record(data, multiplier, layer, key, replace=replace)
 
     def _set_data_record(
-        self, data, multiplier=None, layer=None, key=None, is_record=False
+        self, data, multiplier=None, layer=None, key=None, is_record=False, replace=False
     ):
         if isinstance(data, dict):
             # each item in the dictionary is a list for one stress period
             # the dictionary key is the stress period the list is for
+
+            # If replacing, remove keys not in the new data
+            if replace and self._data_storage:
+                keys_to_remove = set(self._data_storage.keys()) - set(data.keys())
+                for k in keys_to_remove:
+                    self.remove_transient_key(k)
+                    if k in self.empty_keys:
+                        del self.empty_keys[k]
+
             del_keys = []
             for key, list_item in data.items():
                 if list_item is None:

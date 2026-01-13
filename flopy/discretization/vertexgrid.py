@@ -504,23 +504,73 @@ class VertexGrid(Grid):
                     results.astype(int) if np.all(valid_mask) else results,
                 )
 
-    def get_cell_vertices(self, cellid):
+    def get_cell_vertices(self, cellid=None, node=None):
         """
-        Method to get a set of cell vertices for a single cell
-            used in the Shapefile export utilities
-        :param cellid: (int) cellid number
-        Returns
-        ------- list of x,y cell vertices
-        """
-        while cellid >= self.ncpl:
-            if cellid > self.nnodes:
-                err = f"cellid {cellid} out of index for size {self.nnodes}"
-                raise IndexError(err)
+        Get a set of cell vertices for a single cell.
 
-            cellid -= self.ncpl
+        Parameters
+        ----------
+        cellid : int or tuple, optional
+            Cell identifier. Can be:
+            - cell2d index (int, 0 to ncpl-1)
+            - node number (int, >= ncpl) - will be converted to cell2d
+            - (cell2d,) single-element tuple
+            - (layer, cell2d) tuple (layer is ignored, vertices are 2D)
+        node : int, optional
+            Node number, mutually exclusive with cellid
+
+        Returns
+        -------
+        list
+            list of (x, y) cell vertex coordinates
+
+        Examples
+        --------
+        >>> import flopy
+        >>> from flopy.utils.gridutil import get_disv_kwargs
+        >>> disv_props = get_disv_kwargs(1, 10, 10, 1.0, 1.0, 1.0, [0.0])
+        >>> vg = flopy.discretization.VertexGrid(**disv_props)
+        >>> vg.get_cell_vertices(5)  # cell2d index
+        >>> vg.get_cell_vertices((0, 5))  # (layer, cell2d) tuple
+        >>> vg.get_cell_vertices(node=105)  # node number
+        >>> vg.get_cell_vertices(cellid=(1, 5))  # explicit cellid kwarg
+        """
+        # Handle arguments
+        if cellid is not None and node is not None:
+            raise ValueError("cellid and node are mutually exclusive")
+
+        if cellid is None and node is None:
+            raise TypeError("expected cellid or node argument")
+
+        # Use cellid if provided, otherwise use node
+        if node is not None:
+            idx = node
+        else:
+            idx = cellid
+
+        # Handle tuple forms
+        if isinstance(idx, (tuple, list)):
+            if len(idx) == 1:
+                # (cell2d,) or (node,)
+                idx = idx[0]
+            elif len(idx) == 2:
+                # (layer, cell2d) - ignore layer since vertices are 2D
+                _, idx = idx
+            else:
+                raise ValueError(
+                    f"cellid tuple must have 1 or 2 elements, got {len(idx)}"
+                )
+
+        # Convert node to cell2d if necessary
+        while idx >= self.ncpl:
+            if idx > self.nnodes:
+                raise IndexError(
+                    f"node number {idx} exceeds grid node count {self.nnodes}"
+                )
+            idx -= self.ncpl
 
         self._copy_cache = False
-        cell_verts = list(zip(self.xvertices[cellid], self.yvertices[cellid]))
+        cell_verts = list(zip(self.xvertices[idx], self.yvertices[idx]))
         self._copy_cache = True
         return cell_verts
 

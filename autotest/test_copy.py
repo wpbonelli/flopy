@@ -82,6 +82,7 @@ def package_is_copy(pk1, pk2):
     """
     for k, v in pk1.__dict__.items():
         v2 = pk2.__dict__[k]
+        # Allow identity sharing for immutable types including NumPy scalars
         is_immutable = type(v) in [
             bool,
             str,
