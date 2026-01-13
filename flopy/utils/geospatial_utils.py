@@ -462,10 +462,8 @@ class GeoSpatialCollection:
             geopandas.GeoDataFrame
         """
         import warnings
-        warnings.warn(
-            "Deprecated, use .geodataframe instead",
-            DeprecationWarning
-        )
+
+        warnings.warn("Deprecated, use .geodataframe instead", DeprecationWarning)
         return self.geodataframe
 
     @property

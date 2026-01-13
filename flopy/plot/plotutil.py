@@ -3016,7 +3016,8 @@ def hfb_data_to_linework(recarray, modelgrid):
         lines.append((tuple(verts[edge[0]]), tuple(verts[edge[1]])))
 
     return lines
-  
+
+
 def get_shared_face(mg, cellid1, cellid2) -> list | None:
     """
     Get the coordinates of the shared face between two cells.

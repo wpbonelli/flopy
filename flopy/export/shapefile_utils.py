@@ -115,8 +115,7 @@ def write_grid_shapefile(
 
     if not isinstance(mg, Grid):
         raise ValueError(
-            f"'modelgrid' must be a flopy Grid subclass instance; "
-            f"found '{type(mg)}'"
+            f"'modelgrid' must be a flopy Grid subclass instance; found '{type(mg)}'"
         )
     gdf = mg.to_geodataframe()
     names = list(array_dict.keys())
@@ -367,7 +366,6 @@ def shp2recarray(shpname: Union[str, PathLike]):
     gdf = gpd.read_file(shpname)
     recarray = gdf.to_records()
     return recarray
-
 
 
 def recarray2shp(
