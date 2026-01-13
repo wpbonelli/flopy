@@ -251,7 +251,7 @@ def model_attributes_to_shapefile(
     prjfile = kwargs.get("prjfile", None)
     if prjfile is not None:
         try:
-            write_prj(filename, ml.modelgrid, crs=crs, prjfile=prjfile)
+            write_prj(path, ml.modelgrid, crs=crs, prjfile=prjfile)
         except ImportError:
             pass
 
