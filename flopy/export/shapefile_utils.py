@@ -58,7 +58,7 @@ def write_gridlines_shapefile(filename: Union[str, PathLike], modelgrid):
 
 def write_grid_shapefile(
     filename: Union[str, PathLike],
-    modelgrid,
+    mg,
     array_dict,
     nan_val=np.nan,
     crs=None,
@@ -67,13 +67,16 @@ def write_grid_shapefile(
     **kwargs,
 ):
     """
+    DEPRECATED -- removal planned in flopy version 3.11. Functionality replaced by
+    `to_geodataframe` on modelgrid object
+
     Method to write a shapefile of gridded input data
 
     Parameters
     ----------
     filename : str or PathLike
         shapefile file path
-    modelgrid : flopy.discretization.grid.Grid object
+    mg : flopy.discretization.grid.Grid object
         flopy model grid
     array_dict : dict
         dictionary of model input arrays
@@ -110,12 +113,12 @@ def write_grid_shapefile(
 
     from ..discretization.grid import Grid
 
-    if not isinstance(modelgrid, Grid):
+    if not isinstance(mg, Grid):
         raise ValueError(
             f"'modelgrid' must be a flopy Grid subclass instance; "
-            f"found '{type(modelgrid)}'"
+            f"found '{type(mg)}'"
         )
-    gdf = modelgrid.to_geodataframe()
+    gdf = mg.to_geodataframe()
     names = list(array_dict.keys())
     at = np.vstack([array_dict[name].ravel() for name in names])
     names = enforce_10ch_limit(names)
@@ -142,14 +145,14 @@ def write_grid_shapefile(
 
     if "prj" in kwargs or "prjfile" in kwargs or "wkt_string" in kwargs:
         try:
-            write_prj(filename, modelgrid, crs=crs, prjfile=prjfile, **kwargs)
+            write_prj(filename, mg, crs=crs, prjfile=prjfile, **kwargs)
         except ImportError:
             if verbose:
                 print("projection file not written")
 
 
 def model_attributes_to_shapefile(
-    filename: Union[str, PathLike],
+    path: Union[str, PathLike],
     ml,
     package_names=None,
     array_dict=None,
@@ -157,13 +160,16 @@ def model_attributes_to_shapefile(
     **kwargs,
 ):
     """
+    DEPRECATED -- removal planned in flopy version 3.11. Functionality replaced by
+    `to_geodataframe` on model object
+
     Wrapper function for writing a shapefile of model data.  If package_names
     is not None, then search through the requested packages looking for arrays
     that can be added to the shapefile as attributes
 
     Parameters
     ----------
-    filename : str or PathLike
+    path : str or PathLike
         path to write the shapefile to
     ml : flopy.mbase
         model instance
@@ -241,7 +247,7 @@ def model_attributes_to_shapefile(
         else:
             gdf = gdf.to_crs(crs)
 
-    gdf.to_file(filename)
+    gdf.to_file(path)
 
     prjfile = kwargs.get("prjfile", None)
     if prjfile is not None:
@@ -332,8 +338,12 @@ def enforce_10ch_limit(names: list[str], warnings: bool = True) -> list[str]:
     return names
 
 
-def shp2recarray(filename: Union[str, PathLike]):
-    """Read a shapefile into a numpy recarray.
+def shp2recarray(shpname: Union[str, PathLike]):
+    """
+    DEPRECATED - Functionality can be recreated with geopandas `read_file()` and
+    `to_records()` methods.
+
+    Read a shapefile into a numpy recarray.
 
     Parameters
     ----------
@@ -354,36 +364,26 @@ def shp2recarray(filename: Union[str, PathLike]):
     from ..utils.geospatial_utils import GeoSpatialCollection
 
     gpd = import_optional_dependency("geopandas")
-    gdf = gpd.read_file(filename)
+    gdf = gpd.read_file(shpname)
     recarray = gdf.to_records()
     return recarray
 
-    """
-    sfobj = sf.Reader(str(filename))
-    dtype = [(str(f[0]), get_pyshp_field_dtypes(f[1])) for f in sfobj.fields[1:]]
-
-    geoms = GeoSpatialCollection(sfobj).flopy_geometry
-    records = [tuple(r) + (geoms[i],) for i, r in enumerate(sfobj.iterRecords())]
-    dtype += [("geometry", object)]
-
-
-
-    recarray = np.array(records, dtype=dtype).view(np.recarray)
-    return recarray
-    """
 
 
 def recarray2shp(
     recarray,
     geoms,
-    filename: Union[str, PathLike] = "recarray.shp",
-    modelgrid=None,
+    shpname: Union[str, PathLike] = "recarray.shp",
+    mg=None,
     crs=None,
     prjfile: Union[str, PathLike, None] = None,
     verbose=False,
     **kwargs,
 ):
     """
+    DEPRECATED -- Functionality can be recreated using `to_geodataframe` on
+    data objects.
+
     Write a numpy record array to a shapefile, using a corresponding
     list of geometries. Method supports list of flopy geometry objects,
     flopy Collection object, shapely Collection object, and geojson
@@ -399,9 +399,9 @@ def recarray2shp(
             list of shapefile.Shape objects, or geojson geometry collection
         The number of geometries in geoms must equal the number of records in
         recarray.
-    filename : str or PathLike, default "recarray.shp"
+    shpname : str or PathLike, default "recarray.shp"
         Path for the output shapefile
-    modelgrid : flopy.discretization.Grid object
+    mg : flopy.discretization.Grid object
         flopy model grid
     crs : pyproj.CRS, int, str, optional if `prjfile` is specified
         Coordinate reference system (CRS) for the model grid
@@ -448,28 +448,28 @@ def recarray2shp(
     if crs is not None:
         gdf = gdf.set_crs(crs)
 
-    gdf.to_file(filename)
+    gdf.to_file(shpname)
 
     if verbose:
-        print(f"wrote {flopy_io.relpath_safe(os.getcwd(), filename)}")
+        print(f"wrote {flopy_io.relpath_safe(os.getcwd(), shpname)}")
 
     if "prj" in kwargs or "prjfile" in kwargs or "wkt_string" in kwargs:
         try:
-            write_prj(filename, modelgrid, crs=crs, prjfile=prjfile, **kwargs)
+            write_prj(shpname, mg, crs=crs, prjfile=prjfile, **kwargs)
         except ImportError:
             if verbose:
                 print("projection file not written")
 
 
 def write_prj(
-    filename,
+    shpname,
     modelgrid=None,
     crs=None,
     prjfile=None,
     **kwargs,
 ):
     # projection file name
-    output_projection_file = Path(filename).with_suffix(".prj")
+    output_projection_file = Path(shpname).with_suffix(".prj")
 
     # handle deprecated projection kwargs; warnings are raised in crs.py
     get_crs_args = {}

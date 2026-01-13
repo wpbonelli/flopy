@@ -206,14 +206,10 @@ from flopy.utils.geometry import Point
 from flopy.utils.geospatial_utils import GeoSpatialCollection
 
 geoms = [Point(x, y) for x, y in zip(welldata.x_utm, welldata.y_utm)]
-geoms = GeoSpatialCollection(geoms, "Point")
-gdf = gpd.GeoDataFrame.from_features(geoms)
+geoms = GeoSpatialCollection(geoms, "Point").shape
 
-for col in list(welldata):
-    gdf[col] = welldata[col]
-
+gdf = gpd.GeoDataFrame(welldata, geometry=geoms)
 gdf.to_file(f"{outdir}/wel_data.shp")
-
 # -
 
 ax = plt.subplot(1, 1, 1, aspect="equal")

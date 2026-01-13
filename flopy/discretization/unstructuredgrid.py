@@ -600,6 +600,8 @@ class UnstructuredGrid(Grid):
     @property
     def geo_dataframe(self):
         """
+        DEPRECATED -- Use to_geodataframe() instead. Will be removed in 3.11
+
         Returns a geopandas GeoDataFrame of the model grid
 
         Returns
