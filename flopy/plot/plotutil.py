@@ -2950,6 +2950,80 @@ def to_prt_pathlines(
         return ret
 
 
+def _cellid_to_node(mg, cellid):
+    """
+    Convert a cellid to a 2D node number for accessing iverts/verts.
+
+    For structured and vertex grids, this returns the 2D node (ignoring layer).
+    For unstructured grids, this returns the node directly.
+
+    Parameters
+    ----------
+    mg : Grid
+        Model grid
+    cellid : tuple
+        Cell ID (layer, row, col) for DIS, (layer, cell2d) for DISV,
+        or (node,) for DISU
+
+    Returns
+    -------
+    int
+        Node number for accessing iverts/verts
+    """
+    if len(cellid) == 3:
+        # Structured grid: (layer, row, col) -> convert to 2D node
+        return mg.get_node([(0, cellid[1], cellid[2])])[0]
+    elif len(cellid) == 2:
+        # Vertex grid: (layer, cell2d_id) -> use cell2d_id directly
+        return cellid[1]
+    else:
+        # Unstructured grid: (node,) -> use node directly
+        return cellid[0]
+
+
+def _get_shared_edge_indices(mg, node1, node2):
+    """
+    Get the shared edge between two cells as vertex indices.
+
+    Uses an index-based approach for efficiency and exactness (avoids
+    floating point comparisons).
+
+    Parameters
+    ----------
+    mg : Grid
+        Model grid
+    node1 : int
+        First node number (2D)
+    node2 : int
+        Second node number (2D)
+
+    Returns
+    -------
+    tuple or None
+        Tuple of two vertex indices representing the shared edge,
+        or None if cells don't share an edge
+    """
+    if not hasattr(mg, "iverts") or not hasattr(mg, "verts"):
+        return None
+
+    iverts = mg.iverts
+    iv0 = iverts[node1]
+    iv1 = iverts[node2]
+
+    # Build edges for first cell (consecutive vertex pairs)
+    edges = []
+    for ix in range(len(iv0)):
+        edges.append(tuple(sorted((iv0[ix - 1], iv0[ix]))))
+
+    # Find matching edge in second cell
+    for ix in range(len(iv1)):
+        edge = tuple(sorted((iv1[ix - 1], iv1[ix])))
+        if edge in edges:
+            return edge
+
+    return None
+
+
 def hfb_data_to_linework(recarray, modelgrid):
     """
     Method to get lines representing horizontal flow barriers
@@ -2993,23 +3067,13 @@ def hfb_data_to_linework(recarray, modelgrid):
 
     shared_edges = []
     for node0, node1 in nodes:
-        iv0 = iverts[node0]
-        iv1 = iverts[node1]
-        edges = []
-        for ix in range(len(iv0)):
-            edges.append(tuple(sorted((iv0[ix - 1], iv0[ix]))))
-
-        for ix in range(len(iv1)):
-            edge = tuple(sorted((iv1[ix - 1], iv1[ix])))
-            if edge in edges:
-                shared_edges.append(edge)
-                break
-
-        if not shared_edges:
+        edge = _get_shared_edge_indices(modelgrid, node0, node1)
+        if edge is None:
             raise AssertionError(
                 f"No shared cell edges found. Cannot represent HFB "
                 f"for nodes {node0} and {node1}"
             )
+        shared_edges.append(edge)
 
     lines = []
     for edge in shared_edges:
@@ -3021,6 +3085,9 @@ def hfb_data_to_linework(recarray, modelgrid):
 def get_shared_face(mg, cellid1, cellid2) -> list | None:
     """
     Get the coordinates of the shared face between two cells.
+
+    Uses an index-based approach for efficiency and exactness (avoids
+    floating point comparisons).
 
     Parameters
     ----------
@@ -3041,36 +3108,29 @@ def get_shared_face(mg, cellid1, cellid2) -> list | None:
         raise ValueError("cellid1 and cellid2 must be different")
 
     try:
-        if len(cellid1) == 3:
-            # Structured grid: (layer, row, col)
-            verts1 = mg.get_cell_vertices(cellid1[1], cellid1[2])
-            verts2 = mg.get_cell_vertices(cellid2[1], cellid2[2])
-        elif len(cellid1) == 2:
-            # Vertex grid: (layer, cell2d_id)
-            verts1 = mg.get_cell_vertices(cellid1[1])
-            verts2 = mg.get_cell_vertices(cellid2[1])
-        else:
-            # Unstructured grid: (node,)
-            verts1 = mg.get_cell_vertices(cellid1[0])
-            verts2 = mg.get_cell_vertices(cellid2[0])
+        # Convert cellids to nodes for accessing iverts/verts
+        node1 = _cellid_to_node(mg, cellid1)
+        node2 = _cellid_to_node(mg, cellid2)
+
+        # Find shared edge using index-based approach
+        edge = _get_shared_edge_indices(mg, node1, node2)
+        if edge is None:
+            return None
+
+        # Convert edge indices to coordinates
+        verts = mg.verts
+        return [tuple(verts[edge[0]]), tuple(verts[edge[1]])]
+
     except Exception:
         return None
-
-    tol = 1e-5
-    shared_verts = []
-    for v1 in verts1:
-        for v2 in verts2:
-            if np.allclose(v1, v2, rtol=tol):  # reasonable tolerance?
-                if not any(np.allclose(v1, sv, rtol=tol) for sv in shared_verts):
-                    shared_verts.append(v1)
-                break
-
-    return shared_verts if len(shared_verts) >= 2 else None
 
 
 def get_shared_face_3d(mg, cellid1, cellid2) -> list | None:
     """
     Get the 3D coordinates of the shared face between two cells.
+
+    Uses an index-based approach for efficiency and exactness (avoids
+    floating point comparisons).
 
     Parameters
     ----------
@@ -3095,34 +3155,26 @@ def get_shared_face_3d(mg, cellid1, cellid2) -> list | None:
         return None
 
     try:
-        # Get 3D vertices for each cell
-        # For DISU, vertices are stored as (node_number, x, y, z)
         node1 = cellid1[0]
         node2 = cellid2[0]
 
         # Get cell vertex indices
-        if hasattr(mg, "iverts"):
-            # iverts is a jagged array of vertex indices for each cell
-            verts_idx1 = mg.iverts[node1]
-            verts_idx2 = mg.iverts[node2]
-        else:
+        if not hasattr(mg, "iverts"):
             return None
 
-        # Get 3D coordinates for vertices
-        verts1 = [mg.vertices[idx] for idx in verts_idx1]
-        verts2 = [mg.vertices[idx] for idx in verts_idx2]
+        iverts = mg.iverts
+        verts_idx1 = set(iverts[node1])
+        verts_idx2 = set(iverts[node2])
 
-        # Find shared vertices in 3D
-        tol = 1e-5
-        shared_verts = []
-        for v1 in verts1:
-            for v2 in verts2:
-                if np.allclose(v1, v2, rtol=tol):
-                    if not any(np.allclose(v1, sv, rtol=tol) for sv in shared_verts):
-                        shared_verts.append(v1)
-                    break
+        # Find shared vertex indices using set intersection
+        shared_indices = verts_idx1 & verts_idx2
 
-        return shared_verts if len(shared_verts) >= 2 else None
+        if len(shared_indices) < 2:
+            return None
+
+        # Convert indices to 3D coordinates
+        shared_verts = [tuple(mg.vertices[idx]) for idx in shared_indices]
+        return shared_verts
 
     except Exception:
         return None

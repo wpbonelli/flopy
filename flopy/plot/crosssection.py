@@ -12,7 +12,6 @@ from ..utils import geometry, import_optional_dependency
 from ..utils.geospatial_utils import GeoSpatialUtil
 from . import plotutil
 from .plotutil import (
-    get_shared_face_3d,
     is_vertical_barrier,
     to_mp7_endpoints,
     to_mp7_pathlines,

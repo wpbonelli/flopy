@@ -12,7 +12,6 @@ from ..utils import geometry
 from . import plotutil
 from .plotutil import (
     get_shared_face,
-    get_shared_face_3d,
     is_vertical_barrier,
     to_mp7_pathlines,
 )
