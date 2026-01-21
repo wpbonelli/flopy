@@ -593,7 +593,7 @@ class Grid:
     def cross_section_vertices(self):
         return self.xyzvertices[0], self.xyzvertices[1]
 
-    def geo_dataframe(self, features, featuretype="Polygon"):
+    def to_geodataframe(self, features, featuretype="Polygon"):
         """
         Method returns a geopandas GeoDataFrame of the Grid
 
@@ -606,24 +606,11 @@ class Grid:
         gc = GeoSpatialCollection(
             features, shapetype=[featuretype for _ in range(len(features))]
         )
-        gdf = gc.geo_dataframe
+        gdf = gc.geodataframe
         gdf["node"] = gdf.index + 1
         if self.crs is not None:
             gdf = gdf.set_crs(crs=self.crs)
 
-        return gdf
-
-    @property
-    def grid_line_geo_dataframe(self):
-        """
-        Method to get a GeoDataFrame of grid lines
-
-        Returns
-        -------
-            GeoDataFrame
-        """
-        gdf = self.geo_dataframe(self.grid_lines, featuretype="LineString")
-        gdf = gdf.rename(columns={"node": "number"})
         return gdf
 
     def convert_grid(self, factor):

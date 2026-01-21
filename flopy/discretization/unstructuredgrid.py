@@ -591,8 +591,7 @@ class UnstructuredGrid(Grid):
 
         return copy.copy(self._polygons)
 
-    @property
-    def geo_dataframe(self):
+    def to_geodataframe(self):
         """
         Returns a geopandas GeoDataFrame of the model grid
 
@@ -601,7 +600,56 @@ class UnstructuredGrid(Grid):
             GeoDataFrame
         """
         polys = [[self.get_cell_vertices(nn)] for nn in range(self.nnodes)]
-        gdf = super().geo_dataframe(polys)
+        gdf = super().to_geodataframe(polys)
+        if self.nlay > 1:
+            lays = []
+            for ix, ncpl in enumerate(self.ncpl):
+                lays.extend([ix + 1] * ncpl)
+            gdf["layer"] = lays
+        if self.idomain is not None:
+            active = np.where(
+                self.idomain.reshape(
+                    (self.nnodes),
+                )
+                > 0,
+                1,
+                0,
+            )
+            gdf["active"] = active
+        else:
+            gdf["active"] = 1
+
+        return gdf
+
+    @property
+    def geo_dataframe(self):
+        """
+        DEPRECATED -- Use to_geodataframe() instead. Will be removed in 3.11
+
+        Returns a geopandas GeoDataFrame of the model grid
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        import warnings
+
+        warnings.warn(
+            "geo_dataframe has been deprecated, use to_geodataframe() instead",
+            DeprecationWarning,
+        )
+        return self.to_geodataframe()
+
+    def grid_line_geodataframe(self):
+        """
+        Method to get a GeoDataFrame of grid lines
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        gdf = super().to_geodataframe(self.grid_lines, featuretype="LineString")
+        gdf = gdf.rename(columns={"node": "number"})
         return gdf
 
     def neighbors(self, node=None, **kwargs):

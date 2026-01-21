@@ -456,7 +456,7 @@ class BinaryLayerFile(LayerFile):
         result = self._init_result(nstation)
 
         # Determine grid type
-        grid_type = "structured" if self.mg is None else self.mg.grid_type
+        grid_type = "structured" if self.modelgrid is None else self.modelgrid.grid_type
 
         istat = 1
         for item in kijlist:
@@ -1640,6 +1640,56 @@ class CellBudgetFile:
             for idx, t in enumerate(select_indices)
             if t
         ]
+
+    def to_geodataframe(
+        self,
+        gdf=None,
+        modelgrid=None,
+        idx=None,
+        kstpkper=None,
+        totim=None,
+        text=None,
+    ):
+        if (idx, kstpkper, totim) == (None, None, None):
+            raise AssertionError(
+                "to_geodataframe() missing 1 required argument: "
+                "please provide 'idx', 'kstpkper', or 'totim'"
+            )
+
+        if gdf is None:
+            if modelgrid is None:
+                if self.modelgrid is None:
+                    raise AssertionError(
+                        "A geodataframe or modelgrid instance must be supplied"
+                    )
+                modelgrid = self.modelgrid
+
+            gdf = modelgrid.to_geodataframe()
+
+        col_names = []
+        if text is None:
+            textlist = [i.decode() for i in self.textlist]
+            for text in textlist:
+                data = self.get_data(
+                    idx=idx, kstpkper=kstpkper, totim=totim, text=text, full3D=True
+                )
+
+                text = text.strip().lower().replace(" ", "_")
+                for ix, arr in enumerate(data[0]):
+                    name = f"{text}_{ix}"
+                    gdf[name] = arr.ravel()
+                    col_names.append(name)
+        else:
+            data = self.get_data(
+                idx=idx, kstpkper=kstpkper, totim=totim, text=text, full3D=True
+            )
+            text = text.strip().lower().replace(" ", "_")
+            for ix, arr in enumerate(data[0]):
+                name = f"{text}_{ix}"
+                gdf[name] = arr.ravel()
+                col_names.append(name)
+
+        return gdf
 
     def get_ts(self, idx, text=None, times=None, variable="q"):
         """

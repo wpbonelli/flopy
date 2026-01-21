@@ -842,6 +842,64 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         model_grid = self.data_dimensions.get_model_grid()
         return list_to_array(sarr, model_grid, kper, mask)
 
+    def to_geodataframe(self, gdf=None, full_grid=True, shorten_attr=False, **kwargs):
+        """
+        Method to add data to a GeoDataFrame for exporting as a geospatial file
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional GeoDataFrame instance. If GeoDataFrame is None, one will be
+            constructed from modelgrid information
+        full_grid : bool
+            boolean flag for full grid dataframe construction. Default is True.
+            If False, geodataframe will only include active cells
+        shorten_attr : bool
+            method to truncate attribute names for shapefile restrictions
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        from ...export.shapefile_utils import shape_attr_name
+
+        if self.model is None:
+            return gdf
+        else:
+            modelgrid = self.model.modelgrid
+            if modelgrid is None:
+                return gdf
+
+            if gdf is None:
+                gdf = modelgrid.to_geodataframe()
+
+            data = self.to_array(mask=True)
+            if data is None:
+                return gdf
+
+            col_names = []
+            for name, array3d in data.items():
+                if shorten_attr:
+                    aname = shape_attr_name(name)
+                else:
+                    aname = f"{self.path[1].lower()}_{name}"
+
+                if modelgrid.grid_type == "unstructured":
+                    array = array3d.ravel()
+                    gdf[aname] = array
+                    col_names.append(aname)
+                else:
+                    for lay in range(modelgrid.nlay):
+                        arr = array3d[lay].ravel()
+                        gdf[f"{aname}_{lay}"] = arr.ravel()
+                        col_names.append(f"{aname}_{lay}")
+
+            if not full_grid:
+                gdf = gdf.dropna(subset=col_names, how="all")
+                gdf = gdf.dropna(axis="columns", how="all")
+
+            return gdf
+
     def set_record(self, record, autofill=False, check_data=True):
         """Sets the contents of the data and metadata to "data_record".
         Data_record is a dictionary with has the following format:
@@ -2018,6 +2076,69 @@ class MFPandasTransientList(
         )
         self.repeating = True
         self.empty_keys = {}
+
+    def to_geodataframe(self, gdf=None, kper=0, full_grid=True, shorten_attr=False, **kwargs):
+        """
+        Method to add data to a GeoDataFrame for exporting as a geospatial file
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional GeoDataFrame instance. If GeoDataFrame is None, one will be
+            constructed from modelgrid information
+        kper : int
+            stress period to export
+        full_grid : bool
+            boolean flag for full grid dataframe construction. Default is True.
+            If False, geodataframe will only include active cells
+        shorten_attr : bool
+            method to truncate attribute names for shapefile restrictions
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        from ...export.shapefile_utils import shape_attr_name
+
+        if self.model is None:
+            return gdf
+        else:
+            modelgrid = self.model.modelgrid
+            if modelgrid is None:
+                return gdf
+
+            if gdf is None:
+                gdf = modelgrid.to_geodataframe()
+
+            data = self.to_array(kper=kper, mask=True)
+
+            col_names = []
+            for name, array3d in data.items():
+                if shorten_attr:
+                    name = shape_attr_name(name, length=4)
+                else:
+                    name = f"{self.path[1].lower()}_{name}"
+                if modelgrid.grid_type == "unstructured":
+                    array = array3d.ravel()
+                    aname = f"{name}_{kper}"
+                    gdf[aname] = array
+                    col_names.append(aname)
+                else:
+                    for lay in range(modelgrid.nlay):
+                        arr = array3d[lay].ravel()
+                        if shorten_attr:
+                            aname = f"{name}{lay}{kper}"
+                        else:
+                            aname = f"{name}_{lay}_{kper}"
+                        gdf[aname] = arr.ravel()
+                        col_names.append(aname)
+
+            if not full_grid:
+                gdf = gdf.dropna(subset=col_names, how="all")
+                gdf = gdf.dropna(axis="columns", how="all")
+
+            return gdf
+
 
     @property
     def data_type(self):

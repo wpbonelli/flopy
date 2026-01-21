@@ -323,6 +323,86 @@ class MFArray(MFMultiDimVar):
         """Returns array data.  Calls get_data with default parameters."""
         return self._get_data()
 
+    def to_geodataframe(self, gdf=None, full_grid=True, shorten_attr=False, **kwargs):
+        """
+        Method to add an input array to a geopandas GeoDataFrame
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional GeoDataFrame object
+        name : str
+            optional attribute name, default uses util2d name
+        full_grid : bool
+            boolean flag for full grid dataframe construction. Default is True.
+            If False, geodataframe will only include active cells
+        shorten_attr : bool
+            method to truncate attribute names for shapefile restrictions
+        **kwargs :
+            name : str
+                optional array name base. If not provided, method uses the .name
+                attribute
+            forgive : bool
+                optional flag to continue if data shape not compatible with GeoDataFrame
+
+
+        Returns
+        -------
+            geopandas GeoDataFrame
+        """
+        from ...export.shapefile_utils import shape_attr_name
+
+        if self.model is None:
+            return gdf
+        else:
+            name = kwargs.pop("name", None)
+            forgive = kwargs.pop("forgive", False)
+
+            modelgrid = self.model.modelgrid
+            if gdf is None:
+                if modelgrid is None:
+                    return gdf
+                gdf = modelgrid.to_geodataframe()
+
+            if modelgrid is not None:
+                if modelgrid.grid_type != "unstructured":
+                    ncpl = modelgrid.ncpl
+                else:
+                    ncpl = modelgrid.nnodes
+            else:
+                ncpl = len(gdf)
+
+            if name is None:
+                name = self.name
+
+            data = self.array
+            if data is None:
+                return gdf
+
+            if shorten_attr:
+                name = shape_attr_name(name=name)
+
+            if data.size == ncpl:
+                gdf[name] = data.ravel()
+
+            elif data.size % ncpl == 0:
+                data = data.reshape((-1, ncpl))
+                for ix, arr in enumerate(data):
+                    aname = f"{name}_{ix}"
+                    gdf[aname] = arr
+            elif forgive:
+                return gdf
+            else:
+                raise ValueError(
+                    f"Data size {data.size} not compatible with dataframe length {ncpl}"
+                )
+
+            if not full_grid:
+                if "active" in list(gdf):
+                    gdf = gdf[gdf["active"] > 0]
+
+            return gdf
+
     def new_simulation(self, sim_data):
         """Initialize MFArray object for a new simulation
 
@@ -1889,6 +1969,84 @@ class MFTransientArray(MFArray, MFTransient):
                 else:
                     output[sp] = data
         return output
+
+    def to_geodataframe(self, gdf=None, kper=0, full_grid=True, shorten_attr=False, **kwargs):
+        """
+        Method to add an input array to a geopandas GeoDataFrame
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional GeoDataFrame object
+        kper : int
+            stress period number
+        full_grid : bool
+            boolean flag for full grid dataframe construction. Default is True.
+            If False, geodataframe will only include active cells
+        shorten_attr : bool
+            method to truncate attribute names for shapefile restrictions
+        **kwargs
+            forgive : bool
+                optional flag to continue if data shape not compatible with GeoDataFrame
+
+        Returns
+        -------
+            geopandas GeoDataFrame
+        """
+        from ...export.shapefile_utils import shape_attr_name
+
+        if self.model is None:
+            return gdf
+        else:
+            forgive = kwargs.pop("forgive", False)
+
+            modelgrid = self.model.modelgrid
+            if gdf is None:
+                if modelgrid is None:
+                    return gdf
+                gdf = modelgrid.to_geodataframe()
+
+            if modelgrid is not None:
+                if modelgrid.grid_type != "unstructured":
+                    ncpl = modelgrid.ncpl
+                else:
+                    ncpl = modelgrid.nnodes
+            else:
+                ncpl = len(gdf)
+
+            if self.array is None:
+                return gdf
+
+            if shorten_attr:
+                name = shape_attr_name(self.name, length=4)
+            else:
+                name = f"{self.path[1]}_{self.name}"
+
+            data = self.get_data(key=kper, apply_mult=True)
+            if data.size == ncpl:
+                name = f"{name}_{kper}"
+                gdf[name] = data.ravel()
+
+            elif data.size % ncpl == 0:
+                data = data.reshape((-1, ncpl))
+                for ix, arr in enumerate(data):
+                    if shorten_attr:
+                        aname = f"{name}{ix}{kper}"
+                    else:
+                        aname = f"{name}_{ix}_{kper}"
+                    gdf[aname] = arr
+            elif forgive:
+                return gdf
+            else:
+                raise ValueError(
+                    f"Data size {data.size} not compatible with dataframe length {ncpl}"
+                )
+
+            if not full_grid:
+                if "active" in gdf:
+                    gdf = gdf[gdf["active"] > 0]
+
+            return gdf
 
     def set_record(self, data_record, replace=False):
         """Sets data and metadata at layer `layer` and time `key` to

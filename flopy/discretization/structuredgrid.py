@@ -759,8 +759,7 @@ class StructuredGrid(Grid):
 
         return self._polygons
 
-    @property
-    def geo_dataframe(self):
+    def to_geodataframe(self):
         """
         Returns a geopandas GeoDataFrame of the model grid
 
@@ -769,10 +768,52 @@ class StructuredGrid(Grid):
             GeoDataFrame
         """
         polys = [[list(zip(*i))] for i in zip(*self.cross_section_vertices)]
-        gdf = super().geo_dataframe(polys)
+        gdf = super().to_geodataframe(polys)
         gdf["row"] = sorted(list(range(1, self.nrow + 1)) * self.ncol)
         gdf["col"] = list(range(1, self.ncol + 1)) * self.nrow
+        if self.idomain is not None:
+            active = np.sum(
+                self.idomain.reshape(
+                    (-1, self.ncpl),
+                ),
+                axis=0,
+            )
+            active = np.where(active > 0, 1, 0)
+            gdf["active"] = active
+        else:
+            gdf["active"] = 1
         return gdf
+
+    def grid_line_geodataframe(self):
+        """
+        Method to get a GeoDataFrame of grid lines
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        gdf = super().to_geodataframe(self.grid_lines, featuretype="LineString")
+        gdf = gdf.rename(columns={"node": "number"})
+        return gdf
+
+    @property
+    def geo_dataframe(self):
+        """
+        DEPRECATED -- Use to_geodataframe() instead. Will be removed in 3.11
+
+        Returns a geopandas GeoDataFrame of the model grid
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        import warnings
+
+        warnings.warn(
+            "geo_dataframe has been deprecated, use to_geodataframe() instead",
+            DeprecationWarning,
+        )
+        return self.to_geodataframe()
 
     def convert_grid(self, factor):
         """

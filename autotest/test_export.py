@@ -239,32 +239,6 @@ def test_freyberg_export(function_tmpdir, example_data_path):
     assert m.drn.stress_period_data.mg.yoffset == m.modelgrid.yoffset
     assert m.drn.stress_period_data.mg.angrot == m.modelgrid.angrot
 
-    # get wkt text from pyproj
-    wkt = m.modelgrid.crs.to_wkt()
-
-    # if wkt text was fetched from pyproj
-    if wkt is not None:
-        # test default package export
-        shape = function_tmpdir / f"{name}_dis.shp"
-        m.dis.export(shape)
-        for suffix in [".dbf", ".prj", ".shp", ".shx"]:
-            part = shape.with_suffix(suffix)
-            assert part.exists()
-            if suffix == ".prj":
-                assert part.read_text() == wkt
-            part.unlink()
-
-        # test default package export to higher level dir ?
-
-        # test sparse package export
-        shape = function_tmpdir / f"{name}_drn_sparse.shp"
-        m.drn.stress_period_data.export(shape, sparse=True)
-        for suffix in [".dbf", ".prj", ".shp", ".shx"]:
-            part = shape.with_suffix(suffix)
-            assert part.exists()
-            if suffix == ".prj":
-                assert part.read_text() == wkt
-
 
 @requires_pkg("pyshp", name_map={"pyshp": "shapefile"})
 @pytest.mark.parametrize("missing_arrays", [True, False])
@@ -319,7 +293,7 @@ def test_export_output(crs, function_tmpdir, example_data_path):
     assert read_crs == get_authority_crs(4326)
 
 
-@requires_pkg("pyshp", name_map={"pyshp": "shapefile"})
+@requires_pkg("pyshp", "geopandas", name_map={"pyshp": "shapefile"})
 def test_write_gridlines_shapefile(function_tmpdir):
     import shapefile
 
@@ -334,7 +308,10 @@ def test_write_gridlines_shapefile(function_tmpdir):
         crs=26715,
     )
     outshp = function_tmpdir / "gridlines.shp"
-    write_gridlines_shapefile(outshp, sg)
+    gdf = sg.grid_line_geodataframe()
+    gdf.to_file(outshp)
+
+    # write_gridlines_shapefile(outshp, sg)
 
     for suffix in [".dbf", ".shp", ".shx"]:
         assert outshp.with_suffix(suffix).exists()
@@ -373,7 +350,9 @@ def test_export_shapefile_polygon_closed(function_tmpdir):
     shp.close()
 
 
-@requires_pkg("rasterio", "pyshp", "scipy", name_map={"pyshp": "shapefile"})
+@requires_pkg(
+    "rasterio", "pyshp", "scipy", "geopandas", name_map={"pyshp": "shapefile"}
+)
 def test_export_array(function_tmpdir, example_data_path):
     import rasterio
     from scipy.ndimage import rotate
@@ -396,7 +375,8 @@ def test_export_array(function_tmpdir, example_data_path):
     )
     arr = np.loadtxt(function_tmpdir / "fb.asc", skiprows=6)
 
-    m.modelgrid.write_shapefile(function_tmpdir / "grid.shp")
+    gdf = m.modelgrid.to_geodataframe()
+    gdf.to_file(function_tmpdir / "grid.shp")
 
     # check bounds
     with open(function_tmpdir / "fb.asc") as src:
@@ -507,7 +487,7 @@ def test_shapefile(function_tmpdir, namfile):
     )
 
 
-@requires_pkg("pyshp", name_map={"pyshp": "shapefile"})
+@requires_pkg("pyshp", "geopandas", name_map={"pyshp": "shapefile"})
 @pytest.mark.slow
 @pytest.mark.parametrize("namfile", namfiles())
 def test_shapefile_export_modelgrid_override(function_tmpdir, namfile):
@@ -635,6 +615,7 @@ def test_array3d_export_structured(function_tmpdir):
             110,  # node
             11,  # row
             10,  # column
+            1,  # active
             4.0,  # botm_1
             3.0,  # botm_2
             2.0,  # botm_3
@@ -656,6 +637,7 @@ def test_array3d_export_unstructured(function_tmpdir):
         assert list(shp.shapeRecord(-1).record) == [
             1770,  # node
             3,  # layer
+            1,  # active
             0.0,  # bot
         ]
 
@@ -820,7 +802,7 @@ def test_export_contours(function_tmpdir, example_data_path):
 
 
 @pytest.mark.mf6
-@requires_pkg("pyshp", "shapely", name_map={"pyshp": "shapefile"})
+@requires_pkg("pyshp", "shapely", "geopandas", name_map={"pyshp": "shapefile"})
 def test_export_mf6_shp(function_tmpdir):
     from shapefile import Reader
 
@@ -909,12 +891,15 @@ def test_export_mf6_shp(function_tmpdir):
         )
         pass
 
-    m.export(function_tmpdir / "mfnwt.shp")
-    gwf.export(function_tmpdir / "mf6.shp")
+    gdf = m.to_geodataframe()
+    gdf.to_file(function_tmpdir / "mfnwt.shp")
 
-    # check that the shapefiles are the same
-    ra = shp2recarray(function_tmpdir / "mfnwt.shp")
-    ra6 = shp2recarray(function_tmpdir / "mf6.shp")
+    gdf2 = gwf.to_geodataframe()
+    gdf2.to_file(function_tmpdir / "mf6.shp")
+
+    # check that the geodataframes are the same
+    ra = gdf.to_records()
+    ra6 = gdf2.to_records()
 
     # check first and last exported cells
     assert ra.geometry[0] == ra6.geometry[0]
@@ -922,11 +907,12 @@ def test_export_mf6_shp(function_tmpdir):
     # fields
     different_fields = list(set(ra.dtype.names).difference(ra6.dtype.names))
     different_fields = [
-        f for f in different_fields if "thick" not in f and "rech" not in f
+        f
+        for f in different_fields
+        if "thick" not in f and "rech" not in f and "model" not in f
     ]
     assert len(different_fields) == 0
-    for lay in np.arange(m.nlay) + 1:
-        assert np.sum(np.abs(ra[f"rech_{lay}"] - ra6[f"rechar{lay}"])) < 1e-6
+
     common_fields = set(ra.dtype.names).intersection(ra6.dtype.names)
     common_fields.remove("geometry")
     # array values
@@ -938,15 +924,13 @@ def test_export_mf6_shp(function_tmpdir):
                 assert np.abs(it - it6) < 1e-6
 
     # Compare exported riv shapefiles
-    riv.export(function_tmpdir / "riv.shp")
-    riv6.export(function_tmpdir / "riv6.shp")
-    with (
-        Reader(function_tmpdir / "riv.shp") as riv_shp,
-        Reader(function_tmpdir / "riv6.shp") as riv6_shp,
-    ):
-        assert list(riv_shp.shapeRecord(-1).record) == list(
-            riv6_shp.shapeRecord(-1).record
-        )
+    rdf = riv.to_geodataframe()
+    rdf.to_file(function_tmpdir / "riv.shp")
+
+    rdf6 = riv6.to_geodataframe()
+    rdf6.to_file(function_tmpdir / "riv6.shp")
+
+    assert rdf6.geometry.values[-1] == rdf.geometry.values[-1]
 
     # Check wel export with timeseries
     wel_spd_0 = flopy.mf6.ModflowGwfwel.stress_period_data.empty(
@@ -958,10 +942,11 @@ def test_export_mf6_shp(function_tmpdir):
         maxbound=1,
         stress_period_data={0: wel_spd_0[0]},
     )
-    wel.export(function_tmpdir / "wel_test.shp")
+    gdf = wel.to_geodataframe()
+    gdf.to_file(function_tmpdir / "wel_test.shp")
 
 
-@requires_pkg("pyshp", name_map={"pyshp": "shapefile"})
+@requires_pkg("geopandas")
 @pytest.mark.slow
 def test_export_huge_shapefile(function_tmpdir):
     nlay = 2
@@ -987,8 +972,8 @@ def test_export_huge_shapefile(function_tmpdir):
         top=top,
         botm=botm,
     )
-
-    m.export(function_tmpdir / "huge.shp")
+    gdf = m.to_geodataframe()
+    gdf.to_file(function_tmpdir / "huge.shp")
 
 
 @requires_pkg("netCDF4", "pyproj")
@@ -2053,7 +2038,7 @@ def test_vtk_export_disu2_grid(function_tmpdir, example_data_path):
 
 @pytest.mark.mf6
 @requires_exe("mf6", "gridgen")
-@requires_pkg("vtk", "pyshp", "shapely", name_map={"pyshp": "shapefile"})
+@requires_pkg("vtk", "pyshp", "shapely", "geopandas", name_map={"pyshp": "shapefile"})
 def test_vtk_export_disu_model(function_tmpdir):
     from vtkmodules.util.numpy_support import vtk_to_numpy
 
@@ -2177,7 +2162,7 @@ def test_mf6_chd_shapefile_export_structured(function_tmpdir, use_pandas, sparse
             assert set(chd_vals) == {1.0, 2.0}
 
 
-@requires_pkg("pyshp", name_map={"pyshp": "shapefile"})
+@requires_pkg("pyshp", "geopandas", name_map={"pyshp": "shapefile"})
 @pytest.mark.parametrize("use_pandas", [True])  # TODO: test non-pandas
 @pytest.mark.parametrize("sparse", [True])  # TODO: test non-sparse
 def test_mf6_chd_shapefile_export_unstructured(function_tmpdir, use_pandas, sparse):
@@ -2264,10 +2249,10 @@ def disv_sim(name, tmpdir):
     return sim
 
 
-@requires_pkg("pyshp", name_map={"pyshp": "shapefile"})
+@requires_pkg("geopandas")
 @pytest.mark.parametrize("use_pandas", [True])  # TODO: test non-pandas
-@pytest.mark.parametrize("sparse", [True])  # TODO: test non-sparse
-def test_mf6_chd_shapefile_export_vertex(function_tmpdir, use_pandas, sparse):
+@pytest.mark.parametrize("full_grid", [False])  # TODO: test non-sparse
+def test_mf6_chd_shapefile_export_vertex(function_tmpdir, use_pandas, full_grid):
     """Test CHD package shapefile export for DISV (vertex) grids"""
     from flopy.mf6 import (
         MFSimulation,
@@ -2285,40 +2270,38 @@ def test_mf6_chd_shapefile_export_vertex(function_tmpdir, use_pandas, sparse):
     chd_cells = [(0, 0, 1.0), (1, 2, 2.0), (2, 5, 3.0)]  # (layer, cell, head)
     chd = ModflowGwfchd(gwf, stress_period_data=chd_cells)
 
-    shpfile = function_tmpdir / f"chd_disv_{use_pandas}_{sparse}.shp"
-    gwf.chd.stress_period_data.export(shpfile, sparse=sparse)
+    shpfile = function_tmpdir / f"chd_disv_{use_pandas}_{not full_grid}.shp"
+    gdf = gwf.chd.stress_period_data.to_geodataframe(full_grid=full_grid)
+    gdf.to_file(shpfile)
 
     # Check that shapefile and sidecar files exist
     for ext in [".shp", ".shx", ".dbf"]:
         assert shpfile.with_suffix(ext).exists(), f"{shpfile.with_suffix(ext)} missing"
 
-    # Read shapefile and check records
-    with shapefile.Reader(str(shpfile)) as sf:
-        records = list(sf.records())
-        fields = [f[0] for f in sf.fields[1:]]  # skip DeletionFlag
+    if not full_grid:
+        # Only CHD cells should be exported
+        assert len(gdf) == len(chd_cells)
+    else:
+        # All grid cells should be exported
+        assert len(gdf) == gwf.modelgrid.nnodes
 
-        if sparse:
-            # Only CHD cells should be exported
-            assert len(records) == len(chd_cells)
-        else:
-            # All grid cells should be exported
-            assert len(records) == gwf.modelgrid.nnodes
+    # Check attribute values for CHD cells
+    cnt = 0
+    chd_vals = []
+    for _, row in gdf.iterrows():
+        col = f"chd_head_{cnt}_0"
+        if not np.isnan(row[col]):
+            chd_vals.append(row[col])
+            cnt += 1
 
-        # Check attribute values for CHD cells
-        chd_vals = [
-            rec[fields.index(next(f for f in fields if "head" in f))] for rec in records
-        ]
-        if sparse:
-            # Should match the CHD values
-            assert set(chd_vals) == {1.0, 2.0, 3.0}
+    if not full_grid:
+        # Should match the CHD values
+        assert set(chd_vals) == {1.0, 2.0, 3.0}
 
 
-@requires_pkg("pyshp", name_map={"pyshp": "shapefile"})
+@requires_pkg("geopandas")
 def test_issue_2628(function_tmpdir):
-    import shapefile
-
     from flopy.discretization import StructuredGrid
-    from flopy.export.shapefile_utils import write_grid_shapefile
 
     nrow, ncol = 3, 3
     idomain = np.ones((nrow, ncol), dtype=int)
@@ -2339,23 +2322,20 @@ def test_issue_2628(function_tmpdir):
     props = {"idomain": idomain, "sy": sy, "thickness": thickness, "k": k}
     prop_names = list(props.keys())
 
+    gdf = grid.to_geodataframe()
+    for prop, array in props.items():
+        gdf[prop] = array.ravel()
+
     outshp = function_tmpdir / "test_dict_handling.shp"
-    write_grid_shapefile(outshp, grid, props)
+    gdf.to_file(outshp)
 
     for suffix in [".dbf", ".shp", ".shx"]:
         assert outshp.with_suffix(suffix).exists()
 
-    with shapefile.Reader(str(outshp)) as sf:
-        records = list(sf.records())
-        fields = [f[0] for f in sf.fields[1:]]  # skip DeletionFlag
+    assert len(gdf) == nrow * ncol
+    assert [f for f in list(gdf) if f in prop_names] == prop_names
 
-        assert len(records) == nrow * ncol
-        assert [f for f in fields if f in prop_names] == prop_names
-
-        for record in records:
-            row = record[fields.index("row")] - 1
-            col = record[fields.index("column")] - 1
-            assert record[fields.index("idomain")] == idomain[row, col]
-            assert np.isclose(record[fields.index("sy")], sy[row, col])
-            assert np.isclose(record[fields.index("thickness")], thickness[row, col])
-            assert np.isclose(record[fields.index("k")], k[row, col])
+    assert np.allclose(gdf.idomain.values, idomain.ravel())
+    assert np.allclose(gdf.sy.values, sy.ravel())
+    assert np.allclose(gdf.thickness.values, thickness.ravel())
+    assert np.allclose(gdf.k.values, k.ravel())

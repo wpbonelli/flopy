@@ -300,8 +300,7 @@ class VertexGrid(Grid):
 
         return copy.copy(self._polygons)
 
-    @property
-    def geo_dataframe(self):
+    def to_geodataframe(self):
         """
         Returns a geopandas GeoDataFrame of the model grid
 
@@ -313,8 +312,50 @@ class VertexGrid(Grid):
         featuretype = "Polygon"
         if self._cell1d is not None:
             featuretype = "multilinestring"
-        gdf = super().geo_dataframe(cells, featuretype)
+        gdf = super().to_geodataframe(cells, featuretype)
+        if self.idomain is not None:
+            active = np.sum(
+                self.idomain.reshape(
+                    (self.nlay, self.ncpl),
+                ),
+                axis=0,
+            )
+            active = np.where(active > 0, 1, 0)
+            gdf["active"] = active
+        else:
+            gdf["active"] = 1
         return gdf
+
+    def grid_line_geodataframe(self):
+        """
+        Method to get a GeoDataFrame of grid lines
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        gdf = super().to_geodataframe(self.grid_lines, featuretype="LineString")
+        gdf = gdf.rename(columns={"node": "number"})
+        return gdf
+
+    @property
+    def geo_dataframe(self):
+        """
+        DEPRECATED -- Use to_geodataframe() instead. Will be removed in 3.11
+
+        Returns a geopandas GeoDataFrame of the model grid
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        import warnings
+
+        warnings.warn(
+            "geo_dataframe has been deprecated, use to_geodataframe() instead",
+            DeprecationWarning,
+        )
+        return self.to_geodataframe()
 
     def convert_grid(self, factor):
         """

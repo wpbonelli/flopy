@@ -152,11 +152,10 @@ def package_is_copy(pk1, pk2):
                     if not isinstance(a1, np.ndarray):
                         if a1 != a2:
                             return False
-                    # TODO: this may return False if there are nans
-                    elif not np.allclose(v.array, v2.array):
+                    elif not np.allclose(v.array, v2.array, equal_nan=True):
                         return False
         elif isinstance(v, np.ndarray):
-            if not np.allclose(v, v2):
+            if not np.allclose(v, v2, equal_nan=True):
                 return False
         elif v != v2:
             return False
