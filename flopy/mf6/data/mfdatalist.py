@@ -1026,6 +1026,12 @@ class MFList(mfdata.MFMultiDimVar, DataListInterface):
                         indent,
                     )
                 elif (
+                    storage._dependent_opt(data_item)
+                    and storage._optional_nval(data_item) == 0
+                ):
+                    # Skip optional fields that are not present
+                    pass
+                elif (
                     not data_item.is_boundname
                     or data_dim.package_dim.boundnames()
                 ) and (
