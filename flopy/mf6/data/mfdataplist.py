@@ -870,8 +870,15 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
             if modelgrid is None:
                 return gdf
 
+            # KEY CHANGE: Use squeeze_layers=False for sparse exports on structured/vertex grids
+            # This gives us one row per 3D cell with a layer column
             if gdf is None:
-                gdf = modelgrid.to_geodataframe()
+                if modelgrid.grid_type in ["structured", "vertex"] and not full_grid:
+                    # Sparse export needs full 3D representation
+                    gdf = modelgrid.to_geodataframe(squeeze_layers=False)
+                else:
+                    # Full grid or unstructured can use default (squeezed) representation
+                    gdf = modelgrid.to_geodataframe()
 
             data = self.to_array(mask=True)
             if data is None:
@@ -884,15 +891,39 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
                 else:
                     aname = f"{self.path[1].lower()}_{name}"
 
-                if modelgrid.grid_type == "unstructured":
-                    array = array3d.ravel()
-                    gdf[aname] = array
+                # Check if we have a layer column (full 3D representation)
+                if "layer" in gdf.columns:
+                    # Full 3D: add single column with data matched by layer
+                    values = []
+                    for idx, row in gdf.iterrows():
+                        lay = row['layer']
+                        if modelgrid.grid_type == "structured":
+                            i = row['row'] - 1
+                            j = row['col'] - 1
+                            val = array3d[lay, i, j]
+                        elif modelgrid.grid_type == "vertex":
+                            # Calculate cell index from node and layer
+                            node = row['node'] - 1
+                            icpl = node - lay * modelgrid.ncpl
+                            val = array3d[lay, icpl]
+                        else:  # unstructured
+                            node = row['node'] - 1
+                            val = array3d.ravel()[node]
+                        values.append(val)
+
+                    gdf[aname] = values
                     col_names.append(aname)
                 else:
-                    for lay in range(modelgrid.nlay):
-                        arr = array3d[lay].ravel()
-                        gdf[f"{aname}_{lay}"] = arr.ravel()
-                        col_names.append(f"{aname}_{lay}")
+                    # 2D footprint: add column per layer (original behavior)
+                    if modelgrid.grid_type == "unstructured":
+                        array = array3d.ravel()
+                        gdf[aname] = array
+                        col_names.append(aname)
+                    else:
+                        for lay in range(modelgrid.nlay):
+                            arr = array3d[lay].ravel()
+                            gdf[f"{aname}_{lay}"] = arr.ravel()
+                            col_names.append(f"{aname}_{lay}")
 
             if not full_grid:
                 gdf = gdf.dropna(subset=col_names, how="all")
@@ -2107,8 +2138,15 @@ class MFPandasTransientList(
             if modelgrid is None:
                 return gdf
 
+            # KEY CHANGE: Use squeeze_layers=False for sparse exports on structured/vertex grids
+            # This gives us one row per 3D cell with a layer column
             if gdf is None:
-                gdf = modelgrid.to_geodataframe()
+                if modelgrid.grid_type in ["structured", "vertex"] and not full_grid:
+                    # Sparse export needs full 3D representation
+                    gdf = modelgrid.to_geodataframe(squeeze_layers=False)
+                else:
+                    # Full grid or unstructured can use default (squeezed) representation
+                    gdf = modelgrid.to_geodataframe()
 
             data = self.to_array(kper=kper, mask=True)
 
@@ -2118,20 +2156,46 @@ class MFPandasTransientList(
                     name = shape_attr_name(name, length=4)
                 else:
                     name = f"{self.path[1].lower()}_{name}"
-                if modelgrid.grid_type == "unstructured":
-                    array = array3d.ravel()
+
+                # Check if we have a layer column (full 3D representation)
+                if "layer" in gdf.columns:
+                    # Full 3D: add single column with data matched by layer
+                    values = []
+                    for idx, row in gdf.iterrows():
+                        lay = row['layer']
+                        if modelgrid.grid_type == "structured":
+                            i = row['row'] - 1
+                            j = row['col'] - 1
+                            val = array3d[lay, i, j]
+                        elif modelgrid.grid_type == "vertex":
+                            # Calculate cell index from node and layer
+                            node = row['node'] - 1
+                            icpl = node - lay * modelgrid.ncpl
+                            val = array3d[lay, icpl]
+                        else:  # unstructured
+                            node = row['node'] - 1
+                            val = array3d.ravel()[node]
+                        values.append(val)
+
                     aname = f"{name}_{kper}"
-                    gdf[aname] = array
+                    gdf[aname] = values
                     col_names.append(aname)
                 else:
-                    for lay in range(modelgrid.nlay):
-                        arr = array3d[lay].ravel()
-                        if shorten_attr:
-                            aname = f"{name}{lay}{kper}"
-                        else:
-                            aname = f"{name}_{lay}_{kper}"
-                        gdf[aname] = arr.ravel()
+                    # 2D footprint: add column per layer (original behavior)
+                    if modelgrid.grid_type == "unstructured":
+                        array = array3d.ravel()
+                        aname = f"{name}_{kper}"
+                        gdf[aname] = array
                         col_names.append(aname)
+                    else:
+                        for lay in range(modelgrid.nlay):
+                            arr = array3d[lay].ravel()
+                            if shorten_attr:
+                                aname = f"{name}{lay}{kper}"
+                            else:
+                                aname = f"{name}_{lay}_{kper}"
+                            gdf[aname] = arr.ravel()
+                            col_names.append(aname)
 
             if not full_grid:
                 gdf = gdf.dropna(subset=col_names, how="all")

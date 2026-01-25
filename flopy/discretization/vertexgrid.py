@@ -300,31 +300,70 @@ class VertexGrid(Grid):
 
         return copy.copy(self._polygons)
 
-    def to_geodataframe(self):
+    def to_geodataframe(self, squeeze_layers=True):
         """
         Returns a geopandas GeoDataFrame of the model grid
+
+        Parameters
+        ----------
+        squeeze_layers : bool
+            If True (default), return 2D footprint with ncpl rows.
+            If False, return full 3D grid with nlay×ncpl rows and a layer column.
 
         Returns
         -------
             GeoDataFrame
         """
-        cells = [[self.get_cell_vertices(nn)] for nn in range(self.ncpl)]
-        featuretype = "Polygon"
-        if self._cell1d is not None:
-            featuretype = "multilinestring"
-        gdf = super().to_geodataframe(cells, featuretype)
-        if self.idomain is not None:
-            active = np.sum(
-                self.idomain.reshape(
-                    (self.nlay, self.ncpl),
-                ),
-                axis=0,
-            )
-            active = np.where(active > 0, 1, 0)
-            gdf["active"] = active
+        if squeeze_layers:
+            # Current behavior: 2D footprint
+            cells = [[self.get_cell_vertices(nn)] for nn in range(self.ncpl)]
+            featuretype = "Polygon"
+            if self._cell1d is not None:
+                featuretype = "multilinestring"
+            gdf = super().to_geodataframe(cells, featuretype)
+            if self.idomain is not None:
+                active = np.sum(
+                    self.idomain.reshape(
+                        (self.nlay, self.ncpl),
+                    ),
+                    axis=0,
+                )
+                active = np.where(active > 0, 1, 0)
+                gdf["active"] = active
+            else:
+                gdf["active"] = 1
+            return gdf
         else:
-            gdf["active"] = 1
-        return gdf
+            # New behavior: full 3D grid
+            polys = []
+            layers = []
+            nodes = []
+            actives = []
+
+            for k in range(self.nlay):
+                for icpl in range(self.ncpl):
+                    # Get vertices for this cell
+                    node = k * self.ncpl + icpl
+                    verts = self.get_cell_vertices(icpl)
+                    polys.append([verts])
+
+                    layers.append(k)
+                    nodes.append(node + 1)
+
+                    if self.idomain is not None:
+                        actives.append(self.idomain[node])
+                    else:
+                        actives.append(1)
+
+            featuretype = "Polygon"
+            if self._cell1d is not None:
+                featuretype = "multilinestring"
+            gdf = super().to_geodataframe(polys, featuretype)
+            gdf["layer"] = layers
+            gdf["active"] = actives
+            gdf["node"] = nodes
+
+            return gdf
 
     def grid_line_geodataframe(self):
         """

@@ -759,30 +759,72 @@ class StructuredGrid(Grid):
 
         return self._polygons
 
-    def to_geodataframe(self):
+    def to_geodataframe(self, squeeze_layers=True):
         """
         Returns a geopandas GeoDataFrame of the model grid
+
+        Parameters
+        ----------
+        squeeze_layers : bool
+            If True (default), return 2D footprint with nrow×ncol rows.
+            If False, return full 3D grid with nlay×nrow×ncol rows and a layer column.
 
         Returns
         -------
             GeoDataFrame
         """
-        polys = [[list(zip(*i))] for i in zip(*self.cross_section_vertices)]
-        gdf = super().to_geodataframe(polys)
-        gdf["row"] = sorted(list(range(1, self.nrow + 1)) * self.ncol)
-        gdf["col"] = list(range(1, self.ncol + 1)) * self.nrow
-        if self.idomain is not None:
-            active = np.sum(
-                self.idomain.reshape(
-                    (-1, self.ncpl),
-                ),
-                axis=0,
-            )
-            active = np.where(active > 0, 1, 0)
-            gdf["active"] = active
+        if squeeze_layers:
+            # Current behavior: 2D footprint
+            polys = [[list(zip(*i))] for i in zip(*self.cross_section_vertices)]
+            gdf = super().to_geodataframe(polys)
+            gdf["row"] = sorted(list(range(1, self.nrow + 1)) * self.ncol)
+            gdf["col"] = list(range(1, self.ncol + 1)) * self.nrow
+            if self.idomain is not None:
+                active = np.sum(
+                    self.idomain.reshape(
+                        (-1, self.ncpl),
+                    ),
+                    axis=0,
+                )
+                active = np.where(active > 0, 1, 0)
+                gdf["active"] = active
+            else:
+                gdf["active"] = 1
+            return gdf
         else:
-            gdf["active"] = 1
-        return gdf
+            # New behavior: full 3D grid
+            polys = []
+            layers = []
+            nodes = []
+            rows = []
+            cols = []
+            actives = []
+
+            for k in range(self.nlay):
+                for i in range(self.nrow):
+                    for j in range(self.ncol):
+                        # Get vertices for this i,j location
+                        verts = self.get_cell_vertices(i, j)
+                        polys.append([verts])
+
+                        layers.append(k)
+                        nodes.append(k * self.nrow * self.ncol + i * self.ncol + j + 1)
+                        rows.append(i + 1)
+                        cols.append(j + 1)
+
+                        if self.idomain is not None:
+                            actives.append(self.idomain[k, i, j])
+                        else:
+                            actives.append(1)
+
+            gdf = super().to_geodataframe(polys)
+            gdf["layer"] = layers
+            gdf["row"] = rows
+            gdf["col"] = cols
+            gdf["active"] = actives
+            gdf["node"] = nodes
+
+            return gdf
 
     def grid_line_geodataframe(self):
         """

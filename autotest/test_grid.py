@@ -1852,3 +1852,85 @@ def test_unstructured_grid_get_node():
 
     with pytest.raises(IndexError, match=r"Node .* out of range"):
         ug.get_node(200)
+
+
+def test_geodataframe_sparse_export(function_tmpdir):
+    """
+    Test that sparse export correctly handles cells in different layers
+    at the same (row, col) location. This test verifies the fix for issue #2531.
+
+    When exporting stress period data with sparse=True (full_grid=False),
+    cells at the same horizontal location but different layers should be
+    exported as separate features with a layer column to distinguish them.
+    """
+    geopandas = import_optional_dependency("geopandas")
+
+    # Create a 3-layer DIS model with CHD cells in different layers
+    sim = MFSimulation(sim_name="test_sparse", sim_ws=function_tmpdir)
+    import flopy
+    flopy.mf6.ModflowTdis(sim)
+    flopy.mf6.ModflowIms(sim)
+    gwf = flopy.mf6.ModflowGwf(sim, modelname="test")
+    flopy.mf6.ModflowGwfdis(
+        gwf, nlay=3, nrow=4, ncol=5, top=10.0, botm=[7.0, 4.0, 0.0]
+    )
+
+    # Add CHD cells at same (row, col) but different layers
+    chd_cells = [
+        ((0, 1, 2), 1.0),  # layer 0, row 1, col 2
+        ((2, 1, 2), 5.0),  # layer 2, row 1, col 2
+    ]
+    chd = flopy.mf6.ModflowGwfchd(gwf, stress_period_data=chd_cells)
+
+    # Test 1: Default behavior (squeeze_layers=True) returns 2D footprint
+    gdf_default = gwf.modelgrid.to_geodataframe()
+    assert len(gdf_default) == 20  # nrow * ncol
+    assert "layer" not in gdf_default.columns
+
+    # Test 2: Full 3D (squeeze_layers=False) returns all cells with layer column
+    gdf_full3d = gwf.modelgrid.to_geodataframe(squeeze_layers=False)
+    assert len(gdf_full3d) == 60  # nlay * nrow * ncol
+    assert "layer" in gdf_full3d.columns
+    assert list(gdf_full3d.columns) == ["geometry", "node", "layer", "row", "col", "active"]
+
+    # Test 3: Sparse export automatically uses squeeze_layers=False
+    chd_gdf = chd.stress_period_data.to_geodataframe(kper=0, full_grid=False)
+    assert len(chd_gdf) == 2  # Two CHD cells in different layers
+    assert "layer" in chd_gdf.columns
+    assert "chd_head_0" in chd_gdf.columns
+
+    # Verify the two features have correct layer, row, col values
+    # Sort by layer to ensure consistent order
+    chd_gdf = chd_gdf.sort_values("layer").reset_index(drop=True)
+
+    # First CHD cell (layer 0)
+    assert chd_gdf.loc[0, "layer"] == 0
+    assert chd_gdf.loc[0, "row"] == 2  # 1-based indexing
+    assert chd_gdf.loc[0, "col"] == 3  # 1-based indexing
+    assert chd_gdf.loc[0, "chd_head_0"] == 1.0
+
+    # Second CHD cell (layer 2)
+    assert chd_gdf.loc[1, "layer"] == 2
+    assert chd_gdf.loc[1, "row"] == 2  # Same row as first
+    assert chd_gdf.loc[1, "col"] == 3  # Same col as first
+    assert chd_gdf.loc[1, "chd_head_0"] == 5.0
+
+    # Test 4: Export to shapefile and verify we can read it back
+    shp_path = os.path.join(function_tmpdir, "chd_sparse.shp")
+    chd_gdf.to_file(shp_path)
+
+    # Read shapefile back
+    gdf_read = geopandas.read_file(shp_path)
+    assert len(gdf_read) == 2
+    assert "layer" in gdf_read.columns
+
+    # Verify both features have same (row, col) but different layers
+    gdf_read = gdf_read.sort_values("layer").reset_index(drop=True)
+    assert gdf_read.loc[0, "row"] == gdf_read.loc[1, "row"]  # Same row
+    assert gdf_read.loc[0, "col"] == gdf_read.loc[1, "col"]  # Same col
+    assert gdf_read.loc[0, "layer"] != gdf_read.loc[1, "layer"]  # Different layers
+
+    # Verify geometries are the same (same horizontal footprint)
+    geom0 = gdf_read.loc[0, "geometry"]
+    geom1 = gdf_read.loc[1, "geometry"]
+    assert geom0.equals(geom1)  # Same polygon because same (row, col)

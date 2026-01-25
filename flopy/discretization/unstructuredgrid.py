@@ -591,14 +591,22 @@ class UnstructuredGrid(Grid):
 
         return copy.copy(self._polygons)
 
-    def to_geodataframe(self):
+    def to_geodataframe(self, squeeze_layers=True):
         """
         Returns a geopandas GeoDataFrame of the model grid
+
+        Parameters
+        ----------
+        squeeze_layers : bool
+            Ignored for unstructured grids (always returns full 3D).
+            Included for API consistency.
 
         Returns
         -------
             GeoDataFrame
         """
+        # DISU already returns full 3D, so squeeze_layers doesn't apply
+        # (keeping current behavior)
         polys = [[self.get_cell_vertices(nn)] for nn in range(self.nnodes)]
         gdf = super().to_geodataframe(polys)
         if self.nlay > 1:
