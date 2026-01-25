@@ -43,9 +43,9 @@ class VertexGrid(Grid):
         in the spatial reference coordinate system
     angrot : float
         rotation angle of model grid, as it is rotated around the origin point
-    vertices_coords : {'local', 'world'}, default 'local'
+    vertices_coords : {'local', 'global'}, default 'local'
         Coordinate system of input vertices. If 'local', vertices are in
-        model-local coordinates (as stored in DISV files). If 'world',
+        model-local coordinates (as stored in DISV files). If 'global',
         vertices are already georeferenced with rotation and offset applied.
     **kwargs : dict, optional
         Support deprecated keyword options.
@@ -104,8 +104,8 @@ class VertexGrid(Grid):
             **kwargs,
         )
 
-        if vertices is not None and vertices_coords == "world":
-            # Vertices are in world coordinates, need to transform to local
+        if vertices is not None and vertices_coords == "global":
+            # Vertices are in global coordinates, need to transform to local
             verts_array = np.array([list(v)[1:] for v in vertices], dtype=float).T
             angrot_rad = angrot * np.pi / 180.0
             x_local, y_local = transform(

@@ -78,9 +78,9 @@ class UnstructuredGrid(Grid):
         For each connection in the ja array: ihc = 0 indicates a vertical
         connection, ihc = 1 or 2 indicates a horizontal connection, with 2
         indicating that horizontal connections are vertically staggered.
-    vertices_coords : {'local', 'world'}, default 'local'
+    vertices_coords : {'local', 'global'}, default 'local'
         Coordinate system of input vertices. If 'local', vertices are in
-        model-local coordinates (as stored in DISU files). If 'world',
+        model-local coordinates (as stored in DISU files). If 'global',
         vertices are already georeferenced with rotation and offset applied.
     **kwargs : dict, optional
         Support deprecated keyword options.
@@ -165,8 +165,8 @@ class UnstructuredGrid(Grid):
             ycenters = np.array([i[2] for i in cell2d])
             iverts = [list(t)[4:] for t in cell2d]
 
-        if vertices is not None and vertices_coords == "world":
-            # Vertices are in world coordinates, need to transform to local
+        if vertices is not None and vertices_coords == "global":
+            # Vertices are in global coordinates, need to transform to local
             verts_array = np.array([list(v)[1:] for v in vertices], dtype=float).T
             angrot_rad = angrot * np.pi / 180.0
             x_local, y_local = transform(

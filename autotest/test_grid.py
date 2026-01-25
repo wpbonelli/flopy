@@ -1908,10 +1908,10 @@ def test_unstructured_grid_get_node():
     [
         ("default", 100.0, 200.0, 45.0, None),
         ("local", 100.0, 200.0, 45.0, "local"),
-        ("world", 100.0, 200.0, 45.0, "world"),
-        ("no_transform", 0.0, 0.0, 0.0, "world"),
+        ("global", 100.0, 200.0, 45.0, "global"),
+        ("no_transform", 0.0, 0.0, 0.0, "global"),
     ],
-    ids=["default", "local", "world", "no_transform"],
+    ids=["default", "local", "global", "no_transform"],
 )
 def test_vertices_coords_parameter(
     grid_type, grid_kwargs, scenario, xoff, yoff, angrot, vertices_coords
@@ -1932,8 +1932,8 @@ def test_vertices_coords_parameter(
         kwargs["vertices_coords"] = vertices_coords
 
     if (
-        scenario == "world"
-        and vertices_coords == "world"
+        scenario == "global"
+        and vertices_coords == "global"
         and grid_type != StructuredGrid
     ):
         # test #2388 scenario and verify that
@@ -1941,15 +1941,15 @@ def test_vertices_coords_parameter(
         default_kwargs = grid_kwargs.copy()
         default_kwargs.update({"xoff": xoff, "yoff": yoff, "angrot": angrot})
         grid_default = grid_type(**default_kwargs)
-        vertices_world = grid_default.verts.tolist()
-        vertices_world_indexed = [
-            [i, vertices_world[i][0], vertices_world[i][1]]
-            for i in range(len(vertices_world))
+        vertices_global = grid_default.verts.tolist()
+        vertices_global_indexed = [
+            [i, vertices_global[i][0], vertices_global[i][1]]
+            for i in range(len(vertices_global))
         ]
         kwargs = grid_kwargs.copy()
-        kwargs["vertices"] = vertices_world_indexed
+        kwargs["vertices"] = vertices_global_indexed
         kwargs.update(
-            {"xoff": xoff, "yoff": yoff, "angrot": angrot, "vertices_coords": "world"}
+            {"xoff": xoff, "yoff": yoff, "angrot": angrot, "vertices_coords": "global"}
         )
         grid = grid_type(**kwargs)
 
