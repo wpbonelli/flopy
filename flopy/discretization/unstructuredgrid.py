@@ -78,6 +78,10 @@ class UnstructuredGrid(Grid):
         For each connection in the ja array: ihc = 0 indicates a vertical
         connection, ihc = 1 or 2 indicates a horizontal connection, with 2
         indicating that horizontal connections are vertically staggered.
+    vertices_coords : {'local', 'world'}, default 'local'
+        Coordinate system of input vertices. If 'local', vertices are in
+        model-local coordinates (as stored in DISU files). If 'world',
+        vertices are already georeferenced with rotation and offset applied.
     **kwargs : dict, optional
         Support deprecated keyword options.
 
@@ -139,6 +143,7 @@ class UnstructuredGrid(Grid):
         ja=None,
         ihc=None,
         cell2d=None,
+        vertices_coords="local",
         **kwargs,
     ):
         super().__init__(
@@ -160,8 +165,25 @@ class UnstructuredGrid(Grid):
             ycenters = np.array([i[2] for i in cell2d])
             iverts = [list(t)[4:] for t in cell2d]
 
+        if vertices is not None and vertices_coords == "world":
+            # Vertices are in world coordinates, need to transform to local
+            verts_array = np.array([list(v)[1:] for v in vertices], dtype=float).T
+            angrot_rad = angrot * np.pi / 180.0
+            x_local, y_local = transform(
+                verts_array[0],
+                verts_array[1],
+                xoff,
+                yoff,
+                angrot_rad,
+                inverse=True,
+            )
+            self._vertices = [
+                [v[0], x_local[i], y_local[i]] for i, v in enumerate(vertices)
+            ]
+        else:
+            self._vertices = vertices
+
         # if any of these are None, then the grid is not valid
-        self._vertices = vertices
         self._iverts = iverts
         self._xc = xcenters
         self._yc = ycenters

@@ -1852,3 +1852,131 @@ def test_unstructured_grid_get_node():
 
     with pytest.raises(IndexError, match=r"Node .* out of range"):
         ug.get_node(200)
+
+
+@pytest.mark.parametrize(
+    "grid_type,grid_kwargs",
+    [
+        (
+            StructuredGrid,
+            {
+                "delr": np.ones(2),
+                "delc": np.ones(2),
+                "top": np.ones((2, 2)) * 10.0,
+                "botm": np.zeros((1, 2, 2)),
+            },
+        ),
+        (
+            VertexGrid,
+            {
+                "vertices": [
+                    [0, 0.0, 1.0],
+                    [1, 1.0, 1.0],
+                    [2, 2.0, 1.0],
+                    [3, 0.0, 0.0],
+                    [4, 1.0, 0.0],
+                    [5, 2.0, 0.0],
+                ],
+                "cell2d": [[0, 0.5, 0.5, 0, 1, 4, 3], [1, 1.5, 0.5, 1, 2, 5, 4]],
+                "top": np.array([10.0, 10.0]),
+                "botm": np.array([[0.0, 0.0]]),
+            },
+        ),
+        (
+            UnstructuredGrid,
+            {
+                "vertices": [
+                    [0, 0.0, 1.0],
+                    [1, 1.0, 1.0],
+                    [2, 2.0, 1.0],
+                    [3, 0.0, 0.0],
+                    [4, 1.0, 0.0],
+                    [5, 2.0, 0.0],
+                ],
+                "iverts": [[0, 1, 4, 3], [1, 2, 5, 4]],
+                "xcenters": [0.5, 1.5],
+                "ycenters": [0.5, 0.5],
+                "top": np.array([10.0, 10.0]),
+                "botm": np.array([0.0, 0.0]),
+            },
+        ),
+    ],
+    ids=["StructuredGrid", "VertexGrid", "UnstructuredGrid"],
+)
+@pytest.mark.parametrize(
+    "scenario,xoff,yoff,angrot,vertices_coords",
+    [
+        ("default", 100.0, 200.0, 45.0, None),
+        ("local", 100.0, 200.0, 45.0, "local"),
+        ("world", 100.0, 200.0, 45.0, "world"),
+        ("no_transform", 0.0, 0.0, 0.0, "world"),
+    ],
+    ids=["default", "local", "world", "no_transform"],
+)
+def test_vertices_coords_parameter(
+    grid_type, grid_kwargs, scenario, xoff, yoff, angrot, vertices_coords
+):
+    """Test vertices_coords init method parameter.
+
+    This avoids a double-offset when reusing the
+    vertices from an existing grid, described in
+    https://github.com/modflowpy/flopy/issues/2388
+    """
+    # StructuredGrid doesn't support vertices_coords parameter
+    if grid_type == StructuredGrid and vertices_coords is not None:
+        pytest.skip("StructuredGrid does not have vertices_coords parameter")
+
+    kwargs = grid_kwargs.copy()
+    kwargs.update({"xoff": xoff, "yoff": yoff, "angrot": angrot})
+    if vertices_coords is not None:
+        kwargs["vertices_coords"] = vertices_coords
+
+    if (
+        scenario == "world"
+        and vertices_coords == "world"
+        and grid_type != StructuredGrid
+    ):
+        # test #2388 scenario and verify that
+        # the transformation is not reapplied
+        default_kwargs = grid_kwargs.copy()
+        default_kwargs.update({"xoff": xoff, "yoff": yoff, "angrot": angrot})
+        grid_default = grid_type(**default_kwargs)
+        vertices_world = grid_default.verts.tolist()
+        vertices_world_indexed = [
+            [i, vertices_world[i][0], vertices_world[i][1]]
+            for i in range(len(vertices_world))
+        ]
+        kwargs = grid_kwargs.copy()
+        kwargs["vertices"] = vertices_world_indexed
+        kwargs.update(
+            {"xoff": xoff, "yoff": yoff, "angrot": angrot, "vertices_coords": "world"}
+        )
+        grid = grid_type(**kwargs)
+
+        assert np.allclose(grid.verts, grid_default.verts)
+
+    # check that the expected transformation was applied
+    grid = grid_type(**kwargs)
+
+    if grid_type == StructuredGrid:
+        assert grid.verts.shape[0] == 9  # 3x3 vertices for 2x2 cells
+        x_local, y_local = 0.0, 2.0  # (0, sum(delc))
+    else:
+        assert grid.verts.shape[0] == 6
+        x_local, y_local = grid_kwargs["vertices"][0][1], grid_kwargs["vertices"][0][2]
+
+    # Use grid's built-in transformation
+    x_world, y_world = grid.get_coords(x_local, y_local)
+
+    assert np.isclose(grid.verts[0, 0], x_world)
+    assert np.isclose(grid.verts[0, 1], y_world)
+
+    if scenario == "local":
+        default_kwargs = grid_kwargs.copy()
+        default_kwargs.update({"xoff": xoff, "yoff": yoff, "angrot": angrot})
+        grid_default = grid_type(**default_kwargs)
+        assert np.allclose(grid.verts, grid_default.verts)
+
+    if scenario == "no_transform" and grid_type != StructuredGrid:
+        verts_model = np.array([[v[1], v[2]] for v in grid_kwargs["vertices"]])
+        assert np.allclose(grid.verts, verts_model)
