@@ -1,6 +1,6 @@
 import pytest
 
-from autotest.test_mp7 import ex01_mf6_model_name
+from autotest.test_mp7 import ex01_mf6_model, ex01_mf6_model_name
 from flopy.modpath.mp7 import Modpath7
 from flopy.utils.modpathfile import PathlineFile
 
@@ -37,7 +37,13 @@ def plf(ex01_mp7_model) -> PathlineFile:
 
 @pytest.mark.benchmark
 def test_pathlinefile_load(benchmark, plf):
-    benchmark(lambda: PathlineFile(plf.fname))
+    benchmark(lambda: PathlineFile(plf.filename))
+
+
+@pytest.mark.benchmark
+def test_pathlinefile_to_geodataframe(benchmark, plf):
+    pytest.importorskip("geopandas")
+    benchmark(plf.to_geodataframe)
 
 
 @pytest.mark.benchmark

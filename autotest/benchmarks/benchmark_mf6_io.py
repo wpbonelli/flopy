@@ -10,8 +10,9 @@ from shutil import copytree
 import pytest
 from modflow_devtools.models import DEFAULT_REGISTRY, LocalRegistry
 
-from autotest.conftest import get_examples_path
 from flopy.mf6 import MFSimulation
+
+from .conftest import get_examples_path
 
 # prefixes into the model registry
 PREFIXES = ["mf6/test", "mf6/large", "mf2005"]
@@ -27,18 +28,24 @@ def pytest_generate_tests(metafunc):
     # test model input files during MF6 development. See conftest.py
     # for the models_path fixture and CLI argument definitions.
     if "model_name" in metafunc.fixturenames:
-        models_paths = metafunc.config.getoption("--models-path")
-        models_paths = [
-            Path(p).expanduser().resolve().absolute() for p in models_paths or []
-        ]
+        # Try to get the models-path option, default to None if not available
+        try:
+            models_paths = metafunc.config.getoption("--models-path") or []
+        except ValueError:
+            models_paths = []
+
+        models_paths = [Path(p).expanduser().resolve().absolute() for p in models_paths]
         registry = LocalRegistry() if any(models_paths) else DEFAULT_REGISTRY
         registry_type = type(registry).__name__.lower().replace("registry", "")
         metafunc.parametrize("registry", [registry], ids=[registry_type])
         models = []
         if "local" in registry_type:
-            namefile_pattern = (
-                metafunc.config.getoption("--namefile-pattern") or "mfsim.nam"
-            )
+            try:
+                namefile_pattern = (
+                    metafunc.config.getoption("--namefile-pattern") or "mfsim.nam"
+                )
+            except ValueError:
+                namefile_pattern = "mfsim.nam"
             for path in models_paths:
                 registry.index(path, namefile=namefile_pattern)
             models.extend(registry.models.keys())

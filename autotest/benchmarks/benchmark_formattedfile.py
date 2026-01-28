@@ -50,7 +50,8 @@ def test_formattedfile_get_alldata(benchmark, fhd):
 
 @pytest.mark.benchmark
 def test_formattedfile_get_ts(benchmark, fhd):
-    benchmark(lambda: fhd.get_ts((2, 25, 25)))
+    # Use a valid cell index based on test file dimensions (1, 15, 10)
+    benchmark(lambda: fhd.get_ts((0, 7, 5)))
 
 
 @pytest.mark.benchmark

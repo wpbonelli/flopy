@@ -57,7 +57,10 @@ def test_headfile_get_ts(benchmark, hdsf):
 
 @pytest.mark.benchmark
 def test_headfile_get_kstpkper(benchmark, hdsf):
-    benchmark(lambda: hdsf.get_data(kstpkper=(0, 1)))
+    # Use the first available kstpkper from the file
+    kstpkpers = hdsf.get_kstpkper()
+    kstpkper = kstpkpers[0] if kstpkpers else (0, 0)
+    benchmark(lambda: hdsf.get_data(kstpkper=kstpkper))
 
 
 @pytest.mark.benchmark

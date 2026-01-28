@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pytest
 
-from autotest.conftest import load_mf6_sim
 from flopy.utils import CellBudgetFile, HeadFile
 from flopy.utils.postprocessing import (
     get_gradients,
@@ -10,6 +9,8 @@ from flopy.utils.postprocessing import (
     get_transmissivities,
     get_water_table,
 )
+
+from .conftest import load_mf6_sim
 
 
 @pytest.mark.benchmark

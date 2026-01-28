@@ -5,10 +5,10 @@ Benchmarks for flopy.discretization grid operations including:
 - grid geometry properties
 """
 
+import numpy as np
 import pytest
 
 from autotest.test_grid_cases import GridCases
-from flopy.utils.geometry import LineString, Point
 
 STRUCTURED_GRIDS = {
     "small": GridCases.structured_small(),
@@ -34,21 +34,25 @@ def test_structured_grid_get_node(benchmark, grid):
         for row in range(0, grid.nrow)
         for col in range(0, grid.ncol)
     ]
-    benchmark(lambda: grid.get_node(cellids=cellids))
+    benchmark(lambda: grid.get_node(cellids))
 
 
 @pytest.mark.benchmark
 @pytest.mark.parametrize("grid", STRUCTURED_GRIDS.values(), ids=STRUCTURED_GRIDS.keys())
 def test_structured_grid_intersect_linestring(benchmark, grid):
-    line = LineString([(0, 0), (grid.ncol, grid.nrow)])
-    benchmark(lambda: grid.intersect(line, return_all_intersections=True))
+    # Create x, y coordinates along a diagonal line across the grid
+    x = np.linspace(0, grid.ncol, 100)
+    y = np.linspace(0, grid.nrow, 100)
+    benchmark(lambda: grid.intersect(x, y, forgive=True))
 
 
 @pytest.mark.benchmark
 @pytest.mark.parametrize("grid", STRUCTURED_GRIDS.values(), ids=STRUCTURED_GRIDS.keys())
 def test_structured_grid_intersect_point(benchmark, grid):
-    point = Point(50, 50)
-    benchmark(lambda: grid.intersect(point))
+    # Use grid center point
+    x = grid.ncol / 2.0
+    y = grid.nrow / 2.0
+    benchmark(lambda: grid.intersect(x, y))
 
 
 @pytest.mark.benchmark
