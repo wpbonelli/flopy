@@ -128,7 +128,7 @@ def test_raster_get_array_masked(benchmark, raster, masked):
     benchmark(lambda: raster.get_array(band=1, masked=masked))
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(min_rounds=1, warmup=False)
 def test_raster_write(benchmark, raster, function_tmpdir):
     output_path = function_tmpdir / "output_raster.tif"
     benchmark(lambda: raster.write(str(output_path)))

@@ -14,7 +14,7 @@ def epf(ex01_mp7_model) -> EndpointFile:
     return EndpointFile(ws / f"{mp.name}.mpend")
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(min_rounds=2, warmup=False)
 def test_endpointfile_load(benchmark, epf):
     benchmark(lambda: EndpointFile(epf.filename))
 
@@ -29,7 +29,7 @@ def test_endpointfile_get_alldata(benchmark, epf):
     benchmark(epf.get_alldata)
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(min_rounds=1, warmup=False)
 def test_endpointfile_to_geodataframe(benchmark, epf):
     pytest.importorskip("geopandas")
     benchmark(epf.to_geodataframe)

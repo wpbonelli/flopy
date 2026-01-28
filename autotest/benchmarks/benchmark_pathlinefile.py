@@ -35,12 +35,12 @@ def plf(ex01_mp7_model) -> PathlineFile:
     return PathlineFile(ws / f"{mp.name}.mppth")
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(min_rounds=2, warmup=False)
 def test_pathlinefile_load(benchmark, plf):
     benchmark(lambda: PathlineFile(plf.filename))
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(min_rounds=1, warmup=False)
 def test_pathlinefile_to_geodataframe(benchmark, plf):
     pytest.importorskip("geopandas")
     benchmark(plf.to_geodataframe)
