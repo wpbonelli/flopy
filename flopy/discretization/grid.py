@@ -601,12 +601,37 @@ class Grid:
         -------
             GeoDataFrame
         """
-        from ..utils.geospatial_utils import GeoSpatialCollection
+        from ..utils.utl_import import import_optional_dependency
 
-        gc = GeoSpatialCollection(
-            features, shapetype=[featuretype for _ in range(len(features))]
-        )
-        gdf = gc.geodataframe
+        gpd = import_optional_dependency("geopandas")
+        shp_geom = import_optional_dependency("shapely.geometry")
+
+        if featuretype.lower() == "polygon":
+            cache_index = "grid_polygons"
+            if (
+                cache_index not in self._cache_dict
+                or self._cache_dict[cache_index].out_of_date
+            ):
+                geoms = [shp_geom.Polygon(i[0]) for i in features]
+                self._cache_dict[cache_index] = CachedData(geoms)
+            else:
+                geoms = self._cache_dict[cache_index].data_nocopy
+            gdf = gpd.GeoDataFrame(data=None, geometry=geoms)
+
+        elif featuretype.lower() == "linestring":
+            cache_index = "grid_linestrings"
+            if (
+                cache_index not in self._cache_dict
+                or self._cache_dict[cache_index].out_of_date
+            ):
+                geoms = [shp_geom.LineString(i) for i in features]
+                self._cache_dict[cache_index] = CachedData(geoms)
+            else:
+                geoms = self._cache_dict[cache_index].data_nocopy
+            gdf = gpd.GeoDataFrame(data=None, geometry=geoms)
+        else:
+            raise NotImplementedError(f"{featuretype} is not currently supported")
+
         gdf["node"] = gdf.index + 1
         if self.crs is not None:
             gdf = gdf.set_crs(crs=self.crs)
