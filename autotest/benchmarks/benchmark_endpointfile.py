@@ -5,7 +5,7 @@ from autotest.test_mp7 import ex01_mf6_model
 from flopy.utils.modpathfile import EndpointFile
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def epf(ex01_mp7_model) -> EndpointFile:
     mp, ws = ex01_mp7_model
     mp.write_input()
@@ -16,7 +16,7 @@ def epf(ex01_mp7_model) -> EndpointFile:
 
 @pytest.mark.benchmark(min_rounds=2, warmup=False)
 def test_endpointfile_load(benchmark, epf):
-    benchmark(lambda: EndpointFile(epf.filename))
+    benchmark(lambda: EndpointFile(epf.fname))
 
 
 @pytest.mark.benchmark
@@ -30,6 +30,8 @@ def test_endpointfile_get_alldata(benchmark, epf):
 
 
 @pytest.mark.benchmark(min_rounds=1, warmup=False)
-def test_endpointfile_to_geodataframe(benchmark, epf):
+def test_endpointfile_to_geodataframe(benchmark, ex01_mf6_model, epf):
     pytest.importorskip("geopandas")
-    benchmark(epf.to_geodataframe)
+    sim, function_tmpdir = ex01_mf6_model
+    gwf = sim.get_model()
+    benchmark(lambda: epf.to_geodataframe(gwf.modelgrid))

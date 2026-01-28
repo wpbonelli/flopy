@@ -5,7 +5,7 @@ from flopy.modpath.mp7 import Modpath7
 from flopy.utils.modpathfile import PathlineFile
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def ex01_mp7_model(ex01_mf6_model):
     sim, function_tmpdir = ex01_mf6_model
     success, buff = sim.run_simulation()
@@ -26,7 +26,7 @@ def ex01_mp7_model(ex01_mf6_model):
     ), mp_ws
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def plf(ex01_mp7_model) -> PathlineFile:
     mp, ws = ex01_mp7_model
     mp.write_input()
@@ -37,13 +37,15 @@ def plf(ex01_mp7_model) -> PathlineFile:
 
 @pytest.mark.benchmark(min_rounds=2, warmup=False)
 def test_pathlinefile_load(benchmark, plf):
-    benchmark(lambda: PathlineFile(plf.filename))
+    benchmark(lambda: PathlineFile(plf.fname))
 
 
 @pytest.mark.benchmark(min_rounds=1, warmup=False)
-def test_pathlinefile_to_geodataframe(benchmark, plf):
+def test_pathlinefile_to_geodataframe(benchmark, ex01_mf6_model, plf):
     pytest.importorskip("geopandas")
-    benchmark(plf.to_geodataframe)
+    sim, function_tmpdir = ex01_mf6_model
+    gwf = sim.get_model()
+    benchmark(lambda: plf.to_geodataframe(gwf.modelgrid))
 
 
 @pytest.mark.benchmark
