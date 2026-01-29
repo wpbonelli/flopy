@@ -39,7 +39,7 @@ def make_grid(raster, nrow, ncol) -> StructuredGrid:
     )
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(min_rounds=2, warmup=False)
 def test_raster_load(benchmark, raster_path):
     benchmark(lambda: Raster.load(raster_path))
 
@@ -52,7 +52,7 @@ GRIDS = [
 ]
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(min_rounds=1, warmup=False)
 @pytest.mark.parametrize("grid", GRIDS, ids=["small", "medium", "large"])
 @pytest.mark.parametrize(
     "method", ["linear", "nearest", "cubic", "mean", "median", "min", "max"]
@@ -61,7 +61,7 @@ def test_raster_resample(benchmark, raster, grid, method):
     benchmark(lambda: raster.resample_to_grid(grid, band=1, method=method))
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(min_rounds=1, warmup=False)
 @pytest.mark.skipif(not has_pkg("pyproj"), reason="requires pyproj")
 def test_raster_to_crs_transform(benchmark, raster):
     benchmark(lambda: raster.to_crs(epsg=4326))
@@ -103,13 +103,13 @@ POLYGONS = [
 ]
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(min_rounds=2, warmup=False)
 @pytest.mark.parametrize("poly", POLYGONS, ids=["small", "medium", "large"])
 def test_raster_crop(benchmark, raster, poly):
     benchmark(lambda: raster.crop(poly))
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(min_rounds=2, warmup=False)
 @pytest.mark.parametrize("poly", POLYGONS, ids=["small", "medium", "large"])
 def test_raster_sample(benchmark, raster, poly):
     benchmark(lambda: raster.sample_polygon(poly, band=1))
