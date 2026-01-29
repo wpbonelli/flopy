@@ -48,14 +48,6 @@ def test_zonebudget_get_budget(benchmark, case):
 
 @pytest.mark.slow
 @pytest.mark.benchmark(min_rounds=2, warmup=False)
-def test_zonebudget_get_volumetric_budget(benchmark, case):
-    cbc_path, zones = case
-    zb = ZoneBudget(str(cbc_path), z=zones)
-    benchmark(zb.get_volumetric_budget)
-
-
-@pytest.mark.slow
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
 def test_zonebudget_get_dataframes(benchmark, case):
     cbc_path, zones = case
     zb = ZoneBudget(str(cbc_path), z=zones)
