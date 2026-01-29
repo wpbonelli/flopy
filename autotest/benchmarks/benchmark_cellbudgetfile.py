@@ -24,7 +24,6 @@ def test_cellbudgetfile_load(benchmark, cbcf):
 
 @pytest.mark.benchmark(min_rounds=2, warmup=False)
 def test_cellbudgetfile_get_data_all(benchmark, cbcf):
-    # Use the new API to get unique records
     unique_records = cbcf.headers[["text", "imeth"]].drop_duplicates()
     term = unique_records.iloc[0]["text"]
     benchmark(lambda: cbcf.get_data(text=term))

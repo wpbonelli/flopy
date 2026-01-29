@@ -8,7 +8,7 @@ from flopy.modflow.mf import Modflow
 from flopy.utils.zonbud import ZoneBudget
 
 
-def create_zone_array(nlay, nrow, ncol, n_zones=5) -> NDArray:
+def create_zone_array(nlay, nrow, ncol, n_zones=2) -> NDArray:
     zones = np.zeros((nlay, nrow, ncol), dtype=np.int32)
     zone_width = ncol // n_zones  # roughly equal zones
 

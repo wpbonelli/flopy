@@ -16,21 +16,42 @@ permissions:
 
 jobs:
   benchmarks:
-    # Benchmarks are sharded across 3 parallel jobs by functionality:
-    # - input-io: 1140 tests (model/simulation input file I/O - MF6 & legacy)
-    # - output-io: 66 tests (model output file readers - heads, budgets, particles, etc.)
-    # - pre-post: 166 tests (preprocessing, postprocessing, grids, rasters, arrays, export)
+    # Benchmarks are sharded by functionality:
+    # - input-io: model/simulation input file I/O
+    # - output-io: model output file readers
+    # - pre-post: pre/postprocessing, grids, rasters, arrays, export
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         shard:
           - name: "input-io"
-            files: "benchmark_mf6_input.py benchmark_mf2005_input.py"
+            files: >-
+              benchmark_mf6_input.py
+              benchmark_mf2005_input.py
           - name: "output-io"
-            files: "benchmark_cellbudgetfile.py benchmark_zonebudget.py benchmark_mf6listbudget.py benchmark_headfile.py benchmark_headufile.py benchmark_formattedfile.py benchmark_pathlinefile.py benchmark_endpointfile.py benchmark_mtlistfile.py benchmark_sfroutputfile.py benchmark_ucnfile.py benchmark_mflistbudget.py benchmark_mfusglistbudget.py"
+            files: >-
+              benchmark_cellbudgetfile.py
+              benchmark_zonebudget.py
+              benchmark_mf6listbudget.py
+              benchmark_headfile.py
+              benchmark_headufile.py
+              benchmark_formattedfile.py
+              benchmark_pathlinefile.py
+              benchmark_endpointfile.py
+              benchmark_mtlistfile.py
+              benchmark_sfroutputfile.py
+              benchmark_ucnfile.py
+              benchmark_mflistbudget.py
+              benchmark_mfusglistbudget.py
           - name: "pre-post"
-            files: "benchmark_gridintersect.py benchmark_grids.py benchmark_rasters.py benchmark_arrays.py benchmark_export.py benchmark_postprocessing.py"
+            files: >-
+              benchmark_gridintersect.py
+              benchmark_grids.py
+              benchmark_rasters.py
+              benchmark_arrays.py
+              benchmark_export.py
+              benchmark_postprocessing.py
     name: "benchmarks (${{ matrix.shard.name }})"
     steps:
       - name: Checkout repo
