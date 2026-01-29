@@ -32,14 +32,14 @@ def case(request, example_data_path) -> tuple[Path, NDArray]:
 
 
 @pytest.mark.slow
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 def test_zonebudget_load(benchmark, case):
     cbc_path, zones = case
     benchmark(lambda: ZoneBudget(str(cbc_path), z=zones))
 
 
 @pytest.mark.slow
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 def test_zonebudget_get_budget(benchmark, case):
     cbc_path, zones = case
     zb = ZoneBudget(str(cbc_path), z=zones)
@@ -47,7 +47,7 @@ def test_zonebudget_get_budget(benchmark, case):
 
 
 @pytest.mark.slow
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 def test_zonebudget_get_dataframes(benchmark, case):
     cbc_path, zones = case
     zb = ZoneBudget(str(cbc_path), z=zones)

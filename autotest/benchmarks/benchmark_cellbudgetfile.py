@@ -17,12 +17,12 @@ def cbcf(example_data_path) -> CellBudgetFile:
     )
 
 
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 def test_cellbudgetfile_load(benchmark, cbcf):
     benchmark(lambda: CellBudgetFile(cbcf.filename))
 
 
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 def test_cellbudgetfile_get_data_all(benchmark, cbcf):
     unique_records = cbcf.headers[["text", "imeth"]].drop_duplicates()
     term = unique_records.iloc[0]["text"]

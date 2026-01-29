@@ -245,3 +245,9 @@ filterwarnings = [
     "ignore:datetime.datetime.utcfromtimestamp",
     "ignore:\n.*Pyarrow",
 ]
+
+[tool.pytest.benchmark]
+# Default settings for pytest-benchmark (ignored by pytest-codspeed)
+min_rounds = 5
+warmup = false
+disable_gc = false

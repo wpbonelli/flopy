@@ -13,7 +13,7 @@ from flopy.utils.postprocessing import (
 from .conftest import load_mf6_sim, load_mf2005_model
 
 
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 @pytest.mark.parametrize(
     "rcxy",
     [
@@ -37,7 +37,7 @@ def test_get_transmissivities(benchmark, function_tmpdir, rcxy):
     benchmark(lambda: get_transmissivities(heads, gwf, r=r, c=c, x=x, y=y))
 
 
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 def test_get_water_table(benchmark, function_tmpdir):
     sim = load_mf6_sim(function_tmpdir, model_key="freyberg")
     hds_path = Path(function_tmpdir) / "freyberg.hds"
@@ -46,7 +46,7 @@ def test_get_water_table(benchmark, function_tmpdir):
     benchmark(lambda: get_water_table(heads))
 
 
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 def test_get_gradients(benchmark, function_tmpdir):
     model = load_mf2005_model(function_tmpdir, model_key="freyberg")
     hds_path = Path(function_tmpdir) / "freyberg.hds"
@@ -55,7 +55,7 @@ def test_get_gradients(benchmark, function_tmpdir):
     benchmark(lambda: get_gradients(heads, model, nodata=-999))
 
 
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 def test_get_specific_discharge(benchmark, function_tmpdir):
     sim = load_mf6_sim(function_tmpdir, model_key="freyberg")
     gwf = sim.get_model()

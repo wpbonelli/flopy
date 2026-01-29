@@ -12,7 +12,7 @@ import pytest
 from flopy.utils.formattedfile import FormattedHeadFile
 
 
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 @pytest.mark.slow
 def test_formattedfile_load(benchmark, example_data_path):
     pth = example_data_path / "mf2005_test" / "test1tr.githds"

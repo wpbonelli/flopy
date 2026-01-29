@@ -41,18 +41,18 @@ def _load_model(ws, model_name):
     return Modflow.load(nam_file, model_ws=ws, check=False)
 
 
-@pytest.mark.benchmark(min_rounds=1, warmup=False)
+@pytest.mark.benchmark
 def test_mf2005_load(benchmark, function_tmpdir, model_name):
     benchmark(lambda: _load_model(function_tmpdir, model_name))
 
 
-@pytest.mark.benchmark(min_rounds=1, warmup=False)
+@pytest.mark.benchmark
 def test_mf2005_write_freyberg(benchmark, function_tmpdir):
     ml = _load_model(function_tmpdir, "freyberg_multilayer_transient")
     benchmark(ml.write_input)
 
 
-@pytest.mark.benchmark(min_rounds=1, warmup=False)
+@pytest.mark.benchmark
 def test_mf2005_round_trip_freyberg(benchmark, function_tmpdir):
     def round_trip():
         ml = _load_model(function_tmpdir, "freyberg_multilayer_transient")

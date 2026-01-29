@@ -29,7 +29,7 @@ STRUCTURED_GRIDS = {
 # GridIntersect class benchmarks
 
 
-@pytest.mark.benchmark(min_rounds=1, warmup=False)
+@pytest.mark.benchmark
 @pytest.mark.slow
 @pytest.mark.parametrize("grid", STRUCTURED_GRIDS.values(), ids=STRUCTURED_GRIDS.keys())
 @pytest.mark.parametrize("rtree", [True, False], ids=["rtree", "no_rtree"])
@@ -64,7 +64,7 @@ def make_line(grid, line_type) -> LineString:
         return LineString(coords)
 
 
-@pytest.mark.benchmark(min_rounds=1, warmup=False)
+@pytest.mark.benchmark
 @pytest.mark.slow
 @pytest.mark.parametrize("grid", STRUCTURED_GRIDS.values(), ids=STRUCTURED_GRIDS.keys())
 @pytest.mark.parametrize("line", ["diagonal", "horizontal", "complex"])
@@ -126,7 +126,7 @@ def make_poly(grid, poly_type) -> Polygon:
     return Polygon(coords)
 
 
-@pytest.mark.benchmark(min_rounds=1, warmup=False)
+@pytest.mark.benchmark
 @pytest.mark.slow
 @pytest.mark.parametrize("grid", STRUCTURED_GRIDS.values(), ids=STRUCTURED_GRIDS.keys())
 @pytest.mark.parametrize("poly", ["small", "medium", "large", "irregular"])
@@ -137,7 +137,7 @@ def test_intersect_polygon(benchmark, grid, poly, rtree):
     benchmark(lambda: gi.intersect(polygon, "polygon"))
 
 
-@pytest.mark.benchmark(min_rounds=1, warmup=False)
+@pytest.mark.benchmark
 @pytest.mark.slow
 @pytest.mark.parametrize("grid", STRUCTURED_GRIDS.values(), ids=STRUCTURED_GRIDS.keys())
 @pytest.mark.parametrize("poly", ["small", "medium", "large", "irregular"])
@@ -160,7 +160,7 @@ def test_grid_intersect_single_point(benchmark, grid):
     benchmark(lambda: grid.intersect(x_center, y_center))
 
 
-@pytest.mark.benchmark(min_rounds=1, warmup=False)
+@pytest.mark.benchmark
 @pytest.mark.slow
 @pytest.mark.parametrize("grid", STRUCTURED_GRIDS.values(), ids=STRUCTURED_GRIDS.keys())
 def test_grid_intersect_batch_points(benchmark, grid):
@@ -171,7 +171,7 @@ def test_grid_intersect_batch_points(benchmark, grid):
     benchmark(lambda: grid.intersect(xx.ravel(), yy.ravel()))
 
 
-@pytest.mark.benchmark(min_rounds=1, warmup=False)
+@pytest.mark.benchmark
 @pytest.mark.slow
 @pytest.mark.parametrize("grid", STRUCTURED_GRIDS.values(), ids=STRUCTURED_GRIDS.keys())
 def test_grid_intersect_3d(benchmark, grid):

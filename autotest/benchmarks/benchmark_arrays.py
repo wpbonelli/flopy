@@ -18,7 +18,7 @@ SIZES = {
 }
 
 
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 @pytest.mark.slow
 @pytest.mark.parametrize("size", ["small", "medium", "large"])
 def test_util2d_create(benchmark, function_tmpdir, size):
@@ -33,7 +33,7 @@ def test_util2d_create(benchmark, function_tmpdir, size):
     benchmark(create_util2d)
 
 
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 @pytest.mark.slow
 @pytest.mark.parametrize("size", ["small", "medium", "large"])
 def test_util3d_create(benchmark, function_tmpdir, size):
@@ -48,7 +48,7 @@ def test_util3d_create(benchmark, function_tmpdir, size):
     benchmark(create_util3d)
 
 
-@pytest.mark.benchmark(min_rounds=1, warmup=False)
+@pytest.mark.benchmark
 @pytest.mark.slow
 @pytest.mark.parametrize("size", ["small", "medium", "large"])
 def test_util2d_external_write(benchmark, function_tmpdir, size):
@@ -63,7 +63,7 @@ def test_util2d_external_write(benchmark, function_tmpdir, size):
     benchmark(write_bin)
 
 
-@pytest.mark.benchmark(min_rounds=1, warmup=False)
+@pytest.mark.benchmark
 @pytest.mark.slow
 @pytest.mark.parametrize("size", ["small", "medium", "large"])
 def test_util3d_external_write(benchmark, function_tmpdir, size):

@@ -13,7 +13,7 @@ import pytest
 from flopy.utils import HeadFile
 
 
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 def test_headfile_load(benchmark, example_data_path):
     pth = (
         example_data_path
@@ -45,7 +45,7 @@ def test_headfile_get_data_single(benchmark, hdsf):
     benchmark(lambda: hdsf.get_data(totim=mid_time))
 
 
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 def test_headfile_get_alldata(benchmark, hdsf):
     benchmark(hdsf.get_alldata)
 
@@ -78,6 +78,6 @@ def test_headfile_get_kstpkper_list(benchmark, hdsf):
     benchmark(hdsf.get_kstpkper)
 
 
-@pytest.mark.benchmark(min_rounds=2, warmup=False)
+@pytest.mark.benchmark
 def test_headfile_get_alldata_mf6(benchmark, hdsf):
     benchmark(hdsf.get_alldata)

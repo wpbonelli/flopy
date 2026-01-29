@@ -58,7 +58,7 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("model_name", models, ids=models)
 
 
-@pytest.mark.benchmark(min_rounds=1, warmup=False)
+@pytest.mark.benchmark
 @pytest.mark.slow
 @pytest.mark.external
 @pytest.mark.parametrize("use_pandas", [True, False], ids=["pandas", "nopandas"])
@@ -67,7 +67,7 @@ def test_load_simulation(function_tmpdir, benchmark, registry, model_name, use_p
     benchmark(lambda: MFSimulation.load(sim_ws=function_tmpdir, use_pandas=use_pandas))
 
 
-@pytest.mark.benchmark(min_rounds=1, warmup=False)
+@pytest.mark.benchmark
 @pytest.mark.external
 @pytest.mark.slow
 @pytest.mark.parametrize("use_pandas", [True, False], ids=["pandas", "nopandas"])
