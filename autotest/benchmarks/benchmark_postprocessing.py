@@ -10,23 +10,26 @@ from flopy.utils.postprocessing import (
     get_water_table,
 )
 
-from .conftest import load_mf6_sim
+from .conftest import load_mf6_sim, load_mf2005_model
 
 
 @pytest.mark.benchmark(min_rounds=2, warmup=False)
 @pytest.mark.parametrize(
-    "row_col",
-    [lambda m: (None, None), lambda m: (m.dis.nrow // 2, m.dis.ncol // 2)],
-    ids=["everywhere", "center"],
+    "rcxy",
+    [
+        lambda m: (m.dis.nrow.array // 2, m.dis.ncol.array // 2, None, None),
+        lambda m: (None, None, sum(m.modelgrid.extent[:2]) / 2, sum(m.modelgrid.extent[2:4]) / 2),
+    ],
+    ids=["r c", "x y"],
 )
-def test_get_transmissivities(benchmark, function_tmpdir, row_col):
+def test_get_transmissivities(benchmark, function_tmpdir, rcxy):
     sim = load_mf6_sim(function_tmpdir, model_key="freyberg")
     gwf = sim.get_model()
     hds_path = Path(function_tmpdir) / "freyberg.hds"
     hds = HeadFile(hds_path)
     heads = hds.get_data(totim=hds.get_times()[-1])
-    r, c = row_col(gwf)
-    benchmark(lambda: get_transmissivities(heads, gwf, r=r, c=c))
+    r, c, x, y = rcxy(gwf)
+    benchmark(lambda: get_transmissivities(heads, gwf, r=r, c=c, x=x, y=y))
 
 
 @pytest.mark.benchmark(min_rounds=2, warmup=False)
@@ -40,12 +43,11 @@ def test_get_water_table(benchmark, function_tmpdir):
 
 @pytest.mark.benchmark(min_rounds=2, warmup=False)
 def test_get_gradients(benchmark, function_tmpdir):
-    sim = load_mf6_sim(function_tmpdir, model_key="freyberg")
-    gwf = sim.get_model()
+    model = load_mf2005_model(function_tmpdir, model_key="freyberg")
     hds_path = Path(function_tmpdir) / "freyberg.hds"
     hds = HeadFile(hds_path)
     heads = hds.get_data(totim=hds.get_times()[-1])
-    benchmark(lambda: get_gradients(heads, gwf))
+    benchmark(lambda: get_gradients(heads, model, nodata=-999))
 
 
 @pytest.mark.benchmark(min_rounds=2, warmup=False)
