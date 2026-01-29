@@ -18,7 +18,12 @@ from .conftest import load_mf6_sim, load_mf2005_model
     "rcxy",
     [
         lambda m: (m.dis.nrow.array // 2, m.dis.ncol.array // 2, None, None),
-        lambda m: (None, None, sum(m.modelgrid.extent[:2]) / 2, sum(m.modelgrid.extent[2:4]) / 2),
+        lambda m: (
+            None,
+            None,
+            sum(m.modelgrid.extent[:2]) / 2,
+            sum(m.modelgrid.extent[2:4]) / 2,
+        ),
     ],
     ids=["r c", "x y"],
 )

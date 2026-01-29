@@ -52,6 +52,7 @@ GRIDS = [
 ]
 
 
+@pytest.mark.slow
 @pytest.mark.benchmark(min_rounds=1, warmup=False)
 @pytest.mark.parametrize("grid", GRIDS, ids=["small", "medium", "large"])
 @pytest.mark.parametrize(
@@ -61,6 +62,7 @@ def test_raster_resample(benchmark, raster, grid, method):
     benchmark(lambda: raster.resample_to_grid(grid, band=1, method=method))
 
 
+@pytest.mark.slow
 @pytest.mark.benchmark(min_rounds=1, warmup=False)
 @pytest.mark.skipif(not has_pkg("pyproj"), reason="requires pyproj")
 def test_raster_to_crs_transform(benchmark, raster):

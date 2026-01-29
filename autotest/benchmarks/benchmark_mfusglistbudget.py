@@ -16,4 +16,4 @@ def mfusg_lbf(example_data_path) -> MfusgListBudget:
 
 @pytest.mark.benchmark
 def test_mfusglistbudget_load(benchmark, mfusg_lbf):
-    benchmark(lambda: MfusgListBudget(mfusg_lbf.fname))
+    benchmark(lambda: MfusgListBudget(mfusg_lbf.file_name))

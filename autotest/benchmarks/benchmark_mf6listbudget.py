@@ -12,7 +12,7 @@ def mf6_lbf(example_data_path) -> Mf6ListBudget:
 
 @pytest.mark.benchmark
 def test_mf6listbudget_load(benchmark, mf6_lbf):
-    benchmark(lambda: Mf6ListBudget(mf6_lbf.fname))
+    benchmark(lambda: Mf6ListBudget(mf6_lbf.file_name))
 
 
 @pytest.mark.benchmark
@@ -26,21 +26,6 @@ def test_mf6listbudget_get_data(benchmark, mf6_lbf, incremental):
 @pytest.mark.benchmark
 def test_mf6listbudget_get_budget(benchmark, mf6_lbf):
     benchmark(mf6_lbf.get_budget)
-
-
-@pytest.mark.benchmark
-def test_mf6listbudget_get_time_series(benchmark, mf6_lbf):
-    budget = mf6_lbf.get_budget()
-    if budget and len(budget) > 0:
-        term = (
-            next(iter(budget[0].dtype.names))
-            if hasattr(budget[0], "dtype")
-            else "STORAGE"
-        )
-    else:
-        term = "STORAGE"
-
-    benchmark(lambda: mf6_lbf.get_time_series(term))
 
 
 @pytest.mark.benchmark

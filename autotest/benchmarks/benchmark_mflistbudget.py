@@ -12,4 +12,4 @@ def mf_lbf(example_data_path) -> MfListBudget:
 
 @pytest.mark.benchmark
 def test_mflistbudget_load(benchmark, mf_lbf):
-    benchmark(lambda: MfListBudget(mf_lbf.fname))
+    benchmark(lambda: MfListBudget(mf_lbf.file_name))
