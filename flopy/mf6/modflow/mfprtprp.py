@@ -31,15 +31,19 @@ class ModflowPrtprp(MFPackage):
         is brent's method.
     exit_solve_tolerance : double precision
         the convergence tolerance for iterative solution of particle exit location and
-        time in the generalized pollock's method.  a value of 0.00001 works well for
-        many problems, but the value that strikes the best balance between accuracy and
-        runtime is problem-dependent.
+        time in the generalized pollock's method.  the variable being solved for varies
+        from 0 to 1.  a tolerance of 0.00001 works well for many problems, but the
+        value that strikes the best balance between accuracy and runtime is problem-
+        dependent.
     local_z : keyword
         indicates that 'zrpt' defines the local z coordinate of the release point
-        within the cell, with value of 0 at the bottom and 1 at the top of the cell.
-        if the cell is partially saturated at release time, the top of the cell is
-        considered to be the water table elevation (the head in the cell) rather than
-        the top defined by the user.
+        within the cell, with value of 0 at the bottom and 1 at the effective top of
+        the cell. if the cell is convertible and partially saturated at release time,
+        the effective top of the cell is considered to be the water table elevation
+        (the head in the cell) rather than the top defined by the user, and is
+        constrained to be no higher than the geometric top of the cell and no lower
+        than the cell bottom. if the cell is confined, the effective top is the
+        geometric top.
     extend_tracking : keyword
         indicates that particles should be tracked beyond the end of the simulation's
         final time step (using that time step's flows) until particles terminate or
@@ -91,6 +95,9 @@ class ModflowPrtprp(MFPackage):
         that happens to be inactive at release time, the particle is to be moved to the
         topmost active cell below it, if any. by default, a particle is not released
         into the simulation if its release point's cell is inactive at release time.
+        note that drape does not apply to attempted release into a cell for which
+        idomain <= 0, which is considered not to exist in the simulation. attempted
+        release into a such a cell results in an error.
     release_timesrecord : (release_times, times)
         * release_times : keyword
                 keyword indicating release times will follow
@@ -124,6 +131,10 @@ class ModflowPrtprp(MFPackage):
         releasesetting selections. if none of these are provided, a single release time
         is configured at the beginning of the first time step of the simulation's first
         stress period.
+    coordinate_check_method : string
+        approach for verifying that release point coordinates are in the cell with the
+        specified id. possible values are none and eager. by default, release point
+        coordinates are checked at release time, i.e. eager.
     dev_cycle_detection_window : integer
         integer value defining the size of the window (number of consecutive exit
         events) used for cycle detection. defaults to 0, disabling cycle detection.
@@ -505,7 +516,6 @@ class ModflowPrtprp(MFPackage):
             "valid none eager",
             "reader urword",
             "optional true",
-            "prerelease true",
             "mf6internal ichkmeth",
             "default eager",
         ],
@@ -717,6 +727,7 @@ class ModflowPrtprp(MFPackage):
         dev_forceternary=None,
         release_time_tolerance=None,
         release_time_frequency=None,
+        coordinate_check_method="eager",
         dev_cycle_detection_window=None,
         nreleasepts=None,
         nreleasetimes=None,
@@ -773,6 +784,9 @@ class ModflowPrtprp(MFPackage):
         )
         self.release_time_frequency = self.build_mfdata(
             "release_time_frequency", release_time_frequency
+        )
+        self.coordinate_check_method = self.build_mfdata(
+            "coordinate_check_method", coordinate_check_method
         )
         self.dev_cycle_detection_window = self.build_mfdata(
             "dev_cycle_detection_window", dev_cycle_detection_window

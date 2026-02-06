@@ -144,6 +144,7 @@ class ModflowPrtoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal budfilerec",
         ],
         [
             "block options",
@@ -184,6 +185,7 @@ class ModflowPrtoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal budcsvfilerec",
         ],
         [
             "block options",
@@ -214,6 +216,7 @@ class ModflowPrtoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal trackfilerec",
         ],
         [
             "block options",
@@ -244,6 +247,7 @@ class ModflowPrtoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal trackcsvfilerec",
         ],
         [
             "block options",
@@ -286,6 +290,7 @@ class ModflowPrtoc(MFPackage):
             "type keyword",
             "reader urword",
             "optional true",
+            "mf6internal track_subf_exit",
         ],
         [
             "block options",
@@ -330,6 +335,7 @@ class ModflowPrtoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal ttimesrec",
             "removed 6.6.0",
         ],
         [
@@ -361,6 +367,7 @@ class ModflowPrtoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal ttimesfilerec",
             "removed 6.6.0",
         ],
         [
@@ -391,13 +398,14 @@ class ModflowPrtoc(MFPackage):
             "type keyword",
             "reader urword",
             "optional true",
+            "mf6internal dev_dump_evtrace",
         ],
         [
             "block dimensions",
             "name ntracktimes",
             "type integer",
             "reader urword",
-            "optional false",
+            "optional true",
         ],
         [
             "block tracktimes",
@@ -405,6 +413,7 @@ class ModflowPrtoc(MFPackage):
             "type recarray time",
             "shape (ntracktimes)",
             "reader urword",
+            "optional true",
         ],
         [
             "block tracktimes",
@@ -414,6 +423,7 @@ class ModflowPrtoc(MFPackage):
             "tagged false",
             "in_record true",
             "reader urword",
+            "optional false",
         ],
         [
             "block period",

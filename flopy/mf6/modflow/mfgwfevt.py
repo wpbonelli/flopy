@@ -64,8 +64,8 @@ class ModflowGwfevt(MFPackage):
         indicates that the proportion of the evapotranspiration rate at the et surface
         will be specified as petm0 in list input.
     maxbound : integer
-        integer value specifying the maximum number of evapotranspiration cells cells
-        that will be specified for use during any stress period.
+        integer value specifying the maximum number of evapotranspiration cells that
+        will be specified for use during any stress period.
     nseg : integer
         number of et segments.  default is one.  when nseg is greater than 1, the pxdp
         and petm arrays must be of size nseg - 1 and be listed in order from the

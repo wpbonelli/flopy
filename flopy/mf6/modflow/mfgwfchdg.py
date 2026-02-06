@@ -7,9 +7,9 @@ from flopy.mf6.data.mfdatautil import ArrayTemplateGenerator, ListTemplateGenera
 from flopy.mf6.mfpackage import MFChildPackages, MFPackage
 
 
-class ModflowGwfevta(MFPackage):
+class ModflowGwfchdg(MFPackage):
     """
-    ModflowGwfevta defines a EVTA package.
+    ModflowGwfchdg defines a CHDG package.
 
     Parameters
     ----------
@@ -19,16 +19,6 @@ class ModflowGwfevta(MFPackage):
     loading_package : bool, default False
         Do not set this parameter. It is intended for debugging and internal
         processing purposes only.
-    readasarrays : keyword
-        indicates that array-based input will be used for the evapotranspiration
-        package.  this keyword must be specified to use array-based input.  when
-        readasarrays is specified, values must be provided for every cell within a
-        model layer, even those cells that have an idomain value less than one.  values
-        assigned to cells with idomain values less than one are not used and have no
-        effect on simulation results.
-    fixed_cell : keyword
-        indicates that evapotranspiration will not be reassigned to a cell underlying
-        the cell specified in the list if the specified cell is inactive.
     auxiliary : [string]
         defines an array of one or more auxiliary variable names.  there is no limit on
         the number of auxiliary variables that can be provided on this line; however,
@@ -41,24 +31,19 @@ class ModflowGwfevta(MFPackage):
         terminate with an error if auxiliary variables are specified on more than one
         line in the options block.
     auxmultname : string
-        name of auxiliary variable to be used as multiplier of evapotranspiration rate.
+        name of auxiliary variable to be used as multiplier of chd head value.
     print_input : keyword
-        keyword to indicate that the list of evapotranspiration information will be
-        written to the listing file immediately after it is read.
+        keyword to indicate that the list of constant-head information will be written
+        to the listing file immediately after it is read.
     print_flows : keyword
-        keyword to indicate that the list of evapotranspiration flow rates will be
-        printed to the listing file for every stress period time step in which 'budget
-        print' is specified in output control.  if there is no output control option
-        and 'print_flows' is specified, then flow rates are printed for the last time
-        step of each stress period.
+        keyword to indicate that the list of constant-head flow rates will be printed
+        to the listing file for every stress period time step in which 'budget print'
+        is specified in output control.  if there is no output control option and
+        'print_flows' is specified, then flow rates are printed for the last time step
+        of each stress period.
     save_flows : keyword
-        keyword to indicate that evapotranspiration flow terms will be written to the
-        file specified with 'budget fileout' in output control.
-    timearrayseries : record tas6 filein tas6_filename
-        Contains data for the tas package. Data can be passed as a dictionary to the
-        tas package with variable names as keys and package data as values. Data for
-        the timearrayseries variable is also acceptable. See tas package documentation
-        for more information.
+        keyword to indicate that constant-head flow terms will be written to the file
+        specified with 'budget fileout' in output control.
     observations : record obs6 filein obs6_filename
         Contains data for the obs package. Data can be passed as a dictionary to the
         obs package with variable names as keys and package data as values. Data for
@@ -70,26 +55,19 @@ class ModflowGwfevta(MFPackage):
         modflow 6 simulation input.  this option only has an effect when an output
         model netcdf file is configured and the simulation is run in validate mode,
         otherwise it is ignored.
-    ievt : [integer]
-        ievt is the layer number that defines the layer in each vertical column where
-        evapotranspiration is applied. if ievt is omitted, evapotranspiration by
-        default is applied to cells in layer 1.  if ievt is specified, it must be
-        specified as the first variable in the period block or modflow will terminate
-        with an error.
-    surface : [double precision]
-        is the elevation of the et surface (:math:`l`).
-    rate : [double precision]
-        is the maximum et flux rate (:math:`lt^{-1}`).
-    depth : [double precision]
-        is the et extinction depth (:math:`l`).
+    dev_no_newton : keyword
+        turn off newton for unconfined cells
+    maxbound : integer
+        integer value specifying the maximum number of constant-head cells that will be
+        specified for use during any stress period.
+    head : [double precision]
+        is the head at the boundary.
     aux : [double precision]
         is an array of values for auxiliary variable aux(iaux), where iaux is a value
         from 1 to naux, and aux(iaux) must be listed as part of the auxiliary
-        variables.  a separate array can be specified for each auxiliary variable.  if
-        an array is not specified for an auxiliary variable, then a value of zero is
-        assigned.  if the value specified here for the auxiliary variable is the same
-        as auxmultname, then the evapotranspiration rate will be multiplied by this
-        array.
+        variables.  a separate array can be specified for each auxiliary variable. if
+        the value specified here for the auxiliary variable is the same as auxmultname,
+        then the head array will be multiplied by this array.
 
     filename : str or PathLike, optional
         Name or path of file where this package is stored.
@@ -100,39 +78,25 @@ class ModflowGwfevta(MFPackage):
 
     """
 
-    auxiliary = ArrayTemplateGenerator(("gwf6", "evta", "options", "auxiliary"))
-    tas_filerecord = ListTemplateGenerator(
-        ("gwf6", "evta", "options", "tas_filerecord")
-    )
+    auxiliary = ArrayTemplateGenerator(("gwf6", "chdg", "options", "auxiliary"))
     obs_filerecord = ListTemplateGenerator(
-        ("gwf6", "evta", "options", "obs_filerecord")
+        ("gwf6", "chdg", "options", "obs_filerecord")
     )
-    ievt = ArrayTemplateGenerator(("gwf6", "evta", "period", "ievt"))
-    surface = ArrayTemplateGenerator(("gwf6", "evta", "period", "surface"))
-    rate = ArrayTemplateGenerator(("gwf6", "evta", "period", "rate"))
-    depth = ArrayTemplateGenerator(("gwf6", "evta", "period", "depth"))
-    aux = ArrayTemplateGenerator(("gwf6", "evta", "period", "aux"))
-    package_abbr = "gwfevta"
-    _package_type = "evta"
-    dfn_file_name = "gwf-evta.dfn"
+    head = ArrayTemplateGenerator(("gwf6", "chdg", "period", "head"))
+    aux = ArrayTemplateGenerator(("gwf6", "chdg", "period", "aux"))
+    package_abbr = "gwfchdg"
+    _package_type = "chdg"
+    dfn_file_name = "gwf-chdg.dfn"
     dfn = [
         ["header", "multi-package", "package-type stress-package"],
         [
             "block options",
-            "name readasarrays",
+            "name readarraygrid",
             "type keyword",
-            "shape",
             "reader urword",
             "optional false",
+            "developmode true",
             "default true",
-        ],
-        [
-            "block options",
-            "name fixed_cell",
-            "type keyword",
-            "shape",
-            "reader urword",
-            "optional true",
         ],
         [
             "block options",
@@ -176,48 +140,6 @@ class ModflowGwfevta(MFPackage):
         ],
         [
             "block options",
-            "name tas_filerecord",
-            "type record tas6 filein tas6_filename",
-            "shape",
-            "reader urword",
-            "tagged true",
-            "optional true",
-            "construct_package tas",
-            "construct_data timearrayseries",
-            "parameter_name tas_array",
-        ],
-        [
-            "block options",
-            "name tas6",
-            "type keyword",
-            "shape",
-            "in_record true",
-            "reader urword",
-            "tagged true",
-            "optional false",
-        ],
-        [
-            "block options",
-            "name filein",
-            "type keyword",
-            "shape",
-            "in_record true",
-            "reader urword",
-            "tagged true",
-            "optional false",
-        ],
-        [
-            "block options",
-            "name tas6_filename",
-            "type string",
-            "preserve_case true",
-            "in_record true",
-            "reader urword",
-            "optional false",
-            "tagged false",
-        ],
-        [
-            "block options",
             "name obs_filerecord",
             "type record obs6 filein obs6_filename",
             "shape",
@@ -231,6 +153,16 @@ class ModflowGwfevta(MFPackage):
         [
             "block options",
             "name obs6",
+            "type keyword",
+            "shape",
+            "in_record true",
+            "reader urword",
+            "tagged true",
+            "optional false",
+        ],
+        [
+            "block options",
+            "name filein",
             "type keyword",
             "shape",
             "in_record true",
@@ -258,6 +190,21 @@ class ModflowGwfevta(MFPackage):
             "extended true",
         ],
         [
+            "block options",
+            "name dev_no_newton",
+            "type keyword",
+            "reader urword",
+            "optional true",
+            "mf6internal inewton",
+        ],
+        [
+            "block dimensions",
+            "name maxbound",
+            "type integer",
+            "reader urword",
+            "optional true",
+        ],
+        [
             "block period",
             "name iper",
             "type integer",
@@ -271,50 +218,23 @@ class ModflowGwfevta(MFPackage):
         ],
         [
             "block period",
-            "name ievt",
-            "type integer",
-            "shape (ncol*nrow; ncpl)",
-            "reader readarray",
-            "numeric_index true",
-            "optional true",
-            "netcdf true",
-        ],
-        [
-            "block period",
-            "name surface",
+            "name head",
             "type double precision",
-            "shape (ncol*nrow; ncpl)",
+            "shape (nodes)",
             "reader readarray",
+            "layered true",
             "netcdf true",
-            "default 0.",
-        ],
-        [
-            "block period",
-            "name rate",
-            "type double precision",
-            "shape (ncol*nrow; ncpl)",
-            "reader readarray",
-            "time_series true",
-            "netcdf true",
-            "default 1.e-3",
-        ],
-        [
-            "block period",
-            "name depth",
-            "type double precision",
-            "shape (ncol*nrow; ncpl)",
-            "reader readarray",
-            "netcdf true",
-            "default 1.0",
+            "default 3.e30",
         ],
         [
             "block period",
             "name aux",
             "type double precision",
-            "shape (ncol*nrow; ncpl)",
+            "shape (nodes)",
             "reader readarray",
-            "time_series true",
+            "layered true",
             "netcdf true",
+            "optional true",
             "mf6internal auxvar",
         ],
     ]
@@ -323,46 +243,36 @@ class ModflowGwfevta(MFPackage):
         self,
         model,
         loading_package=False,
-        readasarrays=True,
-        fixed_cell=None,
         auxiliary=None,
         auxmultname=None,
         print_input=None,
         print_flows=None,
         save_flows=None,
-        timearrayseries=None,
         observations=None,
         export_array_netcdf=None,
-        ievt=None,
-        surface=0.0,
-        rate=0.001,
-        depth=1.0,
+        dev_no_newton=None,
+        maxbound=None,
+        head=3e30,
         aux=None,
         filename=None,
         pname=None,
         **kwargs,
     ):
-        """Initialize ModflowGwfevta."""
+        """Initialize ModflowGwfchdg."""
         super().__init__(
             parent=model,
-            package_type="evta",
+            package_type="chdg",
             filename=filename,
             pname=pname,
             loading_package=loading_package,
             **kwargs,
         )
 
-        self.readasarrays = self.build_mfdata("readasarrays", readasarrays)
-        self.fixed_cell = self.build_mfdata("fixed_cell", fixed_cell)
         self.auxiliary = self.build_mfdata("auxiliary", auxiliary)
         self.auxmultname = self.build_mfdata("auxmultname", auxmultname)
         self.print_input = self.build_mfdata("print_input", print_input)
         self.print_flows = self.build_mfdata("print_flows", print_flows)
         self.save_flows = self.build_mfdata("save_flows", save_flows)
-        self._tas_filerecord = self.build_mfdata("tas_filerecord", None)
-        self._tas_package = self.build_child_package(
-            "tas", timearrayseries, "tas_array", self._tas_filerecord
-        )
         self._obs_filerecord = self.build_mfdata("obs_filerecord", None)
         self._obs_package = self.build_child_package(
             "obs", observations, "continuous", self._obs_filerecord
@@ -370,10 +280,9 @@ class ModflowGwfevta(MFPackage):
         self.export_array_netcdf = self.build_mfdata(
             "export_array_netcdf", export_array_netcdf
         )
-        self.ievt = self.build_mfdata("ievt", ievt)
-        self.surface = self.build_mfdata("surface", surface)
-        self.rate = self.build_mfdata("rate", rate)
-        self.depth = self.build_mfdata("depth", depth)
+        self.dev_no_newton = self.build_mfdata("dev_no_newton", dev_no_newton)
+        self.maxbound = self.build_mfdata("maxbound", maxbound)
+        self.head = self.build_mfdata("head", head)
         self.aux = self.build_mfdata("aux", aux)
 
         self._init_complete = True

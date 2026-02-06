@@ -106,8 +106,8 @@ class ModflowGwflak(MFPackage):
         seconds to model time units. time_conversion should be set to 1.0, 60.0,
         3,600.0, 86,400.0, and 31,557,600.0 when using time units (time_units) of
         seconds, minutes, hours, days, or years in the simulation, respectively.
-        convtime does not need to be specified if no lake outlets are specified or
-        time_units are seconds.
+        time_conversion does not need to be specified if no lake outlets are specified
+        or time_units are seconds.
     length_conversion : double precision
         real value that is used to convert outlet user-specified manning's roughness
         coefficients or gravitational acceleration used to calculate outlet flows from

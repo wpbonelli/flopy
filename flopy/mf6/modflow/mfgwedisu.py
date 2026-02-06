@@ -290,7 +290,7 @@ class ModflowGwedisu(MFPackage):
             "preserve_case true",
             "reader urword",
             "optional true",
-            "prerelease true",
+            "developmode true",
         ],
         [
             "block dimensions",

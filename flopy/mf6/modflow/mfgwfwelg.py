@@ -7,9 +7,9 @@ from flopy.mf6.data.mfdatautil import ArrayTemplateGenerator, ListTemplateGenera
 from flopy.mf6.mfpackage import MFChildPackages, MFPackage
 
 
-class ModflowGwfevta(MFPackage):
+class ModflowGwfwelg(MFPackage):
     """
-    ModflowGwfevta defines a EVTA package.
+    ModflowGwfwelg defines a WELG package.
 
     Parameters
     ----------
@@ -19,16 +19,6 @@ class ModflowGwfevta(MFPackage):
     loading_package : bool, default False
         Do not set this parameter. It is intended for debugging and internal
         processing purposes only.
-    readasarrays : keyword
-        indicates that array-based input will be used for the evapotranspiration
-        package.  this keyword must be specified to use array-based input.  when
-        readasarrays is specified, values must be provided for every cell within a
-        model layer, even those cells that have an idomain value less than one.  values
-        assigned to cells with idomain values less than one are not used and have no
-        effect on simulation results.
-    fixed_cell : keyword
-        indicates that evapotranspiration will not be reassigned to a cell underlying
-        the cell specified in the list if the specified cell is inactive.
     auxiliary : [string]
         defines an array of one or more auxiliary variable names.  there is no limit on
         the number of auxiliary variables that can be provided on this line; however,
@@ -41,55 +31,72 @@ class ModflowGwfevta(MFPackage):
         terminate with an error if auxiliary variables are specified on more than one
         line in the options block.
     auxmultname : string
-        name of auxiliary variable to be used as multiplier of evapotranspiration rate.
+        name of auxiliary variable to be used as multiplier of well flow rate.
     print_input : keyword
-        keyword to indicate that the list of evapotranspiration information will be
-        written to the listing file immediately after it is read.
+        keyword to indicate that the list of well information will be written to the
+        listing file immediately after it is read.
     print_flows : keyword
-        keyword to indicate that the list of evapotranspiration flow rates will be
-        printed to the listing file for every stress period time step in which 'budget
-        print' is specified in output control.  if there is no output control option
-        and 'print_flows' is specified, then flow rates are printed for the last time
-        step of each stress period.
+        keyword to indicate that the list of well flow rates will be printed to the
+        listing file for every stress period time step in which 'budget print' is
+        specified in output control.  if there is no output control option and
+        'print_flows' is specified, then flow rates are printed for the last time step
+        of each stress period.
     save_flows : keyword
-        keyword to indicate that evapotranspiration flow terms will be written to the
-        file specified with 'budget fileout' in output control.
-    timearrayseries : record tas6 filein tas6_filename
-        Contains data for the tas package. Data can be passed as a dictionary to the
-        tas package with variable names as keys and package data as values. Data for
-        the timearrayseries variable is also acceptable. See tas package documentation
-        for more information.
+        keyword to indicate that well flow terms will be written to the file specified
+        with 'budget fileout' in output control.
+    auto_flow_reduce : double precision
+        keyword and real value that defines the fraction of the cell thickness used as
+        an interval for smoothly adjusting negative pumping rates to 0 in cells with
+        head values less than or equal to the bottom of the cell. negative pumping
+        rates are adjusted to 0 or a smaller negative value when the head in the cell
+        is equal to or less than the calculated interval above the cell bottom.
+        auto_flow_reduce is set to 0.1 if the specified value is less than or equal to
+        zero. by default, negative pumping rates are not reduced during a simulation.
+        this auto_flow_reduce option only applies to wells in model cells that are
+        marked as 'convertible' (icelltype /= 0) in the node property flow (npf) input
+        file. reduction in flow will not occur for wells in cells marked as confined
+        (icelltype = 0).
+    afrcsv_filerecord : (afrcsvfile)
+        * afrcsvfile : string
+                name of the comma-separated value (CSV) output file to write information about
+                well extraction rates that have been reduced by the program.  Entries are only
+                written if the extraction rates are reduced.
+
+    flow_reduction_length : keyword
+        keyword that indicates the auto_flow_reduce value is a length instead of a
+        fraction of the cell thickness. a warning will be issued if the
+        flow_reduction_length option is specified but the auto_flow_reduce option is
+        not specified in the options block. the program will terminate with an error if
+        the flow_reduction_length option is specified and the auto_flow_reduce value
+        specified in the options block is less than or equal to zero.
     observations : record obs6 filein obs6_filename
         Contains data for the obs package. Data can be passed as a dictionary to the
         obs package with variable names as keys and package data as values. Data for
         the observations variable is also acceptable. See obs package documentation for
         more information.
+    mover : keyword
+        keyword to indicate that this instance of the well package can be used with the
+        water mover (mvr) package.  when the mover option is specified, additional
+        memory is allocated within the package to store the available, provided, and
+        received water.
     export_array_netcdf : keyword
         keyword that specifies input gridded arrays should be written to the model
         output netcdf file with attributes that support using the generated file as a
         modflow 6 simulation input.  this option only has an effect when an output
         model netcdf file is configured and the simulation is run in validate mode,
         otherwise it is ignored.
-    ievt : [integer]
-        ievt is the layer number that defines the layer in each vertical column where
-        evapotranspiration is applied. if ievt is omitted, evapotranspiration by
-        default is applied to cells in layer 1.  if ievt is specified, it must be
-        specified as the first variable in the period block or modflow will terminate
-        with an error.
-    surface : [double precision]
-        is the elevation of the et surface (:math:`l`).
-    rate : [double precision]
-        is the maximum et flux rate (:math:`lt^{-1}`).
-    depth : [double precision]
-        is the et extinction depth (:math:`l`).
+    maxbound : integer
+        integer value specifying the maximum number of wells cells that will be
+        specified for use during any stress period.
+    q : [double precision]
+        is the volumetric well rate. a positive value indicates recharge (injection)
+        and a negative value indicates discharge (extraction).
     aux : [double precision]
         is an array of values for auxiliary variable aux(iaux), where iaux is a value
         from 1 to naux, and aux(iaux) must be listed as part of the auxiliary
-        variables.  a separate array can be specified for each auxiliary variable.  if
-        an array is not specified for an auxiliary variable, then a value of zero is
-        assigned.  if the value specified here for the auxiliary variable is the same
-        as auxmultname, then the evapotranspiration rate will be multiplied by this
-        array.
+        variables.  a separate array can be specified for each auxiliary variable. if
+        the value specified here for the auxiliary variable is the same as auxmultname,
+        then the well rate array will be multiplied by this array.
 
     filename : str or PathLike, optional
         Name or path of file where this package is stored.
@@ -100,39 +107,28 @@ class ModflowGwfevta(MFPackage):
 
     """
 
-    auxiliary = ArrayTemplateGenerator(("gwf6", "evta", "options", "auxiliary"))
-    tas_filerecord = ListTemplateGenerator(
-        ("gwf6", "evta", "options", "tas_filerecord")
+    auxiliary = ArrayTemplateGenerator(("gwf6", "welg", "options", "auxiliary"))
+    afrcsv_filerecord = ListTemplateGenerator(
+        ("gwf6", "welg", "options", "afrcsv_filerecord")
     )
     obs_filerecord = ListTemplateGenerator(
-        ("gwf6", "evta", "options", "obs_filerecord")
+        ("gwf6", "welg", "options", "obs_filerecord")
     )
-    ievt = ArrayTemplateGenerator(("gwf6", "evta", "period", "ievt"))
-    surface = ArrayTemplateGenerator(("gwf6", "evta", "period", "surface"))
-    rate = ArrayTemplateGenerator(("gwf6", "evta", "period", "rate"))
-    depth = ArrayTemplateGenerator(("gwf6", "evta", "period", "depth"))
-    aux = ArrayTemplateGenerator(("gwf6", "evta", "period", "aux"))
-    package_abbr = "gwfevta"
-    _package_type = "evta"
-    dfn_file_name = "gwf-evta.dfn"
+    q = ArrayTemplateGenerator(("gwf6", "welg", "period", "q"))
+    aux = ArrayTemplateGenerator(("gwf6", "welg", "period", "aux"))
+    package_abbr = "gwfwelg"
+    _package_type = "welg"
+    dfn_file_name = "gwf-welg.dfn"
     dfn = [
         ["header", "multi-package", "package-type stress-package"],
         [
             "block options",
-            "name readasarrays",
+            "name readarraygrid",
             "type keyword",
-            "shape",
             "reader urword",
             "optional false",
+            "developmode true",
             "default true",
-        ],
-        [
-            "block options",
-            "name fixed_cell",
-            "type keyword",
-            "shape",
-            "reader urword",
-            "optional true",
         ],
         [
             "block options",
@@ -176,19 +172,36 @@ class ModflowGwfevta(MFPackage):
         ],
         [
             "block options",
-            "name tas_filerecord",
-            "type record tas6 filein tas6_filename",
+            "name auto_flow_reduce",
+            "type double precision",
+            "reader urword",
+            "optional true",
+            "mf6internal flowred",
+        ],
+        [
+            "block options",
+            "name afrcsv_filerecord",
+            "type record auto_flow_reduce_csv fileout afrcsvfile",
             "shape",
             "reader urword",
             "tagged true",
             "optional true",
-            "construct_package tas",
-            "construct_data timearrayseries",
-            "parameter_name tas_array",
+            "mf6internal afrcsv_rec",
         ],
         [
             "block options",
-            "name tas6",
+            "name auto_flow_reduce_csv",
+            "type keyword",
+            "shape",
+            "in_record true",
+            "reader urword",
+            "tagged true",
+            "optional false",
+            "mf6internal afrcsv",
+        ],
+        [
+            "block options",
+            "name fileout",
             "type keyword",
             "shape",
             "in_record true",
@@ -198,23 +211,22 @@ class ModflowGwfevta(MFPackage):
         ],
         [
             "block options",
-            "name filein",
-            "type keyword",
-            "shape",
-            "in_record true",
-            "reader urword",
-            "tagged true",
-            "optional false",
-        ],
-        [
-            "block options",
-            "name tas6_filename",
+            "name afrcsvfile",
             "type string",
             "preserve_case true",
+            "shape",
             "in_record true",
             "reader urword",
-            "optional false",
             "tagged false",
+            "optional false",
+        ],
+        [
+            "block options",
+            "name flow_reduction_length",
+            "type keyword",
+            "reader urword",
+            "optional true",
+            "mf6internal iflowredlen",
         ],
         [
             "block options",
@@ -227,6 +239,16 @@ class ModflowGwfevta(MFPackage):
             "construct_package obs",
             "construct_data observations",
             "parameter_name continuous",
+        ],
+        [
+            "block options",
+            "name filein",
+            "type keyword",
+            "shape",
+            "in_record true",
+            "reader urword",
+            "tagged true",
+            "optional false",
         ],
         [
             "block options",
@@ -250,12 +272,27 @@ class ModflowGwfevta(MFPackage):
         ],
         [
             "block options",
+            "name mover",
+            "type keyword",
+            "tagged true",
+            "reader urword",
+            "optional true",
+        ],
+        [
+            "block options",
             "name export_array_netcdf",
             "type keyword",
             "reader urword",
             "optional true",
             "mf6internal export_nc",
             "extended true",
+        ],
+        [
+            "block dimensions",
+            "name maxbound",
+            "type integer",
+            "reader urword",
+            "optional true",
         ],
         [
             "block period",
@@ -271,50 +308,23 @@ class ModflowGwfevta(MFPackage):
         ],
         [
             "block period",
-            "name ievt",
-            "type integer",
-            "shape (ncol*nrow; ncpl)",
-            "reader readarray",
-            "numeric_index true",
-            "optional true",
-            "netcdf true",
-        ],
-        [
-            "block period",
-            "name surface",
+            "name q",
             "type double precision",
-            "shape (ncol*nrow; ncpl)",
+            "shape (nodes)",
             "reader readarray",
+            "layered true",
             "netcdf true",
-            "default 0.",
-        ],
-        [
-            "block period",
-            "name rate",
-            "type double precision",
-            "shape (ncol*nrow; ncpl)",
-            "reader readarray",
-            "time_series true",
-            "netcdf true",
-            "default 1.e-3",
-        ],
-        [
-            "block period",
-            "name depth",
-            "type double precision",
-            "shape (ncol*nrow; ncpl)",
-            "reader readarray",
-            "netcdf true",
-            "default 1.0",
+            "default 3.e30",
         ],
         [
             "block period",
             "name aux",
             "type double precision",
-            "shape (ncol*nrow; ncpl)",
+            "shape (nodes)",
             "reader readarray",
-            "time_series true",
+            "layered true",
             "netcdf true",
+            "optional true",
             "mf6internal auxvar",
         ],
     ]
@@ -323,57 +333,56 @@ class ModflowGwfevta(MFPackage):
         self,
         model,
         loading_package=False,
-        readasarrays=True,
-        fixed_cell=None,
         auxiliary=None,
         auxmultname=None,
         print_input=None,
         print_flows=None,
         save_flows=None,
-        timearrayseries=None,
+        auto_flow_reduce=None,
+        afrcsv_filerecord=None,
+        flow_reduction_length=None,
         observations=None,
+        mover=None,
         export_array_netcdf=None,
-        ievt=None,
-        surface=0.0,
-        rate=0.001,
-        depth=1.0,
+        maxbound=None,
+        q=3e30,
         aux=None,
         filename=None,
         pname=None,
         **kwargs,
     ):
-        """Initialize ModflowGwfevta."""
+        """Initialize ModflowGwfwelg."""
         super().__init__(
             parent=model,
-            package_type="evta",
+            package_type="welg",
             filename=filename,
             pname=pname,
             loading_package=loading_package,
             **kwargs,
         )
 
-        self.readasarrays = self.build_mfdata("readasarrays", readasarrays)
-        self.fixed_cell = self.build_mfdata("fixed_cell", fixed_cell)
         self.auxiliary = self.build_mfdata("auxiliary", auxiliary)
         self.auxmultname = self.build_mfdata("auxmultname", auxmultname)
         self.print_input = self.build_mfdata("print_input", print_input)
         self.print_flows = self.build_mfdata("print_flows", print_flows)
         self.save_flows = self.build_mfdata("save_flows", save_flows)
-        self._tas_filerecord = self.build_mfdata("tas_filerecord", None)
-        self._tas_package = self.build_child_package(
-            "tas", timearrayseries, "tas_array", self._tas_filerecord
+        self.auto_flow_reduce = self.build_mfdata("auto_flow_reduce", auto_flow_reduce)
+        self.afrcsv_filerecord = self.build_mfdata(
+            "afrcsv_filerecord", afrcsv_filerecord
+        )
+        self.flow_reduction_length = self.build_mfdata(
+            "flow_reduction_length", flow_reduction_length
         )
         self._obs_filerecord = self.build_mfdata("obs_filerecord", None)
         self._obs_package = self.build_child_package(
             "obs", observations, "continuous", self._obs_filerecord
         )
+        self.mover = self.build_mfdata("mover", mover)
         self.export_array_netcdf = self.build_mfdata(
             "export_array_netcdf", export_array_netcdf
         )
-        self.ievt = self.build_mfdata("ievt", ievt)
-        self.surface = self.build_mfdata("surface", surface)
-        self.rate = self.build_mfdata("rate", rate)
-        self.depth = self.build_mfdata("depth", depth)
+        self.maxbound = self.build_mfdata("maxbound", maxbound)
+        self.q = self.build_mfdata("q", q)
         self.aux = self.build_mfdata("aux", aux)
 
         self._init_complete = True

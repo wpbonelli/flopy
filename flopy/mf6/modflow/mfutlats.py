@@ -24,9 +24,11 @@ class ModflowUtlats(MFPackage):
         for adaptive time stepping.
     perioddata : [(iperats, dt0, dtmin, dtmax, dtadj, dtfailadj)]
         * iperats : integer
-                is the period number to designate for adaptive time stepping.  The remaining
-                ATS values on this line will apply to period iperats.  iperats must be greater
-                than zero.  A warning is printed if iperats is greater than nper.
+                is the period number to apply the adaptive time stepping.  Adaptive time
+                stepping is only activated for those periods with a corresponding iperats entry
+                in the perioddata block.  The remaining ATS values on this line will apply to
+                period iperats.  iperats must be greater than zero.  A warning is printed if
+                iperats is greater than nper.
         * dt0 : double precision
                 is the initial time step length for period iperats.  If dt0 is zero, then the
                 final step from the previous stress period will be used as the initial time

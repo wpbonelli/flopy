@@ -23,8 +23,11 @@ class ModflowGwfic(MFPackage):
         keyword that specifies input griddata arrays should be written to layered ascii
         output files.
     export_array_netcdf : keyword
-        keyword that specifies input griddata arrays should be written to the model
-        output netcdf file.
+        keyword that specifies input gridded arrays should be written to the model
+        output netcdf file with attributes that support using the generated file as a
+        modflow 6 simulation input.  this option only has an effect when an output
+        model netcdf file is configured and the simulation is run in validate mode,
+        otherwise it is ignored.
     strt : [double precision]
         is the initial (starting) head---that is, head at the beginning of the gwf
         model simulation.  strt must be specified for all simulations, including
