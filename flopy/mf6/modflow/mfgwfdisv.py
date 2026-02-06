@@ -52,8 +52,11 @@ class ModflowGwfdisv(MFPackage):
         keyword that specifies input griddata arrays should be written to layered ascii
         output files.
     export_array_netcdf : keyword
-        keyword that specifies input griddata arrays should be written to the model
-        output netcdf file.
+        keyword that specifies input gridded arrays should be written to the model
+        output netcdf file with attributes that support using the generated file as a
+        modflow 6 simulation input.  this option only has an effect when an output
+        model netcdf file is configured and the simulation is run in validate mode,
+        otherwise it is ignored.
     packagedata : record ncf6 filein ncf6_filename
         Contains data for the ncf package. Data can be passed as a dictionary to the
         ncf package with variable names as keys and package data as values. Data for
@@ -229,7 +232,7 @@ class ModflowGwfdisv(MFPackage):
             "preserve_case true",
             "reader urword",
             "optional true",
-            "prerelease true",
+            "developmode true",
         ],
         [
             "block options",

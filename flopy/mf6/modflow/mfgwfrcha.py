@@ -65,8 +65,11 @@ class ModflowGwfrcha(MFPackage):
         the observations variable is also acceptable. See obs package documentation for
         more information.
     export_array_netcdf : keyword
-        keyword that specifies input griddata arrays should be written to the model
-        output netcdf file.
+        keyword that specifies input gridded arrays should be written to the model
+        output netcdf file with attributes that support using the generated file as a
+        modflow 6 simulation input.  this option only has an effect when an output
+        model netcdf file is configured and the simulation is run in validate mode,
+        otherwise it is ignored.
     irch : [integer]
         irch is the layer number that defines the layer in each vertical column where
         recharge is applied. if irch is omitted, recharge by default is applied to
@@ -270,6 +273,7 @@ class ModflowGwfrcha(MFPackage):
             "reader readarray",
             "numeric_index true",
             "optional true",
+            "netcdf true",
         ],
         [
             "block period",
@@ -278,6 +282,7 @@ class ModflowGwfrcha(MFPackage):
             "shape (ncol*nrow; ncpl)",
             "reader readarray",
             "time_series true",
+            "netcdf true",
             "default 1.e-3",
         ],
         [
@@ -288,6 +293,7 @@ class ModflowGwfrcha(MFPackage):
             "reader readarray",
             "time_series true",
             "optional true",
+            "netcdf true",
             "mf6internal auxvar",
         ],
     ]

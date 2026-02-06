@@ -39,7 +39,10 @@ class ModflowGwfnpf(MFPackage):
         signifies that the conductance will be calculated using arithmetic-mean
         thickness and harmonic-mean hydraulic conductivity. if the user does not
         specify a value for alternative_cell_averaging, then the harmonic-mean method
-        will be used.  this option cannot be used if the xt3d option is invoked.
+        will be used.  this option cannot be used if the xt3d option is invoked. the
+        amt-hmk alternative_cell_averaging option, in combination with the
+        dry_cell_saturation option, can be used to calculate the same horizontal
+        conductance as modflow-usg when upstream weighting is used (laycon=4).
     thickstrt : keyword
         indicates that cells having a negative icelltype are confined, and their cell
         thickness for conductance calculations will be computed as strt-bot rather than
@@ -101,6 +104,16 @@ class ModflowGwfnpf(MFPackage):
                 added to the right-hand side.  If the RHS keyword is excluded, then the XT3D
                 terms will be put into the coefficient matrix.
 
+    highest_cell_saturation : keyword
+        keyword indicating that the maximum cell bottom will be used to calculate the
+        saturation used to calculate the horizontal conductance between cells. this
+        option is intended to prevent flow from leaving a dry cell and is based on
+        cite{painter2008robust}. this option is only applied when the newton-raphson
+        formulation is used, a warning will be issued if this option is specified and
+        the newton-raphson formulation is not specified in the gwf name file. this
+        option, in combination with the amt-hmk alternative_cell_averaging option, can
+        be used to calculate the same horizontal conductance as modflow-usg when
+        upstream weighting is used (laycon=4).
     save_specific_discharge : keyword
         keyword to indicate that x, y, and z components of specific discharge will be
         calculated at cell centers and written to the budget file, which is specified
@@ -133,8 +146,11 @@ class ModflowGwfnpf(MFPackage):
         keyword that specifies input griddata arrays should be written to layered ascii
         output files.
     export_array_netcdf : keyword
-        keyword that specifies input griddata arrays should be written to the model
-        output netcdf file.
+        keyword that specifies input gridded arrays should be written to the model
+        output netcdf file with attributes that support using the generated file as a
+        modflow 6 simulation input.  this option only has an effect when an output
+        model netcdf file is configured and the simulation is run in validate mode,
+        otherwise it is ignored.
     dev_no_newton : keyword
         turn off newton for unconfined cells
     dev_omega : double precision
@@ -377,6 +393,14 @@ class ModflowGwfnpf(MFPackage):
         ],
         [
             "block options",
+            "name highest_cell_saturation",
+            "type keyword",
+            "reader urword",
+            "optional true",
+            "mf6internal ihighcellsat",
+        ],
+        [
+            "block options",
             "name save_specific_discharge",
             "type keyword",
             "reader urword",
@@ -586,6 +610,7 @@ class ModflowGwfnpf(MFPackage):
         perched=None,
         rewet_record=None,
         xt3doptions=None,
+        highest_cell_saturation=None,
         save_specific_discharge=None,
         save_saturation=None,
         k22overk=None,
@@ -627,6 +652,9 @@ class ModflowGwfnpf(MFPackage):
         self.perched = self.build_mfdata("perched", perched)
         self.rewet_record = self.build_mfdata("rewet_record", rewet_record)
         self.xt3doptions = self.build_mfdata("xt3doptions", xt3doptions)
+        self.highest_cell_saturation = self.build_mfdata(
+            "highest_cell_saturation", highest_cell_saturation
+        )
         self.save_specific_discharge = self.build_mfdata(
             "save_specific_discharge", save_specific_discharge
         )

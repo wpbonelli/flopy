@@ -92,6 +92,7 @@ class ModflowGwfoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal budfilerec",
         ],
         [
             "block options",
@@ -132,6 +133,7 @@ class ModflowGwfoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal budcsvfilerec",
         ],
         [
             "block options",
@@ -162,6 +164,7 @@ class ModflowGwfoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal headfilerec",
         ],
         [
             "block options",
@@ -191,6 +194,7 @@ class ModflowGwfoc(MFPackage):
             "shape",
             "reader urword",
             "optional true",
+            "mf6internal headprintrec",
         ],
         [
             "block options",

@@ -92,6 +92,7 @@ class ModflowGwtoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal budfilerec",
         ],
         [
             "block options",
@@ -132,6 +133,7 @@ class ModflowGwtoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal budcsvfilerec",
         ],
         [
             "block options",
@@ -162,6 +164,7 @@ class ModflowGwtoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal concfilerec",
         ],
         [
             "block options",
@@ -183,6 +186,7 @@ class ModflowGwtoc(MFPackage):
             "reader urword",
             "tagged false",
             "optional false",
+            "mf6internal concfile",
         ],
         [
             "block options",
@@ -191,6 +195,7 @@ class ModflowGwtoc(MFPackage):
             "shape",
             "reader urword",
             "optional true",
+            "mf6internal concprintrec",
         ],
         [
             "block options",

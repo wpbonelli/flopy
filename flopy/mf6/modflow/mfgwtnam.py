@@ -36,6 +36,9 @@ class ModflowGwtnam(MFPackage):
     save_flows : keyword
         keyword to indicate that all model package flow terms will be written to the
         file specified with 'budget fileout' in output control.
+    dependent_variable_scaling : keyword
+        flag to scale x and rhs to avoid very large positive or negative dependent
+        variable values
     nc_mesh2d_filerecord : (ncmesh2dfile)
         netcdf layered mesh fileout record.
         * ncmesh2dfile : string
@@ -129,7 +132,6 @@ class ModflowGwtnam(MFPackage):
             "reader urword",
             "optional true",
             "mf6internal idv_scale",
-            "prerelease true",
         ],
         [
             "block options",
@@ -290,6 +292,7 @@ class ModflowGwtnam(MFPackage):
         print_input=None,
         print_flows=None,
         save_flows=None,
+        dependent_variable_scaling=None,
         nc_mesh2d_filerecord=None,
         nc_structured_filerecord=None,
         nc_filerecord=None,
@@ -312,6 +315,9 @@ class ModflowGwtnam(MFPackage):
         self.print_input = self.build_mfdata("print_input", print_input)
         self.print_flows = self.build_mfdata("print_flows", print_flows)
         self.save_flows = self.build_mfdata("save_flows", save_flows)
+        self.dependent_variable_scaling = self.build_mfdata(
+            "dependent_variable_scaling", dependent_variable_scaling
+        )
         self.nc_mesh2d_filerecord = self.build_mfdata(
             "nc_mesh2d_filerecord", nc_mesh2d_filerecord
         )

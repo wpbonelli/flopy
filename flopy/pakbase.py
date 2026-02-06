@@ -515,7 +515,7 @@ class Package(PackageInterface):
             # Oc88 but is not a MfList
             spd = getattr(self, "stress_period_data")
             if isinstance(item, MfList):
-                if not isinstance(item, list) and not isinstance(item, tuple):
+                if not isinstance(item, (list, tuple)):
                     msg = f"package.__getitem__() kper {item} not in data.keys()"
                     assert item in list(spd.data.keys()), msg
                     return spd[item]
@@ -673,6 +673,67 @@ class Package(PackageInterface):
         from . import export
 
         return export.utils.package_export(f, self, **kwargs)
+
+    def to_geodataframe(
+        self, gdf=None, kper=0, full_grid=True, shorten_attr=False, **kwargs
+    ):
+        """
+        Method to create a GeoDataFrame from a modflow package
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional geopandas geodataframe object to add data to. Default is None
+        kper : int
+            stress period to get transient data from
+        full_grid : bool
+            boolean flag for full grid dataframe construction. Default is True.
+            If False, geodataframe will only include active cells
+        shorten_attr : bool
+            method to truncate attribute names for shapefile restrictions
+
+        Returns
+        -------
+            gdf : GeoDataFrame
+        """
+        from .mbase import BaseModel
+
+        if gdf is None:
+            if isinstance(self.parent, BaseModel):
+                modelgrid = self.parent.modelgrid
+                if modelgrid is not None:
+                    gdf = modelgrid.to_geodataframe()
+                else:
+                    raise AttributeError(
+                        "model does not have a grid instance, "
+                        "please supply a geodataframe"
+                    )
+            else:
+                raise AssertionError(
+                    "Package does not have a model instance, "
+                    "please supply a geodataframe"
+                )
+
+        for attr, value in self.__dict__.items():
+            if callable(getattr(value, "to_geodataframe", None)):
+                if isinstance(value, (BaseModel, PackageInterface)):
+                    continue
+                # do not pass sparse in here, make sparse after all data has been
+                #  added to geodataframe
+                gdf = value.to_geodataframe(
+                    gdf,
+                    kper=kper,
+                    full_grid=True,
+                    shorten_attr=shorten_attr,
+                    forgive=True,
+                )
+
+        if not full_grid:
+            col_names = [i for i in gdf if i not in ("geometry", "node", "row", "col")]
+            gdf = gdf.dropna(subset=col_names, how="all")
+            gdf = gdf.dropna(axis="columns", how="all")
+
+        return gdf
 
     def _generate_heading(self):
         """Generate heading."""

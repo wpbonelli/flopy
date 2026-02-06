@@ -842,6 +842,64 @@ class MFPandasList(mfdata.MFMultiDimVar, DataListInterface):
         model_grid = self.data_dimensions.get_model_grid()
         return list_to_array(sarr, model_grid, kper, mask)
 
+    def to_geodataframe(self, gdf=None, full_grid=True, shorten_attr=False, **kwargs):
+        """
+        Method to add data to a GeoDataFrame for exporting as a geospatial file
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional GeoDataFrame instance. If GeoDataFrame is None, one will be
+            constructed from modelgrid information
+        full_grid : bool
+            boolean flag for full grid dataframe construction. Default is True.
+            If False, geodataframe will only include active cells
+        shorten_attr : bool
+            method to truncate attribute names for shapefile restrictions
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        from ...export.shapefile_utils import shape_attr_name
+
+        if self.model is None:
+            return gdf
+        else:
+            modelgrid = self.model.modelgrid
+            if modelgrid is None:
+                return gdf
+
+            if gdf is None:
+                gdf = modelgrid.to_geodataframe()
+
+            data = self.to_array(mask=True)
+            if data is None:
+                return gdf
+
+            col_names = []
+            for name, array3d in data.items():
+                if shorten_attr:
+                    aname = shape_attr_name(name)
+                else:
+                    aname = f"{self.path[1].lower()}_{name}"
+
+                if modelgrid.grid_type == "unstructured":
+                    array = array3d.ravel()
+                    gdf[aname] = array
+                    col_names.append(aname)
+                else:
+                    for lay in range(modelgrid.nlay):
+                        arr = array3d[lay].ravel()
+                        gdf[f"{aname}_{lay}"] = arr.ravel()
+                        col_names.append(f"{aname}_{lay}")
+
+            if not full_grid:
+                gdf = gdf.dropna(subset=col_names, how="all")
+                gdf = gdf.dropna(axis="columns", how="all")
+
+            return gdf
+
     def set_record(self, record, autofill=False, check_data=True):
         """Sets the contents of the data and metadata to "data_record".
         Data_record is a dictionary with has the following format:
@@ -2019,6 +2077,69 @@ class MFPandasTransientList(
         self.repeating = True
         self.empty_keys = {}
 
+    def to_geodataframe(self, gdf=None, kper=0, full_grid=True, shorten_attr=False, **kwargs):
+        """
+        Method to add data to a GeoDataFrame for exporting as a geospatial file
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            optional GeoDataFrame instance. If GeoDataFrame is None, one will be
+            constructed from modelgrid information
+        kper : int
+            stress period to export
+        full_grid : bool
+            boolean flag for full grid dataframe construction. Default is True.
+            If False, geodataframe will only include active cells
+        shorten_attr : bool
+            method to truncate attribute names for shapefile restrictions
+
+        Returns
+        -------
+            GeoDataFrame
+        """
+        from ...export.shapefile_utils import shape_attr_name
+
+        if self.model is None:
+            return gdf
+        else:
+            modelgrid = self.model.modelgrid
+            if modelgrid is None:
+                return gdf
+
+            if gdf is None:
+                gdf = modelgrid.to_geodataframe()
+
+            data = self.to_array(kper=kper, mask=True)
+
+            col_names = []
+            for name, array3d in data.items():
+                if shorten_attr:
+                    name = shape_attr_name(name, length=4)
+                else:
+                    name = f"{self.path[1].lower()}_{name}"
+                if modelgrid.grid_type == "unstructured":
+                    array = array3d.ravel()
+                    aname = f"{name}_{kper}"
+                    gdf[aname] = array
+                    col_names.append(aname)
+                else:
+                    for lay in range(modelgrid.nlay):
+                        arr = array3d[lay].ravel()
+                        if shorten_attr:
+                            aname = f"{name}{lay}{kper}"
+                        else:
+                            aname = f"{name}_{lay}_{kper}"
+                        gdf[aname] = arr.ravel()
+                        col_names.append(aname)
+
+            if not full_grid:
+                gdf = gdf.dropna(subset=col_names, how="all")
+                gdf = gdf.dropna(axis="columns", how="all")
+
+            return gdf
+
+
     @property
     def data_type(self):
         return DataType.transientlist
@@ -2271,7 +2392,7 @@ class MFPandasTransientList(
         else:
             return None
 
-    def set_record(self, record, autofill=False, check_data=True):
+    def set_record(self, record, autofill=False, check_data=True, replace=False):
         """Sets the contents of the data based on the contents of
         'record`.
 
@@ -2286,15 +2407,21 @@ class MFPandasTransientList(
             Automatically correct data
         check_data : bool
             Whether to verify the data
+        replace : bool
+            Perform the operation with replacement semantics: all existing
+            stress period keys not present in the new dictionary will be
+            removed. If False, existing keys not in the new dictionary
+            will be preserved. Defaults False for backwards compatibility.
         """
         self._set_data_record(
             record,
             autofill=autofill,
             check_data=check_data,
             is_record=True,
+            replace=replace,
         )
 
-    def set_data(self, data, key=None, autofill=False):
+    def set_data(self, data, key=None, autofill=False, replace=False):
         """Sets the contents of the data at time `key` to `data`.
 
         Parameters
@@ -2310,8 +2437,14 @@ class MFPandasTransientList(
             if `data` is a dictionary.
         autofill : bool
             Automatically correct data.
+        replace : bool
+            If True and `data` is a dictionary, perform the operation
+            with replacement semantics: all existing stress period keys
+            not present in the new dictionary will be removed. If False,
+            existing keys not in the new dictionary will be preserved.
+            Defaults False for backwards compatibility.
         """
-        self._set_data_record(data, key, autofill)
+        self._set_data_record(data, key, autofill, replace=replace)
 
     def masked_4D_arrays_itr(self):
         """Returns list data as an iterator of a masked 4D array."""
@@ -2339,12 +2472,22 @@ class MFPandasTransientList(
         autofill=False,
         check_data=False,
         is_record=False,
+        replace=False,
     ):
         self._cache_model_grid = True
         if isinstance(data_record, dict):
             if "filename" not in data_record and "data" not in data_record:
                 # each item in the dictionary is a list for one stress period
                 # the dictionary key is the stress period the list is for
+
+                # If replacing, remove keys not in the new data
+                if replace and self._data_storage:
+                    keys_to_remove = set(self._data_storage.keys()) - set(data_record.keys())
+                    for k in keys_to_remove:
+                        self.remove_transient_key(k)
+                        if k in self.empty_keys:
+                            del self.empty_keys[k]
+
                 del_keys = []
                 for key, list_item in data_record.items():
                     list_item_record = False

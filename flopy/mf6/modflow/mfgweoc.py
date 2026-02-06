@@ -92,6 +92,7 @@ class ModflowGweoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal budfilerec",
         ],
         [
             "block options",
@@ -132,6 +133,7 @@ class ModflowGweoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal budcsvfilerec",
         ],
         [
             "block options",
@@ -162,6 +164,7 @@ class ModflowGweoc(MFPackage):
             "reader urword",
             "tagged true",
             "optional true",
+            "mf6internal tempfilerec",
         ],
         [
             "block options",
@@ -183,6 +186,7 @@ class ModflowGweoc(MFPackage):
             "reader urword",
             "tagged false",
             "optional false",
+            "mf6internal tempfile",
         ],
         [
             "block options",
@@ -191,6 +195,7 @@ class ModflowGweoc(MFPackage):
             "shape",
             "reader urword",
             "optional true",
+            "mf6internal tempprintrec",
         ],
         [
             "block options",

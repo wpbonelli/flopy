@@ -465,6 +465,8 @@ class Gridgen:
         None
 
         """
+        gpd = import_optional_dependency("geopandas")
+
         fname = os.path.join(self.model_ws, "_gridgen_build.dfn")
         f = open(fname, "w")
 
@@ -507,8 +509,9 @@ class Gridgen:
         )
 
         # Create a recarray of the grid polygon shapefile
-        shapename = os.path.join(self.model_ws, "qtgrid")
-        self.qtra = shp2recarray(shapename)
+        shapename = os.path.join(self.model_ws, "qtgrid.shp")
+        gdf = gpd.read_file(shapename)
+        self.qtra = gdf.to_records()
 
     def get_vertices(self, nodenumber):
         """

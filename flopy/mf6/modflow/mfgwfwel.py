@@ -65,6 +65,13 @@ class ModflowGwfwel(MFPackage):
                 well extraction rates that have been reduced by the program.  Entries are only
                 written if the extraction rates are reduced.
 
+    flow_reduction_length : keyword
+        keyword that indicates the auto_flow_reduce value is a length instead of a
+        fraction of the cell thickness. a warning will be issued if the
+        flow_reduction_length option is specified but the auto_flow_reduce option is
+        not specified in the options block. the program will terminate with an error if
+        the flow_reduction_length option is specified and the auto_flow_reduce value
+        specified in the options block is less than or equal to zero.
     timeseries : record ts6 filein ts6_filename
         Contains data for the ts package. Data can be passed as a dictionary to the ts
         package with variable names as keys and package data as values. Data for the
@@ -232,6 +239,14 @@ class ModflowGwfwel(MFPackage):
         ],
         [
             "block options",
+            "name flow_reduction_length",
+            "type keyword",
+            "reader urword",
+            "optional true",
+            "mf6internal iflowredlen",
+        ],
+        [
+            "block options",
             "name ts_filerecord",
             "type record ts6 filein ts6_filename",
             "shape",
@@ -394,6 +409,7 @@ class ModflowGwfwel(MFPackage):
         save_flows=None,
         auto_flow_reduce=None,
         afrcsv_filerecord=None,
+        flow_reduction_length=None,
         timeseries=None,
         observations=None,
         mover=None,
@@ -422,6 +438,9 @@ class ModflowGwfwel(MFPackage):
         self.auto_flow_reduce = self.build_mfdata("auto_flow_reduce", auto_flow_reduce)
         self.afrcsv_filerecord = self.build_mfdata(
             "afrcsv_filerecord", afrcsv_filerecord
+        )
+        self.flow_reduction_length = self.build_mfdata(
+            "flow_reduction_length", flow_reduction_length
         )
         self._ts_filerecord = self.build_mfdata("ts_filerecord", None)
         self._ts_package = self.build_child_package(

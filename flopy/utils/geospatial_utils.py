@@ -455,6 +455,20 @@ class GeoSpatialCollection:
     @property
     def geo_dataframe(self):
         """
+        DEPRECATED - use `.geodataframe` instead. Remove in version 3.11
+
+        Returns
+        -------
+            geopandas.GeoDataFrame
+        """
+        import warnings
+
+        warnings.warn("Deprecated, use .geodataframe instead", DeprecationWarning)
+        return self.geodataframe
+
+    @property
+    def geodataframe(self):
+        """
         Property that returns a geopandas DataFrame
 
         Returns

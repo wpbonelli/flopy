@@ -61,8 +61,8 @@ class ModflowGwfrch(MFPackage):
         the observations variable is also acceptable. See obs package documentation for
         more information.
     maxbound : integer
-        integer value specifying the maximum number of recharge cells cells that will
-        be specified for use during any stress period.
+        integer value specifying the maximum number of recharge cells that will be
+        specified for use during any stress period.
     stress_period_data : [(cellid, recharge, aux, boundname)]
         * cellid : [integer]
                 is the cell identifier, and depends on the type of grid that is used for the
