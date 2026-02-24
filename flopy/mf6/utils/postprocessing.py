@@ -52,19 +52,12 @@ def get_structured_faceflows(
         grb = MfGrdFile(grb_file, verbose=verbose)
         if grb.grid_type != "DIS":
             raise ValueError(
-                "get_structured_faceflows method "
-                "is only for structured DIS grids"
+                "get_structured_faceflows method is only for structured DIS grids"
             )
         ia, ja = grb.ia, grb.ja
         nlay, nrow, ncol = grb.nlay, grb.nrow, grb.ncol
     else:
-        if (
-            ia is None
-            or ja is None
-            or nlay is None
-            or nrow is None
-            or ncol is None
-        ):
+        if ia is None or ja is None or nlay is None or nrow is None or ncol is None:
             raise ValueError(
                 "ia, ja, nlay, nrow, and ncol must be"
                 "specified if a MODFLOW 6 binary grid"
@@ -146,9 +139,7 @@ def get_structured_faceflows(
     return frf.reshape(shape), fff.reshape(shape), flf.reshape(shape)
 
 
-def get_residuals(
-    flowja, grb_file=None, ia=None, ja=None, shape=None, verbose=False
-):
+def get_residuals(flowja, grb_file=None, ia=None, ja=None, shape=None, verbose=False):
     """
     Get the residual from the MODFLOW 6 flowja flows. The residual is stored
     in the diagonal position of the flowja vector.
@@ -211,12 +202,150 @@ def get_residuals(
     return residual
 
 
+def get_structured_flowja(
+    faceflows,
+    grb_file=None,
+    ia=None,
+    ja=None,
+    nlay=None,
+    nrow=None,
+    ncol=None,
+    idomain=None,
+    verbose=False,
+):
+    """
+    Get connection flows (flowja) from face flows for a structured grid.
+
+    This is the inverse of get_structured_faceflows(). Converts MODFLOW-2005/NWT
+    style face flows (flow right face, flow front face, flow lower face) to
+    MODFLOW 6 style connection flows for the FLOW-JA-FACE budget term.
+
+    Parameters
+    ----------
+    faceflows : tuple of ndarray
+        Tuple of (frf, fff, flf) where:
+        - frf : flow right face, shape (nlay, nrow, ncol)
+        - fff : flow front face, shape (nlay, nrow, ncol)
+        - flf : flow lower face, shape (nlay, nrow, ncol)
+    grb_file : str, optional
+        MODFLOW 6 binary grid file path
+    ia : list or ndarray, optional
+        CRS row pointers. Only required if grb_file is not provided.
+    ja : list or ndarray, optional
+        CRS column pointers. Only required if grb_file is not provided.
+    nlay : int, optional
+        Number of layers. Only required if grb_file is not provided.
+    nrow : int, optional
+        Number of rows. Only required if grb_file is not provided.
+    ncol : int, optional
+        Number of columns. Only required if grb_file is not provided.
+    idomain : ndarray, optional
+        Domain array, shape (nlay, nrow, ncol)
+    verbose : bool, optional
+        Write information to standard output (default False)
+
+    Returns
+    -------
+    flowja : ndarray
+        Connection flows, size (nja,)
+
+    See Also
+    --------
+    get_structured_faceflows : Inverse operation (flowja to face flows)
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from flopy.mf6.utils import get_structured_flowja
+    >>> nlay, nrow, ncol = 1, 3, 3
+    >>> frf = np.ones((nlay, nrow, ncol)) * 1.0
+    >>> fff = np.ones((nlay, nrow, ncol)) * 2.0
+    >>> flf = np.ones((nlay, nrow, ncol)) * 3.0
+    >>> flowja = get_structured_flowja((frf, fff, flf),
+    ...     nlay=nlay, nrow=nrow, ncol=ncol)
+    """
+    # Unpack face flows
+    qright, qfront, qlower = faceflows
+
+    # Get grid information
+    if grb_file is not None:
+        grb = MfGrdFile(grb_file, verbose=verbose)
+        if grb.grid_type != "DIS":
+            raise ValueError(
+                "get_structured_flowja method is only for structured DIS grids"
+            )
+        ia, ja = grb.ia, grb.ja
+        nlay, nrow, ncol = grb.nlay, grb.nrow, grb.ncol
+    else:
+        if ia is None or ja is None or nlay is None or nrow is None or ncol is None:
+            raise ValueError(
+                "ia, ja, nlay, nrow, and ncol must be specified if grb_file is not provided"
+            )
+
+    # Validate input shapes
+    expected_shape = (nlay, nrow, ncol)
+    for name, arr in [("qright", qright), ("qfront", qfront), ("qlower", qlower)]:
+        arr = np.asarray(arr)
+        if arr.shape != expected_shape:
+            raise ValueError(
+                f"{name} shape {arr.shape} does not match grid shape {expected_shape}"
+            )
+
+    # Convert to arrays
+    qright = np.asarray(qright, dtype=np.float64)
+    qfront = np.asarray(qfront, dtype=np.float64)
+    qlower = np.asarray(qlower, dtype=np.float64)
+
+    # Default to all active if idomain not provided
+    if idomain is None:
+        idomain = np.ones((nlay, nrow, ncol), dtype=np.int32)
+    else:
+        idomain = np.asarray(idomain, dtype=np.int32)
+
+    ncells = nlay * nrow * ncol
+    nja = len(ja)
+    flowja = np.zeros(nja, dtype=np.float64)
+
+    for n in range(ncells):
+        # Skip inactive cells
+        k, i, j = np.unravel_index(n, (nlay, nrow, ncol))
+        if idomain[k, i, j] <= 0:
+            continue
+
+        # Get connections for this cell
+        istart = ia[n]
+        iend = ia[n + 1]
+
+        for ipos in range(istart, iend):
+            m = ja[ipos]
+
+            # Diagonal - no self flow
+            if m == n:
+                flowja[ipos] = 0.0
+                continue
+
+            # Determine connection type by comparing node numbers
+            km, im, jm = np.unravel_index(m, (nlay, nrow, ncol))
+
+            # Right connection (j increases by 1)
+            if km == k and im == i and jm == j + 1:
+                flowja[ipos] = qright[k, i, j]
+
+            # Front connection (i increases by 1)
+            elif km == k and im == i + 1 and jm == j:
+                flowja[ipos] = qfront[k, i, j]
+
+            # Lower connection (k increases by 1)
+            elif km == k + 1 and im == i and jm == j:
+                flowja[ipos] = qlower[k, i, j]
+
+    return flowja
+
+
 # internal
 def __check_flowja_size(flowja, ja):
     """
     Check the shape of flowja relative to ja.
     """
     if flowja.shape != ja.shape:
-        raise ValueError(
-            f"size of flowja ({flowja.shape}) not equal to {ja.shape}"
-        )
+        raise ValueError(f"size of flowja ({flowja.shape}) not equal to {ja.shape}")
