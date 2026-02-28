@@ -941,7 +941,7 @@ def get_specific_discharge(
     return qx, qy, qz
 
 
-def calculate_saturation(head, top, botm, icelltype, hdry=-999.0, hnoflo=-9999.0):
+def get_saturation(head, top, botm, icelltype, hdry=-999.0, hnoflo=-9999.0):
     """
     Calculate cell saturation from head values.
 

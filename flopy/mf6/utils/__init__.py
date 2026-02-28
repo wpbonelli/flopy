@@ -1,4 +1,4 @@
-from .binarygrid_util import MfGrdFile, build_structured_connectivity
+from .binarygrid_util import MfGrdFile, get_structured_connectivity
 from .generate_classes import generate_classes
 from .lakpak_utils import get_lak_connections
 from .mfsimlistfile import MfSimulationList
