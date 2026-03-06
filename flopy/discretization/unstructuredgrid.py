@@ -1339,6 +1339,72 @@ class UnstructuredGrid(Grid):
                 "does not include vertex data"
             )
 
+    def to_disv_kwargs(self, validate_layered=True, vertex_decimals=9):
+        """
+        Convert UnstructuredGrid to DISV grid parameters.
+
+        This method converts an unstructured grid (DISU-like) to a layered
+        vertex (DISV) grid. It only works for grids that have an inherent
+        layered structure (constant cells per layer across all layers).
+
+        Parameters
+        ----------
+        validate_layered : bool, default True
+            If True, perform validation that cells are vertically aligned.
+        vertex_decimals : int, default 9
+            Decimal places for vertex deduplication rounding.
+
+        Returns
+        -------
+        dict
+            Dictionary with DISV grid parameters compatible with ModflowGwfdisv:
+            nlay, ncpl, nvert, vertices, cell2d, top, botm
+
+        Raises
+        ------
+        ValueError
+            If grid does not have connectivity information (iac, ja, ihc)
+            If grid is not layered
+
+        Examples
+        --------
+        >>> from flopy.discretization import UnstructuredGrid
+        >>> # Load from GSF file
+        >>> grid = UnstructuredGrid.from_gridspec("model.gsf")
+        >>> # Convert to DISV
+        >>> disv_kwargs = grid.to_disv_kwargs()
+        >>> print(disv_kwargs["nlay"], disv_kwargs["ncpl"])
+
+        Notes
+        -----
+        This method requires the grid to have connectivity information
+        (iac, ja, ihc arrays) which are used to identify the layered structure.
+
+        The method delegates to get_disv_kwargs_from_disu() in gridutil.
+        """
+        from ..utils.gridutil import get_disv_kwargs_from_disu
+
+        if self._iac is None or self._ja is None or self._ihc is None:
+            raise ValueError(
+                "Cannot convert to DISV: grid must have connectivity "
+                "information (iac, ja, ihc). These are required for "
+                "layer identification. Grids loaded from GSF files should "
+                "have this information."
+            )
+
+        return get_disv_kwargs_from_disu(
+            nodes=self.nnodes,
+            iac=self._iac,
+            ja=self._ja,
+            ihc=self._ihc,
+            vertices=self._vertices,
+            cell2d=self.cell2d,
+            top=self.top,
+            bot=self.botm,
+            validate_layered=validate_layered,
+            vertex_decimals=vertex_decimals,
+        )
+
     @classmethod
     def from_gridspec(cls, file_path: Union[str, PathLike]):
         """

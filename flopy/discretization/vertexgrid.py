@@ -811,6 +811,48 @@ class VertexGrid(Grid):
         assert plotarray.shape == required_shape, msg
         return plotarray
 
+    def to_disu_kwargs(self):
+        """
+        Convert VertexGrid to DISU grid parameters.
+
+        This method converts a layered vertex (DISV) grid to a fully
+        unstructured (DISU) grid format with explicit connectivity.
+
+        Returns
+        -------
+        dict
+            Dictionary with DISU grid parameters compatible with ModflowGwfdisu:
+            nodes, nja, nvert, top, bot, area, iac, ja, ihc, cl12, hwva,
+            vertices, cell2d, angldegx
+
+        Examples
+        --------
+        >>> from flopy.discretization import VertexGrid
+        >>> # Create or load a VertexGrid
+        >>> grid = VertexGrid(vertices=verts, cell2d=c2d, top=top, botm=botm)
+        >>> # Convert to DISU
+        >>> disu_kwargs = grid.to_disu_kwargs()
+        >>> print(disu_kwargs["nodes"])
+
+        Notes
+        -----
+        This method builds connectivity arrays for the DISU grid based on the
+        DISV layered structure, including both vertical and horizontal connections.
+
+        The method delegates to get_disu_kwargs_from_disv() in gridutil.
+        """
+        from ..utils.gridutil import get_disu_kwargs_from_disv
+
+        return get_disu_kwargs_from_disv(
+            nlay=self.nlay,
+            ncpl=self.ncpl,
+            vertices=self._vertices,
+            cell2d=self._cell2d,
+            top=self.top,
+            botm=self.botm,
+            idomain=self.idomain,
+        )
+
     # initialize grid from a grb file
     @classmethod
     def from_binary_grid_file(cls, file_path, verbose=False):
