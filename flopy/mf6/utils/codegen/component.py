@@ -3,8 +3,6 @@ from typing import (
     TypedDict,
 )
 
-from modflow_devtools.dfn import Dfn
-
 
 def get_component_names(dfn: dict) -> list[tuple[str, str]]:
     """
@@ -48,9 +46,10 @@ class ComponentDescriptor(TypedDict):
     """
 
     name: tuple[str, str]
+    dfn: dict
 
     @staticmethod
-    def from_dfn(dfn: Dfn) -> Iterator["ComponentDescriptor"]:
+    def from_dfn(dfn: dict) -> Iterator["ComponentDescriptor"]:
         """
         Yield component class descriptors from an input definition.
         """
