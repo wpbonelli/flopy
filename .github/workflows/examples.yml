@@ -3,6 +3,7 @@ name: Example script & notebook tests
 on:
   schedule:
     - cron: '0 8 * * *' # run at 8 AM UTC (12 am PST)
+  workflow_dispatch:
 
 jobs:
   examples:
@@ -67,7 +68,7 @@ jobs:
 
       - name: Run example tests
         working-directory: autotest
-        run: uv run pytest -v test_example_notebooks.py -n=auto -s --durations=0 --keep-failed=.failed
+        run: uv run pytest -v test_example_notebooks.py -n=auto --durations=0 --keep-failed=.failed
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
