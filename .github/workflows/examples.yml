@@ -65,11 +65,11 @@ jobs:
           subset: triangle
 
       - name: Update FloPy packages
-        run: uv run python -m flopy.mf6.utils.generate_classes --ref develop
+        run: uv run --no-sync python -m flopy.mf6.utils.generate_classes --ref develop
 
       - name: Run example tests
         working-directory: autotest
-        run: uv run pytest -v test_example_notebooks.py -n=auto --durations=0 --keep-failed=.failed
+        run: uv run --no-sync pytest -v test_example_notebooks.py -n=auto --durations=0 --keep-failed=.failed
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
